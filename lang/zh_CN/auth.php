@@ -1,0 +1,19 @@
+<?php
+
+return [
+    'failed' => '邮箱或密码不正确。',
+    'password' => '密码错误。',
+    'throttle' => '登录尝试次数过多，请在 :seconds 秒后重试。',
+    'judul' => '登录',
+    'subjudul' => '订单与配送系统',
+    'email' => '邮箱',
+    'kata_sandi' => '密码',
+    'ingat_saya' => '记住我',
+    'tombol_masuk' => '登录',
+    'memeriksa' => '验证中…',
+    'keluar' => '退出',
+    'gagal_atau_nonaktif' => '邮箱或密码不正确，或该账号已被停用。',
+    'email_wajib' => '请填写邮箱。',
+    'email_format' => '邮箱格式不正确。',
+    'sandi_wajib' => '请填写密码。',
+];

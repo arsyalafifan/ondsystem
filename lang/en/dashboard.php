@@ -1,0 +1,23 @@
+<?php
+
+return [
+    'judul' => 'Dashboard',
+    'ket' => 'Track today’s orders and delivery progress.',
+    'menunggu_persetujuan' => ':jumlah orders awaiting approval →',
+    'menunggu_routing' => ':jumlah orders ready to route →',
+    'toko_tanpa_koordinat' => ':jumlah stores have no coordinates →',
+    'progres_kendaraan' => 'Vehicle Progress',
+    'toko_selesai' => ':selesai / :total stores done',
+    'belum_diambil' => 'not taken by a driver yet',
+    'belum_ada_kendaraan' => 'No vehicles on the road',
+    'belum_ada_kendaraan_ket' => 'Vehicles appear once today’s routing is approved.',
+    'peta_monitoring' => 'Monitoring Map',
+    'judul_rincian' => ':mobil — Details',
+    'total_toko' => 'Total stores',
+    'selesai' => 'Done',
+    'belum' => 'Pending',
+    'total_dus' => 'Total boxes',
+    'estimasi_selesai' => 'Estimated finish',
+    'belum_diambil_singkat' => 'not taken',
+    'pesanan_hari_ini' => 'Today\'s orders',
+];

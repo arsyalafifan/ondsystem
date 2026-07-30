@@ -1,0 +1,23 @@
+<?php
+
+return [
+    'judul' => 'Dashboard',
+    'ket' => 'Pantau pesanan dan progres pengiriman hari ini.',
+    'menunggu_persetujuan' => ':jumlah pesanan menunggu disetujui →',
+    'menunggu_routing' => ':jumlah pesanan siap dirutekan →',
+    'toko_tanpa_koordinat' => ':jumlah toko belum punya koordinat →',
+    'progres_kendaraan' => 'Progres Kendaraan',
+    'toko_selesai' => ':selesai / :total toko selesai',
+    'belum_diambil' => 'belum diambil driver',
+    'belum_ada_kendaraan' => 'Belum ada kendaraan jalan',
+    'belum_ada_kendaraan_ket' => 'Kendaraan muncul setelah routing hari ini disetujui.',
+    'peta_monitoring' => 'Peta Monitoring',
+    'judul_rincian' => ':mobil — Rincian',
+    'total_toko' => 'Total toko',
+    'selesai' => 'Selesai',
+    'belum' => 'Belum',
+    'total_dus' => 'Total dus',
+    'estimasi_selesai' => 'Estimasi selesai',
+    'belum_diambil_singkat' => 'belum diambil',
+    'pesanan_hari_ini' => 'Pesanan hari ini',
+];

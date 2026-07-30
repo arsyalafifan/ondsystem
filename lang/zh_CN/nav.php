@@ -1,0 +1,14 @@
+<?php
+
+return [
+    'dashboard' => '仪表盘',
+    'pesanan' => '订单',
+    'input_pesanan' => '录入订单',
+    'riwayat_pesanan' => '订单记录',
+    'generate_routing' => '生成路线',
+    'riwayat_routing' => '路线记录',
+    'master_toko' => '商店主数据',
+    'master_produk' => '产品主数据',
+    'master_wilayah' => '区域主数据',
+    'pilih_mobil' => '选择车辆',
+];
