@@ -3,11 +3,13 @@
 namespace Database\Seeders;
 
 use App\Enums\PeranPengguna;
+use App\Models\PenugasanSales;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -26,6 +28,7 @@ class DatabaseSeeder extends Seeder
         $wilayahs = $this->wilayah();
         $this->produk();
         $this->toko($wilayahs);
+        $this->penugasanKunjungan();
 
         $this->command->newLine();
         $this->command->info('Akun untuk mencoba (kata sandi semuanya: password)');
@@ -34,6 +37,7 @@ class DatabaseSeeder extends Seeder
             [
                 ['Admin', 'admin@ondsystem.test'],
                 ['Sales', 'sales@ondsystem.test'],
+                ['Sales', 'sales2@ondsystem.test'],
                 ['Driver', 'driver@ondsystem.test'],
                 ['Driver', 'driver2@ondsystem.test'],
             ],
@@ -45,6 +49,7 @@ class DatabaseSeeder extends Seeder
         $daftar = [
             ['Admin Gudang', 'admin@ondsystem.test', PeranPengguna::Admin],
             ['Sales Lapangan', 'sales@ondsystem.test', PeranPengguna::Sales],
+            ['Rina Sales', 'sales2@ondsystem.test', PeranPengguna::Sales],
             ['Budi Driver', 'driver@ondsystem.test', PeranPengguna::Driver],
             ['Andi Driver', 'driver2@ondsystem.test', PeranPengguna::Driver],
         ];
@@ -121,6 +126,45 @@ class DatabaseSeeder extends Seeder
         }
     }
 
+    /**
+     * Membagi toko berfreezer kepada para sales untuk bulan berjalan, sebatas
+     * kuota per orang. Satu toko hanya diberikan kepada satu sales.
+     */
+    private function penugasanKunjungan(): void
+    {
+        $admin = User::where('email', 'admin@ondsystem.test')->first();
+        $salesList = User::sales()->orderBy('id')->get();
+
+        if ($admin === null || $salesList->isEmpty()) {
+            return;
+        }
+
+        $bulan = CarbonImmutable::today()->startOfMonth()->toDateString();
+        $maks = (int) config('visit.maks_toko_per_sales');
+
+        $tokos = Toko::aktif()->berassetId()->orderBy('id')->get();
+
+        // Dibagi rata, bukan mengisi sales pertama sampai kuotanya penuh.
+        // Pembagian yang timpang membuat data contoh tidak menggambarkan
+        // keadaan sebenarnya, dan sales terakhir bisa kebagian nol toko.
+        $perSales = min($maks, (int) ceil($tokos->count() / max(1, $salesList->count())));
+        $indeks = 0;
+
+        foreach ($salesList as $sales) {
+            $jatah = $tokos->slice($indeks, $perSales);
+            $indeks += $jatah->count();
+
+            foreach ($jatah as $toko) {
+                PenugasanSales::updateOrCreate(
+                    ['toko_id' => $toko->id, 'bulan' => $bulan],
+                    ['sales_id' => $sales->id, 'ditugaskan_oleh' => $admin->id],
+                );
+            }
+        }
+
+        $this->command->info("Penugasan kunjungan: {$indeks} toko dibagi ke {$salesList->count()} sales untuk bulan {$bulan}.");
+    }
+
     /** @param  array<string, array{id: int, nama: string, lat: float, lng: float}>  $wilayahs */
     private function toko(array $wilayahs): void
     {
@@ -148,7 +192,15 @@ class DatabaseSeeder extends Seeder
                 $nama = $depan[mt_rand(0, count($depan) - 1)].' '.$belakang[mt_rand(0, count($belakang) - 1)];
                 $tanpaTitik = mt_rand(1, 100) <= 8;
 
+                // Nomor aset mengikuti bentuk yang tercetak pada QR freezer.
+                // Sebagian kecil dibiarkan kosong, meniru freezer yang belum
+                // terpasang, supaya peringatan di layar penugasan ikut teruji.
+                $adaFreezer = mt_rand(1, 100) > 6;
+
                 Toko::updateOrCreate(['kode' => sprintf('TK-%04d', $nomor)], [
+                    'asset_id' => $adaFreezer ? sprintf('IDNAH2025280%05d', $nomor) : null,
+                    'freezer_tipe' => $adaFreezer ? 'SD-280' : null,
+                    'freezer_pelanggan' => $adaFreezer ? 'IDN Halocoko' : null,
                     'nama' => $nama.' '.$nomor,
                     'wilayah_id' => $w['id'],
                     'alamat' => 'Jl. '.$jalan[mt_rand(0, count($jalan) - 1)].' No. '.mt_rand(1, 200),

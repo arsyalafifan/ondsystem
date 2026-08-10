@@ -11,4 +11,8 @@ return [
     'master_produk' => '产品主数据',
     'master_wilayah' => '区域主数据',
     'pilih_mobil' => '选择车辆',
+    'visit_sales' => '销售拜访',
+    'penugasan' => '门店分配',
+    'tugas_saya' => '我的门店',
+    'mulai_kunjungan' => '开始拜访',
 ];

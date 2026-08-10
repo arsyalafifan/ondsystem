@@ -106,4 +106,8 @@ return [
     'atr_wilayah' => '区域',
     'atr_kode_pos' => '邮编',
     'atr_nama_pemilik' => '店主姓名',
+    'asset_id' => '冰柜资产编号',
+    'asset_id_ket' => '印在冰柜机身的二维码上，销售拜访时扫描的就是它。',
+    'freezer_tipe' => '冰柜型号',
+    'atr_asset_id' => '资产编号',
 ];

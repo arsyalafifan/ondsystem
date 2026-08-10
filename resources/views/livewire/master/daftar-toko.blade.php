@@ -54,6 +54,7 @@
                 <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                         <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('kunjungan.asset_id') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.wilayah') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.alamat') }}</th>
@@ -66,6 +67,13 @@
                     @forelse ($this->tokos as $toko)
                         <tr class="hover:bg-gray-50">
                             <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">{{ $toko->kode }}</td>
+                            <td class="whitespace-nowrap px-4 py-2">
+                                @if ($toko->asset_id)
+                                    <span class="text-xs tabular-nums text-gray-700">{{ $toko->asset_id }}</span>
+                                @else
+                                    <span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2">
                                 <span class="font-medium text-gray-900">{{ $toko->nama }}</span>
                                 @if ($toko->pesanan_aktif)
@@ -106,7 +114,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <x-kosong ikon="🏪" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
                             </td>
                         </tr>
@@ -141,6 +149,21 @@
                                 @endforeach
                             </select>
                             @error('wilayahId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('master.asset_id') }}</label>
+                            <input type="text" wire:model="assetId" placeholder="IDNAH202528004381"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm uppercase shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            @error('assetId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            <p class="mt-1 text-xs text-gray-500">{{ __('master.asset_id_ket') }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('master.freezer_tipe') }}</label>
+                            <input type="text" wire:model="freezerTipe" placeholder="SD-280"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
 

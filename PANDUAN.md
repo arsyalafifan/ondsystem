@@ -141,8 +141,107 @@ Password semua akun contoh: **`password`**
 |---|---|
 | Admin | `admin@ondsystem.test` |
 | Sales | `sales@ondsystem.test` |
+| Sales | `sales2@ondsystem.test` |
 | Driver | `driver@ondsystem.test` |
 | Driver | `driver2@ondsystem.test` |
+
+---
+
+## 9. Menguji Fitur Kunjungan Sales di HP
+
+Fitur kunjungan sales memakai **kamera** (memindai QR freezer dan memotret
+enam bukti kunjungan). Ada dua hal yang perlu diketahui sebelum mencobanya
+dari HP.
+
+### Kenapa membuka lewat IP komputer tidak bisa membuka kamera
+
+Peramban hanya mengizinkan akses kamera pada halaman yang **aman**, yaitu
+HTTPS atau `localhost`. Alamat seperti `http://192.168.1.2:8000` bukan
+keduanya, jadi kamera diblokir — biasanya tanpa pesan yang jelas, tombolnya
+sekadar tidak bereaksi.
+
+Selain itu, `composer dev` menjalankan Vite yang membuat berkas `public/hot`.
+Selama berkas itu ada, tampilan mengambil CSS/JS dari `localhost:5173` — dan
+dari HP, `localhost` berarti HP itu sendiri. Akibatnya halaman terbuka tanpa
+gaya sama sekali.
+
+### Cara 1 — Terowongan HTTPS (paling mudah, Android & iPhone)
+
+Sekali pasang:
+
+```bash
+brew install cloudflared        # Mac
+# Windows: winget install --id Cloudflare.cloudflared
+```
+
+Setiap kali mau menguji, buka **dua terminal**:
+
+```bash
+# Terminal 1 — bangun aset lalu jalankan server
+composer mobile
+```
+
+```bash
+# Terminal 2 — buat alamat HTTPS
+cloudflared tunnel --url http://localhost:8000
+```
+
+Terminal kedua akan menampilkan alamat seperti:
+
+```
+https://sesuatu-acak-di-sini.trycloudflare.com
+```
+
+Buka alamat itu di HP. Kamera langsung bisa dipakai karena alamatnya HTTPS.
+
+Beberapa catatan:
+
+- Alamatnya **berubah setiap kali** `cloudflared` dijalankan ulang. Itu wajar
+  untuk keperluan uji coba.
+- Alamat ini bisa dibuka siapa saja yang punya tautannya, jadi jangan
+  dibiarkan menyala saat tidak dipakai. Tekan `Ctrl + C` untuk menutupnya.
+- Gunakan `composer mobile`, **bukan** `composer dev`. Perintah itu membangun
+  aset lebih dulu dan membuka server ke jaringan, jadi tampilannya tidak
+  kehilangan CSS.
+
+### Cara 2 — Tanpa HP dan tanpa kamera sama sekali
+
+Untuk mencoba alur kunjungan dari laptop, nyalakan mode uji di `.env`:
+
+```env
+APP_ENV=local
+VISIT_MODE_UJI=true
+```
+
+Lalu jalankan `php artisan config:clear` dan buka menu **Mulai Kunjungan**
+sebagai sales. Akan muncul panel ungu berisi:
+
+- kotak untuk menempel isi QR, lengkap dengan pilihan toko tanggungan Anda;
+- tombol **Gambar contoh** pada tiap jenis foto;
+- tombol **Isi keenam foto sekaligus**.
+
+Yang digantikan hanya langkah membidik kamera. Penguraian QR, aturan
+penolakan, pemberian watermark, dan perhitungan progres tetap berjalan persis
+seperti aslinya, sehingga hasil ujinya bisa dipercaya.
+
+Gambar contohnya sengaja bertuliskan **"CONTOH UJI - BUKAN FOTO ASLI"** agar
+langsung ketahuan bila sampai tercampur dengan data sungguhan.
+
+> Mode uji hanya hidup ketika `APP_ENV=local`. Di server sungguhan penanda
+> ini diabaikan, jadi tidak ada jalan memasukkan foto selain lewat kamera.
+
+### Cara 3 — Kabel USB (khusus Android, tanpa pasang apa pun)
+
+1. Di HP: **Setelan → Opsi pengembang → USB debugging** dinyalakan.
+2. Sambungkan HP ke komputer dengan kabel USB.
+3. Di komputer, buka Chrome lalu ketik `chrome://inspect/#devices`.
+4. Klik **Port forwarding…**, isi `8000` → `localhost:8000`, centang
+   *Enable port forwarding*.
+5. Di HP, buka `http://localhost:8000`.
+
+Karena di HP alamatnya menjadi `localhost`, peramban menganggapnya aman dan
+kamera bisa dipakai. Cara ini tidak butuh internet, tapi tidak tersedia untuk
+iPhone.
 
 ---
 
@@ -155,6 +254,8 @@ Password semua akun contoh: **`password`**
 - **Menjalankan lagi di lain waktu**: setelah setup pertama selesai, cukup
   masuk ke folder project lalu jalankan `composer dev` — tidak perlu ulangi
   langkah 3–6.
+- **Menguji dari HP**: pakai `composer mobile`, bukan `composer dev`. Lihat
+  langkah 9.
 
 ## Kalau Ada Error
 
@@ -164,3 +265,32 @@ Password semua akun contoh: **`password`**
   di `.env` sesuai setting MySQL-mu.
 - **`could not find driver`** — ekstensi PHP untuk MySQL (`pdo_mysql`) belum
   aktif — biasanya sudah otomatis aktif di Laragon/Herd.
+- **Halaman di HP tampil polos tanpa warna** — dua kemungkinan:
+  1. Berkas `public/hot` masih ada dari `composer dev` sebelumnya. Hentikan
+     `composer dev`, lalu jalankan `composer mobile`.
+  2. `TRUSTED_PROXIES` belum diisi di `.env`. Tanpa itu, aplikasi tidak tahu
+     permintaannya datang lewat HTTPS, lalu menuliskan alamat aset berawalan
+     `http://` pada halaman `https://`. Peramban memblokir campuran seperti
+     itu, jadi CSS dan JavaScript tidak termuat sama sekali — halaman terbuka
+     tapi tampil polos. Isi `TRUSTED_PROXIES=127.0.0.1,::1` lalu jalankan
+     `php artisan config:clear`.
+- **Tombol kamera tidak bereaksi di HP** — alamatnya belum HTTPS. Lihat
+  langkah 9, Cara 1.
+- **Kamera minta izin lalu ditolak terus** — buka setelan situs di peramban
+  HP, hapus izin untuk alamat itu, lalu muat ulang halaman.
+- **Di iPhone kamera tidak muncul dan tidak ada pesan apa pun** — Safari
+  kadang menahan pemutaran video sampai layar disentuh sekali lagi. Sentuh
+  bagian gambar kameranya. Kalau pemindai sudah berjalan tapi tidak ada
+  getaran saat QR terbaca, itu wajar: iPhone tidak punya getaran di peramban,
+  penggantinya bunyi pendek.
+- **QR tidak terbaca, gambar buram, kamera tidak mau fokus** — padahal aplikasi
+  kamera bawaan HP baik-baik saja. Penyebabnya hampir selalu sama: HP punya
+  beberapa kamera belakang, dan peramban memilih lensa ultra-lebar yang
+  fokusnya tetap sehingga tidak bisa menajamkan objek dekat.
+
+  Yang bisa dilakukan, berurutan:
+  1. **Sentuh gambar** di layar pemindai untuk memfokuskan ke titik itu.
+  2. Tekan tombol **🔄** di pojok kanan atas untuk berpindah lensa. Pilihan ini
+     diingat, jadi cukup sekali.
+  3. Dekatkan HP sampai QR memenuhi kotak bidik.
+  4. Kalau ruangannya gelap, nyalakan **🔦**.

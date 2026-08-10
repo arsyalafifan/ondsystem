@@ -30,35 +30,98 @@
                             </button>
                         </div>
                     @else
-                        <input type="search" wire:model.live.debounce.300ms="cariToko"
-                               placeholder="{{ __('pesanan.cari_toko') }}"
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        {{-- Dua cara memilih toko: mengetik, atau memindai QR freezer --}}
+                        <div class="mb-3 inline-flex rounded-lg border border-gray-300 p-0.5">
+                            @foreach ([['ketik', '⌨️', __('pesanan.cara_ketik')], ['pindai', '📷', __('pesanan.cara_pindai')]] as [$cara, $ikon, $label])
+                                <button type="button" wire:click="gantiCaraPilih('{{ $cara }}')"
+                                        @class([
+                                            'rounded-md px-3 py-1.5 text-sm font-medium transition',
+                                            'bg-blue-600 text-white' => $caraPilihToko === $cara,
+                                            'text-gray-600 hover:bg-gray-50' => $caraPilihToko !== $cara,
+                                        ])>
+                                    {{ $ikon }} {{ $label }}
+                                </button>
+                            @endforeach
+                        </div>
 
-                        @if (mb_strlen($cariToko) >= 2)
-                            <div class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
-                                @forelse ($this->hasilCari as $toko)
-                                    <button type="button"
-                                            @disabled($toko->punya_pesanan_aktif)
-                                            wire:click="pilihToko({{ $toko->id }})"
-                                            class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60">
-                                        <span class="min-w-0">
-                                            <span class="block font-medium text-gray-900">{{ $toko->nama }}</span>
-                                            <span class="block truncate text-xs text-gray-500">
-                                                {{ $toko->kode }} · {{ $toko->wilayah->nama }} · {{ $toko->alamat }}
+                        @if ($caraPilihToko === 'ketik')
+                            <input type="search" wire:model.live.debounce.300ms="cariToko"
+                                   placeholder="{{ __('pesanan.cari_toko') }}"
+                                   class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+
+                            @if (mb_strlen(trim($cariToko)) >= 2)
+                                <div class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
+                                    @forelse ($this->hasilCari as $toko)
+                                        <button type="button"
+                                                @disabled($toko->punya_pesanan_aktif)
+                                                wire:click="pilihToko({{ $toko->id }})"
+                                                class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60">
+                                            <span class="min-w-0">
+                                                <span class="block font-medium text-gray-900">{{ $toko->nama }}</span>
+                                                <span class="block truncate text-xs text-gray-500">
+                                                    {{ $toko->kode }} ·
+                                                    @if ($toko->asset_id)
+                                                        <span class="font-mono">{{ $toko->asset_id }}</span> ·
+                                                    @else
+                                                        <span class="text-amber-700">{{ __('pesanan.toko_tanpa_aset') }}</span> ·
+                                                    @endif
+                                                    {{ $toko->wilayah->nama }} · {{ $toko->alamat }}
+                                                </span>
                                             </span>
-                                        </span>
-                                        @if ($toko->punya_pesanan_aktif)
-                                            <span class="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                                                {{ __('pesanan.ada_pesanan_aktif') }}
-                                            </span>
-                                        @endif
-                                    </button>
-                                @empty
-                                    <p class="px-3 py-4 text-center text-sm text-gray-500">{{ __('pesanan.tidak_ada_toko') }}</p>
-                                @endforelse
-                            </div>
+                                            @if ($toko->punya_pesanan_aktif)
+                                                <span class="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                                                    {{ __('pesanan.ada_pesanan_aktif') }}
+                                                </span>
+                                            @endif
+                                        </button>
+                                    @empty
+                                        <p class="px-3 py-4 text-center text-sm text-gray-500">{{ __('pesanan.tidak_ada_toko') }}</p>
+                                    @endforelse
+                                </div>
+                            @endif
                         @endif
                     @endif
+
+                    {{-- Wadah pemindai selalu ada di DOM dan diabaikan Livewire,
+                         supaya aliran kameranya tidak terputus setiap kali
+                         halaman digambar ulang.
+
+                         Tampil-sembunyinya diatur Alpine, bukan kelas dari
+                         Blade: wire:ignore membuat Livewire melewati elemen ini
+                         sepenuhnya, termasuk atribut class-nya, sehingga kelas
+                         yang dihitung di sisi server tidak akan pernah berubah
+                         setelah halaman pertama kali digambar. --}}
+                    <div wire:ignore id="pemindai-toko"
+                         x-data="{ get aktif() { return $wire.caraPilihToko === 'pindai' && ! $wire.tokoId } }"
+                         x-show="aktif"
+                         x-effect="aktif || window.hentikanPindaiToko?.()"
+                         x-cloak>
+                        <p class="mb-2 text-xs text-gray-500">{{ __('pesanan.ket_pindai_qr_toko') }}</p>
+
+                        <div id="bidik-toko" class="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-slate-900">
+                            <video playsinline muted class="size-full object-cover"></video>
+
+                            <div class="pointer-events-none absolute inset-0 grid place-items-center">
+                                <div class="size-44 rounded-2xl border-4 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"></div>
+                            </div>
+
+                            <div class="absolute right-2 top-2 flex flex-col gap-2">
+                                <button type="button" id="lensa-toko" title="{{ __('kunjungan.ganti_lensa') }}"
+                                        class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔄</button>
+                                <button type="button" id="senter-toko" title="{{ __('kunjungan.senter') }}"
+                                        class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔦</button>
+                            </div>
+                        </div>
+
+                        <button type="button" id="mulai-pindai-toko"
+                                class="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+                            📷 {{ __('kunjungan.nyalakan_kamera') }}
+                        </button>
+                        <p id="pesan-pindai-toko" class="mt-2 hidden rounded-lg bg-red-50 p-2 text-xs text-red-800"></p>
+                        {{-- <p id="tips-pindai-toko" class="mt-2 hidden rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+                            💡 {{ __('kunjungan.qr_sulit_terbaca') }}
+                        </p> --}}
+                    </div>
 
                     @error('tokoId') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
@@ -179,4 +242,90 @@
             </x-kartu>
         </div>
     </div>
+
+    @script
+    <script>
+        const wadah = document.getElementById('pemindai-toko');
+        const pemindai = window.pasangPemindaiQr('pemindai-toko', {
+            pesan: @js([
+                'izinDitolak' => __('kunjungan.kamera_izin_ditolak'),
+                'gagal' => __('kunjungan.kamera_gagal'),
+                'tidakDidukung' => __('kunjungan.kamera_tidak_didukung'),
+                'belumSiap' => __('kunjungan.kamera_belum_siap'),
+                'sentuhUntukMulai' => __('kunjungan.sentuh_untuk_mulai'),
+            ]),
+        });
+
+        document.getElementById('mulai-pindai-toko')?.addEventListener('click', () => pemindai?.mulai());
+        document.getElementById('lensa-toko')?.addEventListener('click', () => pemindai?.gantiKamera());
+        document.getElementById('senter-toko')?.addEventListener('click', () => pemindai?.alihkanSenter());
+
+        wadah?.addEventListener('qr:terbaca', (e) => $wire.pilihTokoDariQr(e.detail));
+
+        wadah?.addEventListener('qr:siap', (e) => {
+            document.getElementById('mulai-pindai-toko')?.classList.add('hidden');
+            document.getElementById('tips-pindai-toko')?.classList.remove('hidden');
+            tampilkanPesan(null);
+
+            tampilkanBila('lensa-toko', (e.detail?.jumlahKamera ?? 0) > 1);
+            tampilkanBila('senter-toko', Boolean(e.detail?.adaSenter));
+        });
+
+        wadah?.addEventListener('qr:galat', (e) => tampilkanPesan(e.detail));
+
+        // Safari iOS kadang menolak memutar video sampai ada sentuhan baru.
+        wadah?.addEventListener('qr:butuh-sentuhan', (e) => tampilkanPesan(e.detail));
+
+        // Menyentuh gambar memfokuskan kamera ke titik itu — jalan tercepat
+        // menajamkan stiker QR yang terlihat buram.
+        document.getElementById('bidik-toko')?.addEventListener('click', function (e) {
+            const kotak = this.getBoundingClientRect();
+
+            // Sentuhan yang sama dipakai untuk dua hal: memulai pemutaran yang
+            // tertahan Safari, lalu memfokuskan ke titik yang disentuh.
+            pemindai?.cobaMainkanLagi();
+
+            pemindai?.fokusDi(
+                Math.min(1, Math.max(0, (e.clientX - kotak.left) / kotak.width)),
+                Math.min(1, Math.max(0, (e.clientY - kotak.top) / kotak.height)),
+            );
+
+            const tanda = document.createElement('div');
+            tanda.className = 'pointer-events-none absolute size-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white';
+            tanda.style.left = (e.clientX - kotak.left) + 'px';
+            tanda.style.top = (e.clientY - kotak.top) + 'px';
+
+            this.appendChild(tanda);
+            setTimeout(() => tanda.remove(), 600);
+        });
+
+        // QR yang ditolak server boleh dipindai ulang; tanpa ini kode yang sama
+        // dianggap sudah terbaca dan diabaikan selamanya.
+        $wire.on('qr-toko-ditolak', () => pemindai?.ulangi());
+
+        // Dipanggil Alpine begitu pemindai tersembunyi — entah karena toko
+        // sudah terpilih atau pengguna kembali ke cara ketik. Tanpa ini lampu
+        // kamera tetap menyala dan baterai terkuras.
+        window.hentikanPindaiToko = () => {
+            pemindai?.berhenti();
+            document.getElementById('mulai-pindai-toko')?.classList.remove('hidden');
+            document.getElementById('tips-pindai-toko')?.classList.add('hidden');
+        };
+
+        function tampilkanBila(id, tampil) {
+            document.getElementById(id)?.classList.toggle('hidden', !tampil);
+        }
+
+        function tampilkanPesan(teks) {
+            const el = document.getElementById('pesan-pindai-toko');
+
+            if (!el) {
+                return;
+            }
+
+            el.textContent = teks ?? '';
+            el.classList.toggle('hidden', !teks);
+        }
+    </script>
+    @endscript
 </div>

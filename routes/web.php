@@ -4,6 +4,11 @@ use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
+use App\Livewire\Kunjungan\DaftarPeriode;
+use App\Livewire\Kunjungan\DetailPeriode;
+use App\Livewire\Kunjungan\Kunjungi;
+use App\Livewire\Kunjungan\Penugasan;
+use App\Livewire\Kunjungan\TugasSaya;
 use App\Livewire\Master\DaftarProduk;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Master\DaftarWilayah;
@@ -54,6 +59,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/routing/riwayat', RiwayatRouting::class)->name('routing.riwayat');
         Route::get('/routing/{batch}', GenerateRouting::class)->name('routing.lihat');
 
+        Route::get('/kunjungan/periode', DaftarPeriode::class)->name('kunjungan.periode');
+        Route::get('/kunjungan/periode/{periode}', DetailPeriode::class)->name('kunjungan.periode.lihat');
+        Route::get('/kunjungan/penugasan', Penugasan::class)->name('kunjungan.penugasan');
+
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
         Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah');
@@ -63,6 +72,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('peran:admin,sales')->group(function () {
         Route::get('/pesanan/buat', BuatPesanan::class)->name('pesanan.buat');
         Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar');
+    });
+
+    // --- Sales ---
+    Route::middleware('peran:sales')->group(function () {
+        Route::get('/kunjungan/tugas', TugasSaya::class)->name('kunjungan.tugas');
+        Route::get('/kunjungan', Kunjungi::class)->name('kunjungan.kunjungi');
     });
 
     // --- Driver ---

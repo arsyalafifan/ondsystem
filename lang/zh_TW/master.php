@@ -106,4 +106,8 @@ return [
     'atr_wilayah' => '區域',
     'atr_kode_pos' => '郵遞區號',
     'atr_nama_pemilik' => '店主姓名',
+    'asset_id' => '冰櫃資產編號',
+    'asset_id_ket' => '印在冰櫃機身的 QR code 上，銷售拜訪時掃描的就是它。',
+    'freezer_tipe' => '冰櫃型號',
+    'atr_asset_id' => '資產編號',
 ];
