@@ -11,4 +11,8 @@ return [
     'master_produk' => 'Master Produk',
     'master_wilayah' => 'Master Wilayah',
     'pilih_mobil' => 'Pilih Mobil',
+    'visit_sales' => 'Visit Sales',
+    'penugasan' => 'Penugasan Toko',
+    'tugas_saya' => 'Tugas Saya',
+    'mulai_kunjungan' => 'Mulai Kunjungan',
 ];

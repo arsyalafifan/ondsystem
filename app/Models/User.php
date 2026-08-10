@@ -59,6 +59,19 @@ class User extends Authenticatable
         return $this->hasMany(Kendaraan::class, 'driver_id');
     }
 
+    /** Toko yang menjadi tanggungan kunjungan sales ini. */
+    /** @return HasMany<PenugasanSales, $this> */
+    public function penugasans(): HasMany
+    {
+        return $this->hasMany(PenugasanSales::class, 'sales_id');
+    }
+
+    /** @return HasMany<Kunjungan, $this> */
+    public function kunjungans(): HasMany
+    {
+        return $this->hasMany(Kunjungan::class, 'sales_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === PeranPengguna::Admin;
@@ -78,5 +91,11 @@ class User extends Authenticatable
     protected function driver(Builder $query): void
     {
         $query->where('role', PeranPengguna::Driver)->where('aktif', true);
+    }
+
+    #[Scope]
+    protected function sales(Builder $query): void
+    {
+        $query->where('role', PeranPengguna::Sales)->where('aktif', true);
     }
 }

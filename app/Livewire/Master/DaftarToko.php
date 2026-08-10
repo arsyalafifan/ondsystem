@@ -42,6 +42,10 @@ class DaftarToko extends Component
 
     public string $kode = '';
 
+    public string $assetId = '';
+
+    public string $freezerTipe = '';
+
     public string $nama = '';
 
     public string $alamat = '';
@@ -98,6 +102,7 @@ class DaftarToko extends Component
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('nama', 'like', "%{$this->cari}%")
                 ->orWhere('kode', 'like', "%{$this->cari}%")
+                ->orWhere('asset_id', 'like', "%{$this->cari}%")
                 ->orWhere('alamat', 'like', "%{$this->cari}%")))
             ->orderBy('nama')
             ->paginate(20);
@@ -148,6 +153,8 @@ class DaftarToko extends Component
 
         $this->tokoId = $toko->id;
         $this->kode = $toko->kode;
+        $this->assetId = $toko->asset_id ?? '';
+        $this->freezerTipe = $toko->freezer_tipe ?? '';
         $this->nama = $toko->nama;
         $this->alamat = $toko->alamat;
         $this->wilayahId = $toko->wilayah_id;
@@ -175,9 +182,9 @@ class DaftarToko extends Component
     private function resetForm(): void
     {
         $this->reset([
-            'tokoId', 'kode', 'nama', 'alamat', 'wilayahId', 'kelurahan', 'kecamatan',
-            'kota', 'kodePos', 'telepon', 'namaPemilik', 'latitude', 'longitude',
-            'hasilGeocode',
+            'tokoId', 'kode', 'assetId', 'freezerTipe', 'nama', 'alamat', 'wilayahId',
+            'kelurahan', 'kecamatan', 'kota', 'kodePos', 'telepon', 'namaPemilik',
+            'latitude', 'longitude', 'hasilGeocode',
         ]);
 
         $this->sumberKoordinat = 'belum';
@@ -236,6 +243,10 @@ class DaftarToko extends Component
     {
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:30', Rule::unique('tokos', 'kode')->ignore($this->tokoId)],
+            // Nomor aset boleh kosong selama freezernya belum terpasang, tapi
+            // begitu diisi harus unik: inilah pengenal toko saat sales memindai.
+            'assetId' => ['nullable', 'string', 'max:40', Rule::unique('tokos', 'asset_id')->ignore($this->tokoId)],
+            'freezerTipe' => 'nullable|string|max:40',
             'nama' => 'required|string|max:255',
             'alamat' => 'required|string',
             'wilayahId' => 'required|exists:wilayahs,id',
@@ -249,6 +260,7 @@ class DaftarToko extends Component
             'longitude' => 'nullable|numeric|between:-180,180',
         ], [], [
             'kode' => __('master.atr_kode_toko'),
+            'assetId' => __('master.atr_asset_id'),
             'nama' => __('master.atr_nama_toko'),
             'wilayahId' => __('master.atr_wilayah'),
             'kodePos' => __('master.atr_kode_pos'),
@@ -257,6 +269,10 @@ class DaftarToko extends Component
 
         Toko::updateOrCreate(['id' => $this->tokoId], [
             'kode' => $data['kode'],
+            // Disimpan huruf besar tanpa spasi agar cocok dengan hasil
+            // pemindaian QR, yang juga dirapikan dengan cara yang sama.
+            'asset_id' => $this->assetId === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $this->assetId)),
+            'freezer_tipe' => $this->freezerTipe ?: null,
             'nama' => $data['nama'],
             'alamat' => $data['alamat'],
             'wilayah_id' => $data['wilayahId'],

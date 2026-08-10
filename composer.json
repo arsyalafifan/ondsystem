@@ -72,6 +72,13 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "mobile": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php -r \"echo 'Membangun aset…', PHP_EOL;\"",
+            "npm run build",
+            "@php -r \"@unlink('public/hot');\"",
+            "@php artisan serve --host=0.0.0.0 --port=8000"
         ]
     },
     "extra": {

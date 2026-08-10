@@ -106,4 +106,8 @@ return [
     'atr_wilayah' => 'region',
     'atr_kode_pos' => 'postcode',
     'atr_nama_pemilik' => 'owner name',
+    'asset_id' => 'Freezer asset ID',
+    'asset_id_ket' => 'Printed on the QR code on the freezer body. This is what reps scan during a visit.',
+    'freezer_tipe' => 'Freezer model',
+    'atr_asset_id' => 'asset ID',
 ];

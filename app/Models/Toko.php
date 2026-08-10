@@ -15,9 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'id',
-    'kode', 'nama', 'wilayah_id', 'alamat', 'kelurahan', 'kecamatan', 'kota',
-    'kode_pos', 'telepon', 'nama_pemilik', 'latitude', 'longitude',
-    'sumber_koordinat', 'geocoded_at', 'geocode_catatan', 'aktif',
+    'kode', 'asset_id', 'freezer_tipe', 'freezer_pelanggan', 'nama', 'wilayah_id',
+    'alamat', 'kelurahan', 'kecamatan', 'kota', 'kode_pos', 'telepon',
+    'nama_pemilik', 'latitude', 'longitude', 'sumber_koordinat', 'geocoded_at',
+    'geocode_catatan', 'aktif',
 ])]
 class Toko extends Model
 {
@@ -57,6 +58,18 @@ class Toko extends Model
         return $this->hasMany(Pesanan::class);
     }
 
+    /** @return HasMany<PenugasanSales, $this> */
+    public function penugasans(): HasMany
+    {
+        return $this->hasMany(PenugasanSales::class);
+    }
+
+    /** @return HasMany<Kunjungan, $this> */
+    public function kunjungans(): HasMany
+    {
+        return $this->hasMany(Kunjungan::class);
+    }
+
     /** Pesanan yang sedang berjalan. Maksimal satu per toko. */
     /** @return HasOne<Pesanan, $this> */
     public function pesananAktif(): HasOne
@@ -80,6 +93,13 @@ class Toko extends Model
     protected function aktif(Builder $query): void
     {
         $query->where('aktif', true);
+    }
+
+    /** Toko yang freezernya sudah punya nomor aset, jadi bisa dipindai sales. */
+    #[Scope]
+    protected function berassetId(Builder $query): void
+    {
+        $query->whereNotNull('asset_id');
     }
 
     /** Toko yang siap ikut routing. */

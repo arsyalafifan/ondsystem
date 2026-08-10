@@ -32,12 +32,14 @@ Akun contoh dari seeder (kata sandi semuanya `password`):
 | ------ | ------------------------ |
 | Admin  | `admin@ondsystem.test`   |
 | Sales  | `sales@ondsystem.test`   |
+| Sales  | `sales2@ondsystem.test`  |
 | Driver | `driver@ondsystem.test`  |
 | Driver | `driver2@ondsystem.test` |
 
-Seeder mengisi 5 wilayah, 8 produk, dan 114 toko di sekitar Jakarta. Sekitar 8%
-toko sengaja dibiarkan tanpa koordinat supaya alur pelengkapan titik ikut bisa
-dicoba.
+Seeder mengisi 5 wilayah, 8 produk, dan 114 toko di sekitar Jakarta, lalu
+membagi toko berfreezer kepada kedua sales sebagai tanggungan kunjungan bulan
+berjalan. Sebagian kecil toko sengaja dibiarkan tanpa koordinat dan tanpa nomor
+aset freezer, supaya alur pelengkapan data ikut bisa dicoba.
 
 ---
 
@@ -53,6 +55,23 @@ Driver        Kirim + upload nota► SELESAI
 
 Pembatalan bisa dilakukan pada status ORDER, PROCESS, dan DELIVERY selama foto
 nota belum diunggah.
+
+### Memilih toko saat input pesanan
+
+Dua jalan, dan keduanya melewati pemeriksaan yang sama — toko harus aktif dan
+belum punya pesanan berjalan:
+
+- **Ketik** — nama, kode, alamat, atau **nomor aset freezer** (`IDNAH…`).
+  Nomor aset dirapikan lebih dulu menjadi huruf besar tanpa spasi, jadi
+  `idnah 2025 2800 4381` sama saja dengan `IDNAH202528004381`. Karena nomor
+  aset unik, mengetik nomor lengkap menyisakan tepat satu toko; kecocokan
+  persis juga dinaikkan ke urutan teratas.
+- **Pindai QR** — kamera membaca QR pada freezer, nomor asetnya dicocokkan
+  dengan `tokos.asset_id`, dan tokonya langsung terpilih. Stiker yang sama
+  dipakai untuk kunjungan sales, jadi satu QR berlaku untuk kedua keperluan.
+
+Toko yang masih punya pesanan berjalan ditolak **sejak pemindaian**, bukan
+setelah seluruh produk terisi.
 
 ### Perlakuan stok
 
@@ -169,6 +188,173 @@ tidak menimbulkan galat — ia hanya muncul sebagai teks aneh di layar pengguna.
 
 ---
 
+## Visit Sales — kunjungan rutin sales ke toko
+
+Selain distribusi barang, sistem ini memantau kunjungan rutin sales ke toko.
+Transaksinya berjenjang: **periode mingguan → sales → kunjungan per toko →
+foto bukti**.
+
+```
+Admin   Penugasan Toko          tetapkan daftar toko per sales (bulanan, maks 120)
+        ↓
+Sistem  Periode mingguan        dibuka otomatis tiap Senin, ditutup Sabtu
+        ↓
+Sales   Pindai QR freezer   ──► toko dikenali dari nomor asetnya
+        Ambil 6 foto        ──► kamera langsung, watermark dibubuhkan server
+        Selesaikan          ──► kunjungan tercatat
+        ↓
+Admin   Pantau progres, tinjau laporan toko tutup
+```
+
+Periode lama tidak pernah dihapus — hitungan dimulai dari nol tiap Senin, tapi
+riwayat minggu-minggu sebelumnya tetap bisa dibuka.
+
+### Pengenalan toko lewat QR code freezer
+
+Kunjungan hanya bisa dimulai dengan memindai QR yang tertempel pada freezer.
+Tidak ada jalan memilih toko dari daftar, karena QR itulah bukti bahwa sales
+benar-benar berdiri di depan freezer yang bersangkutan.
+
+Isi QR berbentuk daftar berlabel bahasa Mandarin:
+
+```
+客户名称：IDN Halocoko
+资产编号：IDNAH202528004381
+产品型号：SD-280
+```
+
+Yang dipakai adalah nomor aset (`资产编号`), yang dicocokkan dengan kolom
+`tokos.asset_id`. Perhatikan titik dua lebar `：` (U+FF1A) yang berbeda dari
+titik dua biasa — [`PenguraiQr`](app/Services/Kunjungan/PenguraiQr.php)
+menerima keduanya, juga QR yang hanya berisi nomor asetnya saja.
+
+### Enam foto bukti
+
+| Foto | Kapan diambil |
+| ---- | ------------- |
+| Sales di depan toko | saat tiba, papan nama toko terlihat |
+| Freezer sebelum dibersihkan | sebelum menyentuh apa pun |
+| Freezer sesudah dibersihkan | dari sudut yang sama, agar bisa dibandingkan |
+| Spanduk toko | seluruh spanduk masuk bingkai |
+| Flag hanger toko | cukup jauh agar posisi pemasangan terlihat |
+| Suhu freezer | dekat, sampai angkanya terbaca |
+
+**Foto tidak bisa diunggah dari galeri.** Aplikasi membaca aliran kamera
+langsung lewat `getUserMedia`, bukan `<input type="file">` — atribut `capture`
+pada input berkas hanya berupa saran bagi peramban, dan di banyak ponsel
+pemakainya tetap bisa memilih gambar lama.
+
+**Pemilihan lensa.** Ponsel masa kini punya beberapa kamera belakang, dan
+`facingMode: environment` boleh dijawab dengan lensa mana pun — banyak
+perangkat menjawabnya dengan ultra-lebar yang fokusnya tetap dan tidak akan
+pernah bisa menajamkan stiker QR dari dekat. Karena itu
+[`kamera-util.js`](resources/js/kamera-util.js) memilih lensa utama sejak
+awal, menyalakan autofokus menerus, dan menyediakan tombol ganti lensa,
+senter, serta sentuh-untuk-fokus. Pilihan lensanya diingat di perangkat.
+
+Pembacaan QR memakai `BarcodeDetector` bawaan peramban bila tersedia — jauh
+lebih cepat dan lebih tahan gambar buram. Chrome di Android punya, Safari di
+iOS tidak. Tanpa pembaca bawaan, tiap bingkai menjalankan satu sapuan
+bergantian: potongan tengah untuk QR yang memenuhi kotak bidik, lalu seluruh
+bingkai yang diperkecil untuk kode yang kecil dan agak jauh dari tengah.
+Menjalankan keduanya sekaligus pada resolusi penuh membuat lajunya turun
+sampai beberapa bingkai per detik di iPhone, dan pemindai terasa seperti tidak
+bekerja.
+
+**Perbedaan Safari iOS yang perlu ditangani.** Safari kerap menolak
+`video.play()` karena konteks sentuhan dianggap hilang setelah menunggu
+`getUserMedia`. Penolakan itu berupa Promise yang gagal: kalau di-await tanpa
+penangkap, seluruh penyalaan kamera berhenti diam-diam — tanpa gambar, tanpa
+pesan, tanpa jejak di log. Semua pemutaran karena itu lewat `mainkanVideo()`
+yang menangkap kegagalannya, melaporkannya ke layar, dan mempersilakan
+pengguna memulai ulang dengan menyentuh gambar. Safari juga tidak mengenal
+Vibration API sama sekali, jadi tanda kode terbaca berlapis: getaran bila ada,
+ditambah bunyi pendek yang berjalan di mana saja.
+
+**Watermark dibubuhkan di server, memakai jam server.** Kalau penandaan
+dikerjakan di peramban, sales cukup memundurkan jam ponselnya untuk membuat
+foto lama tampak baru — persis hal yang ingin dicegah. Yang tercetak: hari,
+tanggal, bulan, tahun, jam sampai detik, nama toko, nomor aset, nama sales,
+dan titik GPS bila peramban mengizinkan.
+
+Titik GPS berasal dari peramban karena hanya di sanalah GPS bisa dibaca.
+Kunjungan tidak diblokir ketika izin lokasi ditolak — sinyal memang sering
+buruk di dalam ruko — tetapi jarak antara titik foto dan koordinat toko ikut
+dicatat, dan selisih di atas `VISIT_JARAK_WAJAR_M` ditandai agar admin bisa
+memeriksanya.
+
+### Aturan yang dijaga sistem
+
+- **Satu toko satu sales.** Admin tidak bisa menaruh toko yang sama di daftar
+  dua sales dalam bulan yang sama; ditolak oleh batasan unik di basis data,
+  bukan hanya oleh formulir.
+- **Satu toko satu kunjungan per minggu.** Sales kedua yang memindai QR toko
+  yang sudah dikunjungi akan ditolak, dengan keterangan siapa yang sudah
+  mengunjunginya.
+- **Hanya toko yang ditugaskan.** Memindai QR toko di luar daftar tanggungan
+  ditolak, sehingga angka target tidak bisa dikaburkan.
+- **Enam foto wajib lengkap** sebelum kunjungan bisa diselesaikan.
+- **Maksimal 120 toko per sales**, diatur lewat `VISIT_MAKS_TOKO_PER_SALES`.
+
+### Toko tutup
+
+Sales tidak bisa menyatakan sendiri sebuah toko tutup. Ia mengirim laporan
+beserta keterangan keadaannya, lalu admin membenarkan atau menolak.
+
+Toko yang laporannya **dibenarkan keluar dari penyebut target minggu itu** —
+kalau tanggungannya 120 toko dan 5 di antaranya tutup, progres dihitung dari
+115. Sales tidak dirugikan oleh keadaan yang bukan kendalinya. Laporan yang
+**ditolak** mengembalikan toko ke daftar wajib kunjung.
+
+### Menguji dari ponsel
+
+Akses kamera memerlukan **HTTPS** di luar `localhost` — syarat peramban, bukan
+aplikasi. Membuka lewat IP jaringan lokal (`http://192.168.x.x:8000`) tidak
+cukup, dan kamera akan diblokir tanpa pesan yang jelas.
+
+```bash
+composer mobile                                  # bangun aset + server 0.0.0.0
+cloudflared tunnel --url http://localhost:8000   # terminal lain
+```
+
+Alamat `https://…trycloudflare.com` yang muncul bisa dibuka dari HP mana pun.
+Pakai `composer mobile`, bukan `composer dev`: yang kedua menyalakan Vite dan
+membuat `public/hot`, sehingga aset diarahkan ke `localhost:5173` — alamat yang
+dari HP berarti HP itu sendiri.
+
+**Proksi harus dipercaya.** cloudflared menangani HTTPS lalu meneruskannya ke
+Laravel sebagai permintaan HTTP biasa. Tanpa `TRUSTED_PROXIES`, Laravel
+menyangka halaman diakses lewat http dan menuliskan URL aset berawalan
+`http://` di halaman `https://` — peramban memblokirnya sebagai muatan
+campuran, dan seluruh CSS serta JavaScript gagal termuat. Gejalanya menipu:
+halaman tetap terbuka, hanya tampil polos, dan kamera tidak jalan karena
+berkas JS-nya memang tidak pernah sampai.
+
+Bawaannya sudah benar (`127.0.0.1,::1`) dan dijaga oleh
+[`tests/Feature/ProksiTest.php`](tests/Feature/ProksiTest.php).
+
+### Mode uji
+
+Untuk mencoba alur kunjungan tanpa kamera sama sekali, nyalakan di `.env`:
+
+```env
+VISIT_MODE_UJI=true
+```
+
+Layar sales akan menampilkan kotak tempel isi QR dan tombol gambar contoh
+untuk tiap jenis foto. Yang digantikan hanya langkah membidik kamera —
+penguraian QR, aturan penolakan, watermark, dan perhitungan progres tetap
+berjalan seperti aslinya. Gambar contohnya bertuliskan "CONTOH UJI — BUKAN
+FOTO ASLI" agar tidak bisa disamarkan sebagai bukti sungguhan.
+
+Penjagaannya dua lapis — hanya hidup saat `APP_ENV=local` **dan** penandanya
+dinyalakan — dan keduanya diperiksa di satu tempat,
+[`App\Support\ModeUji`](app/Support/ModeUji.php), supaya tidak mungkin ada
+bagian aplikasi yang lupa memeriksa salah satunya. Langkah lengkap untuk
+pengujian di ponsel ada di [PANDUAN.md](PANDUAN.md#9-menguji-fitur-kunjungan-sales-di-hp).
+
+---
+
 ## Peta
 
 Memakai Leaflet + ubin OpenStreetMap — tanpa API key dan tanpa biaya.
@@ -212,6 +398,10 @@ Semua di `.env`, dibaca lewat [`config/ond.php`](config/ond.php):
 | `OSRM_URL`                               | server OSRM                              |
 | `OSRM_ENABLED`                           | `false` untuk memaksa hitung garis lurus |
 | `NOMINATIM_EMAIL`                        | kontak wajib untuk pemakaian Nominatim   |
+| `TRUSTED_PROXIES`                        | proksi yang headernya dipercaya (`127.0.0.1,::1`) |
+| `VISIT_MAKS_TOKO_PER_SALES`              | batas dan target toko per sales (120)    |
+| `VISIT_JARAK_WAJAR_M`                    | selisih GPS yang masih wajar (300 m)     |
+| `VISIT_FOTO_LEBAR_MAKS`                  | lebar foto setelah diperkecil (1280 px)  |
 | `APP_LOCALE`                             | bahasa bawaan (`id`)                     |
 | `APP_FALLBACK_LOCALE`                    | cadangan bila kunci belum diterjemahkan (`en`) |
 
@@ -238,7 +428,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-91 tes, mencakup:
+167 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -246,11 +436,28 @@ php artisan test
   saat OSRM mati.
 - **[`tests/Feature/AlurPesananTest.php`](tests/Feature/AlurPesananTest.php)** —
   aturan minimal dus, satu pesanan aktif per toko, dan pengembalian stok.
+- **[`tests/Feature/PemindaiQrTampilTest.php`](tests/Feature/PemindaiQrTampilTest.php)** —
+  penjaga kerusakan yang gagal tanpa jejak: wadah pemindai tidak disembunyikan
+  lewat kelas dari server, `video.play()` tidak pernah dipanggil tanpa
+  penangkap kegagalan, tanda kode terbaca tidak bergantung pada getaran, dan
+  pemberitahuan melayang agar terlihat di mana pun halaman digulir.
+- **[`tests/Feature/PilihTokoTest.php`](tests/Feature/PilihTokoTest.php)** —
+  pencarian toko lewat nomor aset (lengkap, sepotong, huruf kecil berspasi,
+  urutan kecocokan persis) dan pemilihan lewat pindai QR beserta seluruh
+  penolakannya.
 - **[`tests/Feature/AlurRoutingTest.php`](tests/Feature/AlurRoutingTest.php)** —
   alur penuh dari PROCESS sampai SELESAI, termasuk pemindahan toko antar mobil
   dan pembatalan pesanan yang sudah masuk rute.
 - **[`tests/Feature/HalamanTest.php`](tests/Feature/HalamanTest.php)** —
   setiap halaman tampil dan setiap peran hanya bisa membuka haknya.
+- **[`tests/Feature/KunjunganTest.php`](tests/Feature/KunjunganTest.php)** —
+  penguraian QR (termasuk titik dua lebar), periode Senin–Sabtu dan
+  pergantiannya, penolakan kunjungan ganda dan toko di luar daftar,
+  kelengkapan enam foto, watermark, serta perhitungan target saat toko tutup.
+- **[`tests/Feature/ModeUjiTest.php`](tests/Feature/ModeUjiTest.php)** —
+  jalan pintas pengujian mati di luar lingkungan lokal dan mati bila
+  penandanya tidak dinyalakan, serta tetap menerapkan seluruh aturan kunjungan
+  saat menyala.
 - **[`tests/Feature/BahasaTest.php`](tests/Feature/BahasaTest.php)** —
   kelengkapan kunci di keempat bahasa, penyimpanan pilihan bahasa, dan setiap
   halaman tampil dalam keempat bahasa tanpa kunci mentah yang bocor.
@@ -273,9 +480,11 @@ app/
   Services/
     Peta/                   OsrmClient, NominatimGeocoder, Geo, MatriksJarak
     Routing/                MesinRouting, PengelompokKendaraan, PengurutKunjungan
+    Kunjungan/              QR, watermark foto, periode, aturan kunjungan
     PesananService.php      aturan pesanan dan perlakuan stok
     RoutingService.php      jembatan mesin routing dengan basis data
   Livewire/
+    Kunjungan/              visit sales: periode, penugasan, layar sales
     Pesanan/                input dan daftar pesanan
     Routing/                generate routing dan riwayat
     Driver/                 pilih mobil dan daftar kunjungan
@@ -287,4 +496,6 @@ lang/
 resources/js/
   peta-rute.js              peta multi-kendaraan
   peta-pemilih.js           peta pemilih titik toko
+  kamera.js                 pengambilan foto langsung dari kamera
+  pemindai-qr.js            pembacaan QR freezer di perangkat
 ```

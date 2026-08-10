@@ -6,6 +6,7 @@ use App\Enums\StatusPesanan;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
+use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PesananService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,9 @@ use Livewire\Component;
 class BuatPesanan extends Component
 {
     public string $cariToko = '';
+
+    /** 'ketik' untuk pencarian biasa, 'pindai' untuk membaca QR freezer. */
+    public string $caraPilihToko = 'ketik';
 
     public ?int $tokoId = null;
 
@@ -57,22 +61,106 @@ class BuatPesanan extends Component
         $this->tokoId = null;
     }
 
-    /** @return Collection<int, Toko> */
+    public function gantiCaraPilih(string $cara): void
+    {
+        $this->caraPilihToko = in_array($cara, ['ketik', 'pindai'], true) ? $cara : 'ketik';
+        $this->cariToko = '';
+    }
+
+    /**
+     * Memilih toko dari hasil pemindaian QR freezer.
+     *
+     * Nomor aset pada QR dicocokkan dengan kolom asset_id di master toko —
+     * pengenal yang sama dengan yang dipakai kunjungan sales, jadi satu stiker
+     * berlaku untuk kedua keperluan.
+     */
+    public function pilihTokoDariQr(string $isi, PenguraiQr $pengurai): void
+    {
+        $hasil = $pengurai->urai($isi);
+
+        if ($hasil === null) {
+            $this->tolakPindaian(__('kunjungan.galat_qr_tidak_terbaca'));
+
+            return;
+        }
+
+        $toko = Toko::where('asset_id', $hasil->assetId)->first();
+
+        if ($toko === null) {
+            $this->tolakPindaian(__('kunjungan.galat_aset_tidak_dikenal', ['aset' => $hasil->assetId]));
+
+            return;
+        }
+
+        if (! $toko->aktif) {
+            $this->tolakPindaian(__('pesanan.galat_toko_nonaktif', ['nama' => $toko->nama]));
+
+            return;
+        }
+
+        // Toko yang masih punya pesanan berjalan tidak langsung dipilih, sama
+        // seperti pada daftar hasil ketikan yang barisnya dibuat tidak bisa
+        // diklik. Kalau tetap dipilih, sales baru tahu ditolaknya setelah
+        // mengisi seluruh produk.
+        $pesananAktif = Pesanan::where('toko_id', $toko->id)
+            ->whereIn('status', StatusPesanan::aktif())
+            ->first();
+
+        if ($pesananAktif !== null) {
+            $this->tolakPindaian(__('pesanan.halangan_pesanan_aktif', [
+                'kode' => $pesananAktif->kode,
+                'status' => $pesananAktif->status->label(),
+            ]));
+
+            return;
+        }
+
+        $this->pilihToko($toko->id);
+
+        $this->dispatch('notifikasi', pesan: __('pesanan.notif_toko_dari_qr', [
+            'nama' => $toko->nama,
+            'aset' => $toko->asset_id,
+        ]));
+    }
+
+    /** Menolak hasil pindaian dan mempersilakan pemindai membaca ulang. */
+    private function tolakPindaian(string $pesan): void
+    {
+        $this->dispatch('notifikasi', pesan: $pesan, jenis: 'error');
+        $this->dispatch('qr-toko-ditolak');
+    }
+
+    /**
+     * Pencarian toko: nama, kode, alamat, atau nomor aset freezer.
+     *
+     * Nomor aset dirapikan lebih dulu — huruf besar dan tanpa spasi — supaya
+     * cocok dengan bentuk yang tersimpan, apa pun cara pengetikannya. Mengetik
+     * nomor aset lengkap otomatis menyisakan satu toko, karena nomor aset unik.
+     *
+     * @return Collection<int, Toko>
+     */
     #[Computed]
     public function hasilCari(): Collection
     {
-        if (mb_strlen($this->cariToko) < 2) {
+        if (mb_strlen(trim($this->cariToko)) < 2) {
             return collect();
         }
+
+        $kata = trim($this->cariToko);
+        $aset = mb_strtoupper(preg_replace('/\s+/', '', $kata) ?? '');
 
         return Toko::query()
             ->aktif()
             ->with('wilayah:id,nama')
             ->withCount(['pesanans as punya_pesanan_aktif' => fn ($q) => $q->whereIn('status', StatusPesanan::aktif())])
             ->where(fn ($q) => $q
-                ->where('nama', 'like', "%{$this->cariToko}%")
-                ->orWhere('kode', 'like', "%{$this->cariToko}%")
-                ->orWhere('alamat', 'like', "%{$this->cariToko}%"))
+                ->where('nama', 'like', "%{$kata}%")
+                ->orWhere('kode', 'like', "%{$kata}%")
+                ->orWhere('alamat', 'like', "%{$kata}%")
+                ->orWhere('asset_id', 'like', "%{$aset}%"))
+            // Kecocokan nomor aset dinaikkan ke atas: kalau seseorang mengetik
+            // nomor aset, itulah yang paling mungkin dicarinya.
+            ->orderByRaw('CASE WHEN asset_id = ? THEN 0 ELSE 1 END', [$aset])
             ->orderBy('nama')
             ->limit(12)
             ->get();

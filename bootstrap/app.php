@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Daftar proksi yang dipercaya ditetapkan di AppServiceProvider,
+        // bukan di sini: closure ini dijalankan sebelum berkas config dimuat,
+        // sehingga config('ond.proksi_dipercaya') belum bisa dibaca.
+
         // Bahasa ditetapkan sebelum apa pun dijalankan, termasuk sebelum
         // pesan galat validasi dibentuk.
         $middleware->web(append: [

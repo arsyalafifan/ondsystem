@@ -82,6 +82,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Proksi yang dipercaya
+    |--------------------------------------------------------------------------
+    | Ketika aplikasi berjalan di belakang proksi — cloudflared saat menguji
+    | dari ponsel, atau nginx di server sungguhan — proksi itulah yang
+    | menangani HTTPS, lalu meneruskannya ke PHP sebagai permintaan HTTP biasa.
+    |
+    | Tanpa daftar ini Laravel menyangka halaman diakses lewat http, sehingga
+    | URL aset yang dibuatnya berawalan http:// di halaman https://. Peramban
+    | menolak muatan campuran seperti itu, dan akibatnya CSS maupun JavaScript
+    | tidak termuat sama sekali.
+    |
+    | Bawaannya hanya mesin ini sendiri, karena cloudflared dan nginx umumnya
+    | berjalan di komputer yang sama. Isi '*' hanya bila alamat proksinya
+    | memang tidak bisa dipastikan — mempercayai semua pengirim berarti header
+    | penanda asal permintaan bisa dipalsukan siapa saja.
+    */
+
+    'proksi_dipercaya' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1')),
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Warna kendaraan pada peta dan daftar
     |--------------------------------------------------------------------------
     | Dipakai berulang: Mobil 1 memakai indeks 0, Mobil 2 indeks 1, dst.
