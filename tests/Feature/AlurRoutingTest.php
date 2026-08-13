@@ -2,6 +2,7 @@
 
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
+use App\Enums\StatusStop;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -267,7 +268,7 @@ it('menyelesaikan pengiriman lewat unggahan foto nota dan memotong stok', functi
     $stop->refresh();
     $this->produk->refresh();
 
-    expect($stop->status)->toBe('selesai')
+    expect($stop->status)->toBe(StatusStop::Selesai)
         ->and($stop->foto_nota)->toBe($path)
         ->and($stop->catatan_driver)->toBe('Diterima Pak Budi')
         ->and($stop->pesanan()->first()->status)->toBe(StatusPesanan::Selesai)

@@ -13,11 +13,17 @@ use Throwable;
  * kalau server tidak bisa dihubungi, hasilnya null dan mesin routing
  * otomatis memakai perhitungan garis lurus. Rute tetap jadi, hanya
  * akurasinya sedikit menurun.
+ *
+ * Dua server bisa dipasang: $baseUrl (utama, biasanya self-hosted lewat
+ * Docker) dicoba lebih dulu, lalu $fallbackUrl (biasanya server publik)
+ * dicoba hanya kalau yang utama gagal dihubungi — bukan kalau utama
+ * sekadar menolak permintaan (mis. matriks kebesaran).
  */
 class OsrmClient
 {
     public function __construct(
         private readonly string $baseUrl,
+        private readonly ?string $fallbackUrl,
         private readonly int $timeout,
         private readonly int $maxTableSize,
         private readonly bool $enabled,
@@ -27,6 +33,7 @@ class OsrmClient
     {
         return new self(
             baseUrl: config('ond.osrm.url'),
+            fallbackUrl: config('ond.osrm.fallback_url'),
             timeout: config('ond.osrm.timeout'),
             maxTableSize: config('ond.osrm.max_table_size'),
             enabled: config('ond.osrm.enabled'),
@@ -62,15 +69,28 @@ class OsrmClient
 
         $koordinat = implode(';', array_map(fn (Koordinat $k) => $k->untukOsrm(), $titik));
 
+        foreach ($this->urlUntukDicoba() as $url) {
+            $hasil = $this->mintaMatriks($url, $koordinat, $titik);
+
+            if ($hasil !== null) {
+                return $hasil;
+            }
+        }
+
+        return null;
+    }
+
+    private function mintaMatriks(string $url, string $koordinat, array $titik): ?MatriksJarak
+    {
         try {
             $respons = Http::timeout($this->timeout)
                 ->retry(2, 500, throw: false)
-                ->get("{$this->baseUrl}/table/v1/driving/{$koordinat}", [
+                ->get("{$url}/table/v1/driving/{$koordinat}", [
                     'annotations' => 'duration,distance',
                 ]);
 
             if (! $respons->successful()) {
-                Log::warning('OSRM /table gagal.', ['status' => $respons->status()]);
+                Log::warning('OSRM /table gagal.', ['url' => $url, 'status' => $respons->status()]);
 
                 return null;
             }
@@ -78,7 +98,7 @@ class OsrmClient
             $data = $respons->json();
 
             if (($data['code'] ?? null) !== 'Ok') {
-                Log::warning('OSRM /table menolak permintaan.', ['code' => $data['code'] ?? '?']);
+                Log::warning('OSRM /table menolak permintaan.', ['url' => $url, 'code' => $data['code'] ?? '?']);
 
                 return null;
             }
@@ -104,7 +124,7 @@ class OsrmClient
 
             return new MatriksJarak($jarak, $durasi, 'osrm');
         } catch (Throwable $e) {
-            Log::warning('OSRM /table error.', ['pesan' => $e->getMessage()]);
+            Log::warning('OSRM /table error.', ['url' => $url, 'pesan' => $e->getMessage()]);
 
             return null;
         }
@@ -124,10 +144,23 @@ class OsrmClient
 
         $koordinat = implode(';', array_map(fn (Koordinat $k) => $k->untukOsrm(), $titik));
 
+        foreach ($this->urlUntukDicoba() as $url) {
+            $hasil = $this->mintaRute($url, $koordinat);
+
+            if ($hasil !== null) {
+                return $hasil;
+            }
+        }
+
+        return null;
+    }
+
+    private function mintaRute(string $url, string $koordinat): ?array
+    {
         try {
             $respons = Http::timeout($this->timeout)
                 ->retry(2, 500, throw: false)
-                ->get("{$this->baseUrl}/route/v1/driving/{$koordinat}", [
+                ->get("{$url}/route/v1/driving/{$koordinat}", [
                     'overview' => 'full',
                     'geometries' => 'polyline',
                     'steps' => 'false',
@@ -158,13 +191,13 @@ class OsrmClient
                 'legs' => $legs,
             ];
         } catch (Throwable $e) {
-            Log::warning('OSRM /route error.', ['pesan' => $e->getMessage()]);
+            Log::warning('OSRM /route error.', ['url' => $url, 'pesan' => $e->getMessage()]);
 
             return null;
         }
     }
 
-    /** Cek cepat apakah server OSRM bisa dihubungi. */
+    /** Cek cepat apakah server OSRM (utama) bisa dihubungi. */
     public function cekKoneksi(): bool
     {
         if (! $this->enabled) {
@@ -174,10 +207,17 @@ class OsrmClient
         try {
             $depot = new Koordinat(config('ond.depot.lat'), config('ond.depot.lng'));
             $dekat = new Koordinat(config('ond.depot.lat') + 0.01, config('ond.depot.lng') + 0.01);
+            $koordinat = implode(';', [$depot->untukOsrm(), $dekat->untukOsrm()]);
 
-            return $this->rute([$depot, $dekat]) !== null;
+            return $this->mintaRute($this->baseUrl, $koordinat) !== null;
         } catch (Throwable) {
             return false;
         }
+    }
+
+    /** @return array<int, string> */
+    private function urlUntukDicoba(): array
+    {
+        return array_values(array_filter([$this->baseUrl, $this->fallbackUrl]));
     }
 }

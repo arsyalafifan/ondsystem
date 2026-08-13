@@ -61,4 +61,10 @@ enum StatusPesanan: string
     {
         return in_array($this, [self::Order, self::Process, self::Delivery], true);
     }
+
+    /** Status yang notanya masih boleh dicetak/dicetak ulang. */
+    public function bisaDicetak(): bool
+    {
+        return in_array($this, [self::Process, self::Delivery], true);
+    }
 }

@@ -43,6 +43,7 @@ export function pasangPetaRute(idWadah, pengaturan = {}) {
     let penandaPerStop = {};
     let tersembunyi = new Set();
     let dataTerakhir = { kendaraan: [] };
+    let penandaLokasiSaya = null;
 
     if (pengaturan.depot) {
         L.marker([pengaturan.depot.lat, pengaturan.depot.lng], {
@@ -204,6 +205,27 @@ export function pasangPetaRute(idWadah, pengaturan = {}) {
             }
 
             peta.fitBounds(L.latLngBounds(titik), { padding: [40, 40] });
+        },
+
+        /** Memusatkan peta ke lokasi GPS pengguna saat ini, sekaligus menandainya. */
+        pusatkanKe(lat, lng) {
+            if (penandaLokasiSaya) {
+                penandaLokasiSaya.remove();
+            }
+
+            penandaLokasiSaya = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'penanda-toko penanda-lokasi-saya',
+                    html: `<span style="background:#2563eb">📍</span>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
+                }),
+                zIndexOffset: 900,
+            })
+                .bindTooltip('Lokasi Anda', { direction: 'top' })
+                .addTo(peta);
+
+            peta.setView([lat, lng], Math.max(peta.getZoom(), 15), { animate: true });
         },
     };
 

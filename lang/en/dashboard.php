@@ -20,4 +20,10 @@ return [
     'estimasi_selesai' => 'Estimated finish',
     'belum_diambil_singkat' => 'not taken',
     'pesanan_hari_ini' => 'Today\'s orders',
+    'dus_terkirim' => ':terkirim / :target boxes delivered',
+    'dibatalkan_jumlah' => ':jumlah cancelled',
+    'dibatalkan' => 'Cancelled',
+    'dus_sudah_kirim' => 'Boxes delivered',
+    'dus_sisa_mobil' => 'Left on truck',
+    'persen_dus' => 'Box progress',
 ];

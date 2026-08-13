@@ -69,12 +69,12 @@
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">{{ __('routing.maks_toko') }}</label>
                                 <input type="number" min="1" wire:model.live="maxToko"
-                                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">{{ __('routing.maks_dus') }}</label>
                                 <input type="number" min="1" wire:model.live="maxDus"
-                                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             </div>
                         </div>
                         <p class="text-xs text-gray-500">{{ __('routing.ket_batas') }}</p>
@@ -85,7 +85,7 @@
                                 @foreach ($this->wilayahs as $w)
                                     <label class="flex items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-gray-50">
                                         <input type="checkbox" wire:model.live="wilayahDipilih" value="{{ $w->id }}"
-                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                               class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                         {{ $w->nama }}
                                     </label>
                                 @endforeach
@@ -95,7 +95,7 @@
 
                         <label class="flex items-start gap-2 text-sm">
                             <input type="checkbox" wire:model.live="pisahPerWilayah"
-                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                   class="mt-0.5 rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             <span>
                                 {{ __('routing.satu_wilayah') }}
                                 <span class="block text-xs text-gray-500">{{ __('routing.ket_satu_wilayah') }}</span>
@@ -122,6 +122,10 @@
 
             <div class="lg:col-span-2">
                 <x-kartu :judul="__('routing.sebaran_menunggu')">
+                    <x-slot:aksi>
+                        <x-tombol-lokasi-saya />
+                    </x-slot:aksi>
+
                     <div wire:ignore id="peta-routing" class="peta h-[560px] rounded-b-xl"></div>
                 </x-kartu>
             </div>
@@ -138,12 +142,12 @@
                         <span class="ml-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('routing.disetujui') }}</span>
                     @endif
                 </div>
-                <span class="text-gray-600">🚚 {{ $batch->total_kendaraan }} {{ __('umum.mobil') }}</span>
-                <span class="text-gray-600">🏪 {{ $batch->total_toko }} {{ __('umum.toko') }}</span>
-                <span class="text-gray-600">📦 @angka($batch->total_dus) {{ __('umum.satuan_dus') }}</span>
-                <span class="text-gray-600">📏 @angka($batch->total_jarak_m / 1000, 1) km</span>
+                <span class="text-gray-600"><x-heroicon-o-truck class="size-4 inline" /> {{ $batch->total_kendaraan }} {{ __('umum.mobil') }}</span>
+                <span class="text-gray-600"><x-heroicon-o-building-storefront class="size-4 inline" /> {{ $batch->total_toko }} {{ __('umum.toko') }}</span>
+                <span class="text-gray-600"><x-heroicon-o-cube class="size-4 inline" /> @angka($batch->total_dus) {{ __('umum.satuan_dus') }}</span>
+                <span class="text-gray-600"><x-heroicon-o-arrows-right-left class="size-4 inline" /> @angka($batch->total_jarak_m / 1000, 1) km</span>
                 <span class="text-gray-600">
-                    🛰️ {{ $batch->sumber_jarak === 'osrm' ? __('routing.jarak_osrm') : __('routing.jarak_lurus') }}
+                    <x-heroicon-o-signal class="size-4 inline" /> {{ $batch->sumber_jarak === 'osrm' ? __('routing.jarak_osrm') : __('routing.jarak_lurus') }}
                 </span>
             </div>
 
@@ -204,9 +208,15 @@
 
                             <button type="button" onclick="window.sorotKendaraan({{ $kendaraan->id }})"
                                     title="{{ __('routing.lihat_di_peta') }}"
-                                    class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">🔍</button>
+                                    class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"><x-heroicon-o-magnifying-glass class="size-4 inline" /></button>
 
-                            <span class="text-gray-400">{{ $dibuka ? '▾' : '▸' }}</span>
+                            <span class="text-gray-400">
+                                @if($dibuka)
+                                    <x-heroicon-o-chevron-down class="size-3 inline" />
+                                @else
+                                    <x-heroicon-o-chevron-right class="size-3 inline" />
+                                @endif
+                            </span>
                         </div>
 
                         {{-- Bar muatan terhadap kedua batas --}}
@@ -235,8 +245,12 @@
                                         ])>
                                         <button type="button" onclick="window.sorotStop({{ $stop->id }})"
                                                 class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
-                                                style="background: {{ $stop->status === 'selesai' ? '#059669' : $kendaraan->warna }}">
-                                            {{ $stop->status === 'selesai' ? '✓' : $stop->urutan }}
+                                                style="background: {{ $stop->status->tuntas() ? '#059669' : $kendaraan->warna }}">
+                                            @if($stop->status->tuntas())
+                                                <x-heroicon-o-check class="size-4 inline" />
+                                            @else
+                                                {{ $stop->urutan }}
+                                            @endif
                                         </button>
 
                                         <div class="min-w-0 flex-1">
@@ -254,15 +268,15 @@
                                             <div class="flex shrink-0 items-center gap-0.5">
                                                 <button type="button" wire:click="geserUrutan({{ $stop->id }}, -1)"
                                                         @disabled($loop->first) title="{{ __('routing.naikkan_urutan') }}"
-                                                        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30">▲</button>
+                                                        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30"><x-heroicon-o-chevron-up class="size-3 inline" /></button>
                                                 <button type="button" wire:click="geserUrutan({{ $stop->id }}, 1)"
                                                         @disabled($loop->last) title="{{ __('routing.turunkan_urutan') }}"
-                                                        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30">▼</button>
+                                                        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30"><x-heroicon-o-chevron-down class="size-3 inline" /></button>
 
                                                 @if ($batch->kendaraans->count() > 1)
                                                     <select onchange="if(this.value){ @this.call('pindahStop', {{ $stop->id }}, this.value); this.value=''; }"
                                                             title="{{ __('routing.pindah_ke_mobil') }}"
-                                                            class="ml-1 w-16 rounded border-gray-300 py-0.5 text-xs focus:border-blue-500 focus:ring-blue-500">
+                                                            class="ml-1 w-16 rounded py-0.5 text-xs rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                                         <option value="">→</option>
                                                         @foreach ($batch->kendaraans as $tujuan)
                                                             @continue($tujuan->id === $kendaraan->id)
@@ -304,6 +318,7 @@
                 <div class="lg:sticky lg:top-6">
                     <x-kartu :judul="__('routing.peta_rute')">
                         <x-slot:aksi>
+                            <x-tombol-lokasi-saya />
                             <button type="button" onclick="window.tampilkanSemuaRute()"
                                     class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                 {{ __('routing.tampilkan_semua') }}
@@ -358,6 +373,7 @@
             window.sorotKendaraan = (id) => peta.sorotKendaraan(id);
             window.alihkanKendaraan = (id) => peta.alihkanKendaraan(id);
             window.tampilkanSemuaRute = () => peta.tampilkanSemua();
+            window.pusatkanLokasiSaya = (lat, lng) => peta.pusatkanKe(lat, lng);
         }
 
         // Klik penanda di peta menandai barisnya di daftar.

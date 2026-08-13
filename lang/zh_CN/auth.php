@@ -16,4 +16,10 @@ return [
     'email_wajib' => '请填写邮箱。',
     'email_format' => '邮箱格式不正确。',
     'sandi_wajib' => '请填写密码。',
+    'judul_ganti_sandi' => '更改密码',
+    'kata_sandi_lama' => '当前密码',
+    'kata_sandi_baru' => '新密码',
+    'kata_sandi_baru_ulang' => '确认新密码',
+    'kata_sandi_lama_salah' => '当前密码输入不正确。',
+    'sandi_diperbarui' => '密码已成功更改。',
 ];

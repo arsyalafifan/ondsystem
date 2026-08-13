@@ -16,7 +16,18 @@ class PastikanPeran
     {
         $pengguna = $request->user();
 
-        if ($pengguna === null || ! in_array($pengguna->role->value, $peran, true)) {
+        if ($pengguna === null) {
+            abort(403, 'Halaman ini tidak tersedia untuk peran Anda.');
+        }
+
+        // Superadmin bisa membuka semua halaman yang bisa dibuka admin, jadi
+        // ia otomatis lolos dari daftar peran mana pun tanpa perlu disebut
+        // di setiap rute satu per satu.
+        if ($pengguna->isSuperadmin()) {
+            return $next($request);
+        }
+
+        if (! in_array($pengguna->role->value, $peran, true)) {
             abort(403, 'Halaman ini tidak tersedia untuk peran Anda.');
         }
 

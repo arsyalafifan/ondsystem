@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StatusStop;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'routing_batch_id', 'wilayah_id', 'nomor', 'nama', 'warna', 'total_toko',
-    'total_dus', 'total_jarak_m', 'total_durasi_s', 'jam_berangkat',
+    'total_dus', 'target_dus', 'total_jarak_m', 'total_durasi_s', 'jam_berangkat',
     'estimasi_selesai', 'geometry', 'driver_id', 'diambil_at', 'status',
 ])]
 class Kendaraan extends Model
@@ -23,6 +24,7 @@ class Kendaraan extends Model
         return [
             'total_toko' => 'integer',
             'total_dus' => 'integer',
+            'target_dus' => 'integer',
             'total_jarak_m' => 'integer',
             'total_durasi_s' => 'integer',
             'diambil_at' => 'datetime',
@@ -76,24 +78,78 @@ class Kendaraan extends Model
         });
     }
 
+    /**
+     * Toko yang tidak lagi menunggu tindakan driver. Toko yang dibatalkan
+     * ikut dihitung: tanggung jawab driver atasnya sudah tuntas, hanya dusnya
+     * yang tidak terkirim.
+     */
     protected function totalSelesai(): Attribute
     {
-        return Attribute::get(fn (): int => $this->stops->where('status', 'selesai')->count());
+        return Attribute::get(fn (): int => $this->stops
+            ->filter(fn (KendaraanStop $s) => $s->status->tuntas())
+            ->count());
     }
 
     protected function totalBelum(): Attribute
     {
-        return Attribute::get(fn (): int => $this->total_toko - $this->total_selesai);
+        return Attribute::get(fn (): int => max(0, $this->stops->count() - $this->total_selesai));
     }
 
+    protected function totalDibatalkan(): Attribute
+    {
+        return Attribute::get(fn (): int => $this->stops
+            ->where('status', StatusStop::Dibatalkan)
+            ->count());
+    }
+
+    /** Dus yang benar-benar keluar dari mobil, termasuk lewat kampas. */
+    protected function dusTerkirim(): Attribute
+    {
+        return Attribute::get(fn (): int => (int) $this->stops->sum('total_dus_terkirim'));
+    }
+
+    /**
+     * Dus yang masih benar-benar ada di mobil.
+     *
+     * Yang tidak jadi diterima toko dikurangi yang sudah diampaskan ke toko
+     * lain — tanpa pengurangan itu, barang yang sudah keluar dari mobil masih
+     * terhitung sebagai sisa dan driver terlihat seperti belum menuntaskan
+     * apa pun.
+     */
+    protected function dusTersisa(): Attribute
+    {
+        return Attribute::get(function (): int {
+            $belumTerkirim = (int) $this->stops
+                ->filter(fn (KendaraanStop $s) => ! $s->isKampas())
+                ->sum(fn (KendaraanStop $s) => $s->dus_tersisa);
+
+            $sudahDiampaskan = (int) $this->stops
+                ->filter(fn (KendaraanStop $s) => $s->isKampas())
+                ->sum('total_dus_terkirim');
+
+            return max(0, $belumTerkirim - $sudahDiampaskan);
+        });
+    }
+
+    /**
+     * Kemajuan pengiriman dihitung dari dus, bukan dari jumlah toko.
+     *
+     * Penyebutnya adalah muatan saat mobil berangkat, dan tidak ikut menyusut
+     * ketika ada toko yang dibatalkan. Dengan begitu 100% benar-benar berarti
+     * seluruh dus yang dibawa sudah keluar dari mobil — sisa yang tidak
+     * diampaskan tetap terlihat sebagai kekurangan, bukan tersembunyi oleh
+     * penyebut yang ikut mengecil.
+     */
     protected function persenSelesai(): Attribute
     {
         return Attribute::get(function (): int {
-            if ($this->total_toko === 0) {
+            $target = $this->target_dus > 0 ? $this->target_dus : $this->total_dus;
+
+            if ($target <= 0) {
                 return 0;
             }
 
-            return (int) round($this->total_selesai / $this->total_toko * 100);
+            return (int) min(100, round($this->dus_terkirim / $target * 100));
         });
     }
 

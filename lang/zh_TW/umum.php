@@ -12,6 +12,7 @@ return [
     'cari' => '搜尋',
     'bersihkan' => '清除',
     'ganti' => '更換',
+    'terapkan' => '套用',
     'setujui' => '核准',
     'proses' => '處理',
     'unduh' => '下載',
@@ -50,6 +51,9 @@ return [
     'memproses' => '處理中…',
     'mengunggah' => '上傳中…',
     'mencari' => '搜尋中…',
+    'lokasi_saya' => '📍 我的位置',
+    'gps_tidak_didukung' => '此裝置不支援取得位置。',
+    'gps_gagal' => '無法取得位置，請確認已開啟位置權限。',
     'pilih_bahasa' => '選擇語言',
     'bahasa_diubah' => '語言已切換為 :bahasa。',
 ];

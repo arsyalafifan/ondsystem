@@ -30,12 +30,12 @@
             <div class="min-w-56 flex-1">
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.cari') }}</label>
                 <input type="search" wire:model.live.debounce.300ms="cari" placeholder="{{ __('master.cari_toko') }}"
-                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.wilayah') }}</label>
                 <select wire:model.live="filterWilayah"
-                        class="mt-1 block rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     <option value="">{{ __('umum.semua_wilayah') }}</option>
                     @foreach ($this->wilayahs as $w)
                         <option value="{{ $w->id }}">{{ $w->nama }}</option>
@@ -44,7 +44,7 @@
             </div>
             <label class="flex items-center gap-2 pb-2 text-sm">
                 <input type="checkbox" wire:model.live="tanpaKoordinat"
-                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                       class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                 {{ __('master.hanya_tanpa_koordinat') }}
             </label>
         </div>
@@ -115,7 +115,7 @@
                     @empty
                         <tr>
                             <td colspan="8">
-                                <x-kosong ikon="🏪" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
+                                <x-kosong ikon="building-storefront" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
                             </td>
                         </tr>
                     @endforelse
@@ -137,13 +137,13 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('umum.kode') }}</label>
                             <input type="text" wire:model="kode"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             @error('kode') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('umum.wilayah') }}</label>
                             <select wire:model="wilayahId"
-                                    class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                 @foreach ($this->wilayahs as $w)
                                     <option value="{{ $w->id }}">{{ $w->nama }}</option>
                                 @endforeach
@@ -156,28 +156,28 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('master.asset_id') }}</label>
                             <input type="text" wire:model="assetId" placeholder="IDNAH202528004381"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm uppercase shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full font-mono uppercase rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             @error('assetId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             <p class="mt-1 text-xs text-gray-500">{{ __('master.asset_id_ket') }}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('master.freezer_tipe') }}</label>
                             <input type="text" wire:model="freezerTipe" placeholder="SD-280"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('master.nama_toko') }}</label>
                         <input type="text" wire:model="nama"
-                               class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('umum.alamat') }}</label>
                         <textarea wire:model="alamat" rows="2"
-                                  class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                  class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                         @error('alamat') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
 
@@ -191,7 +191,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">{{ $label }}</label>
                                 <input type="text" wire:model="{{ $prop }}"
-                                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             </div>
                         @endforeach
                     </div>
@@ -200,46 +200,90 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('umum.telepon') }}</label>
                             <input type="text" wire:model="telepon"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('master.nama_pemilik') }}</label>
                             <input type="text" wire:model="namaPemilik"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
                     </div>
 
                     <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" wire:model="aktif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <input type="checkbox" wire:model="aktif" class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         {{ __('master.toko_aktif') }}
                     </label>
                 </div>
 
                 {{-- Koordinat --}}
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-2">
                         <label class="block text-sm font-medium text-gray-700">{{ __('master.titik_koordinat') }}</label>
-                        <button type="button" wire:click="cariKoordinat" wire:loading.attr="disabled" wire:target="cariKoordinat"
-                                class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60">
-                            <span wire:loading.remove wire:target="cariKoordinat">{{ __('master.cari_dari_alamat') }}</span>
-                            <span wire:loading wire:target="cariKoordinat">{{ __('umum.mencari') }}</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    x-data="{ mencari: false }"
+                                    @click="
+                                        if (!navigator.geolocation) {
+                                            window.dispatchEvent(new CustomEvent('notifikasi', { detail: { pesan: @js(__('master.gps_tidak_didukung')), jenis: 'error' } }));
+                                            return;
+                                        }
+                                        mencari = true;
+                                        navigator.geolocation.getCurrentPosition(
+                                            (pos) => {
+                                                mencari = false;
+                                                $wire.call('lokasiSayaDipilih', pos.coords.latitude, pos.coords.longitude);
+                                            },
+                                            () => {
+                                                mencari = false;
+                                                window.dispatchEvent(new CustomEvent('notifikasi', { detail: { pesan: @js(__('master.gps_gagal')), jenis: 'error' } }));
+                                            },
+                                            { enableHighAccuracy: true, timeout: 10000 }
+                                        );
+                                    "
+                                    :disabled="mencari"
+                                    class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60">
+                                <span x-show="!mencari">{{ __('master.lokasi_saya') }}</span>
+                                <span x-show="mencari" x-cloak>{{ __('umum.mencari') }}</span>
+                            </button>
+                            <button type="button" wire:click="cariKoordinat" wire:loading.attr="disabled" wire:target="cariKoordinat"
+                                    class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60">
+                                <span wire:loading.remove wire:target="cariKoordinat">{{ __('master.cari_dari_alamat') }}</span>
+                                <span wire:loading wire:target="cariKoordinat">{{ __('umum.mencari') }}</span>
+                            </button>
+                        </div>
                     </div>
 
                     <p class="text-xs text-gray-500">{{ __('master.ket_peta_pilih') }}</p>
 
                     <div wire:ignore id="peta-pemilih" class="peta h-72 rounded-lg border border-gray-200"></div>
 
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">{{ __('master.tempel_koordinat') }}</label>
+                        <div class="mt-1 flex gap-2">
+                            <input type="text" wire:model="koordinatTempel" wire:keydown.enter.prevent="terapkanKoordinatTempel"
+                                   placeholder="{{ __('master.tempel_koordinat_placeholder') }}"
+                                   class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <button type="button" wire:click="terapkanKoordinatTempel"
+                                    class="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                                {{ __('umum.terapkan') }}
+                            </button>
+                        </div>
+                        @error('koordinatTempel')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                        <p class="mt-1 text-xs text-gray-500">{{ __('master.ket_tempel_koordinat') }}</p>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-600">{{ __('umum.latitude') }}</label>
                             <input type="number" step="any" wire:model="latitude"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600">{{ __('umum.longitude') }}</label>
                             <input type="number" step="any" wire:model="longitude"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                   class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
                     </div>
 

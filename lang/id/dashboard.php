@@ -20,4 +20,10 @@ return [
     'estimasi_selesai' => 'Estimasi selesai',
     'belum_diambil_singkat' => 'belum diambil',
     'pesanan_hari_ini' => 'Pesanan hari ini',
+    'dus_terkirim' => ':terkirim / :target dus terkirim',
+    'dibatalkan_jumlah' => ':jumlah dibatalkan',
+    'dibatalkan' => 'Dibatalkan',
+    'dus_sudah_kirim' => 'Dus terkirim',
+    'dus_sisa_mobil' => 'Sisa di mobil',
+    'persen_dus' => 'Progres dus',
 ];

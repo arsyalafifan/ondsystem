@@ -2,7 +2,7 @@
     <x-judul-halaman :judul="__('kunjungan.judul_penugasan')" :keterangan="__('kunjungan.ket_penugasan')">
         <x-slot:aksi>
             <input type="month" wire:model.live="bulan"
-                   class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                   class="rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             <button type="button" wire:click="bukaSalin"
                     class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                 {{ __('kunjungan.salin_bulan_lalu') }}
@@ -12,7 +12,7 @@
 
     @if ($this->tanpaAssetId > 0)
         <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            ⚠ {{ __('kunjungan.tanpa_asset_id', ['jumlah' => $this->tanpaAssetId]) }} —
+            <x-heroicon-o-exclamation-triangle class="size-4 inline" /> {{ __('kunjungan.tanpa_asset_id', ['jumlah' => $this->tanpaAssetId]) }} —
             <a href="{{ route('master.toko') }}" wire:navigate class="font-semibold underline">{{ __('nav.master_toko') }}</a>
         </div>
     @endif
@@ -74,7 +74,7 @@
                     <div class="min-w-56 flex-1">
                         <input type="search" wire:model.live.debounce.300ms="cari"
                                placeholder="{{ __('kunjungan.cari_toko_penugasan') }}"
-                               class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
                     <button type="button" wire:click="pilihSemuaTampil"
                             class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
@@ -100,7 +100,7 @@
                         ])>
                             <input type="checkbox" wire:model.live="terpilih" value="{{ $toko->id }}"
                                    @disabled($kuotaHabis)
-                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                   class="mt-0.5 rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
 
                             <span class="min-w-0 flex-1">
                                 <span class="block font-medium text-gray-900">{{ $toko->nama }}</span>
@@ -119,7 +119,7 @@
                             @endunless
                         </label>
                     @empty
-                        <x-kosong ikon="🏪" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
+                        <x-kosong ikon="building-storefront" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
                     @endforelse
                 </div>
 
@@ -142,7 +142,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('kunjungan.bulan_sumber') }}</label>
                     <input type="month" wire:model="bulanSumber"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                 </div>
             </div>
 

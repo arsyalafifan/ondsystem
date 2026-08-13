@@ -23,12 +23,12 @@
             <div class="min-w-56 flex-1">
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.cari') }}</label>
                 <input type="search" wire:model.live.debounce.300ms="cari" placeholder="{{ __('pesanan.cari_daftar') }}"
-                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.wilayah') }}</label>
                 <select wire:model.live="filterWilayah"
-                        class="mt-1 block rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     <option value="">{{ __('umum.semua_wilayah') }}</option>
                     @foreach ($this->wilayahs as $w)
                         <option value="{{ $w->id }}">{{ $w->nama }}</option>
@@ -38,7 +38,7 @@
             <div>
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.tanggal') }}</label>
                 <input type="date" wire:model.live="filterTanggal"
-                       class="mt-1 block rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                       class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
             <button type="button" wire:click="bersihkanFilter"
                     class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
@@ -64,7 +64,7 @@
                         @if (auth()->user()->isAdmin())
                             <th class="w-10 px-4 py-2">
                                 <input type="checkbox" wire:model.live="pilihSemua" @disabled($this->idBisaDisetujui === [])
-                                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                       class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             </th>
                         @endif
                         <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
@@ -84,7 +84,7 @@
                                 <td class="px-4 py-2">
                                     @if ($p->status === \App\Enums\StatusPesanan::Order)
                                         <input type="checkbox" wire:model.live="terpilih" value="{{ $p->id }}"
-                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                               class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     @endif
                                 </td>
                             @endif
@@ -109,6 +109,14 @@
                                             class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                         {{ __('umum.rincian') }}
                                     </button>
+
+                                    @if ($p->status->bisaDicetak())
+                                        <a href="{{ route('pesanan.nota', $p) }}" target="_blank"
+                                           class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
+                                            <x-heroicon-o-printer class="size-3.5" />
+                                            {{ __('pesanan.cetak_nota') }}
+                                        </a>
+                                    @endif
 
                                     @if (auth()->user()->isAdmin() && $p->status === \App\Enums\StatusPesanan::Order)
                                         <button type="button" wire:click="setujui({{ $p->id }})"
@@ -234,6 +242,16 @@
                     </div>
                 @endif
             </div>
+
+            @if ($d->status->bisaDicetak())
+                <x-slot:aksi>
+                    <a href="{{ route('pesanan.nota', $d) }}" target="_blank"
+                       class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                        <x-heroicon-o-printer class="size-4" />
+                        {{ __('pesanan.cetak_nota') }}
+                    </a>
+                </x-slot:aksi>
+            @endif
         </x-modal>
     @endif
 
@@ -246,7 +264,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('pesanan.alasan_batal') }}</label>
                     <select wire:model="alasanCancel"
-                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         <option value="">{{ __('pesanan.pilih_alasan') }}</option>
                         @foreach ($this->daftarAlasan as $alasan)
                             <option value="{{ $alasan }}">{{ $alasan }}</option>
@@ -258,7 +276,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('pesanan.catatan_tambahan') }}</label>
                     <textarea wire:model="catatanCancel" rows="2"
-                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
             </div>
 

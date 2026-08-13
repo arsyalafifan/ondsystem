@@ -11,7 +11,7 @@
     <x-kartu>
         <div class="border-b border-gray-200 p-4">
             <input type="search" wire:model.live.debounce.300ms="cari" placeholder="{{ __('master.cari_produk') }}"
-                   class="block w-full max-w-sm rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                   class="block w-full max-w-sm rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
         </div>
 
         <div class="overflow-x-auto">
@@ -65,7 +65,7 @@
                     @empty
                         <tr>
                             <td colspan="8">
-                                <x-kosong ikon="📦" :judul="__('master.produk_kosong')" :keterangan="__('master.produk_kosong_ket')" />
+                                <x-kosong ikon="cube" :judul="__('master.produk_kosong')" :keterangan="__('master.produk_kosong_ket')" />
                             </td>
                         </tr>
                     @endforelse
@@ -85,20 +85,20 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('umum.kode') }}</label>
                         <input type="text" wire:model="kode"
-                               class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('kode') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('master.satuan') }}</label>
                         <input type="text" wire:model="satuan"
-                               class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('master.nama_produk') }}</label>
                     <input type="text" wire:model="nama"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
@@ -106,19 +106,19 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('master.stok_fisik') }}</label>
                         <input type="number" min="0" wire:model="stok"
-                               class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('stok') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('master.harga_satuan') }}</label>
                         <input type="number" min="0" step="0.01" wire:model="harga"
-                               class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('harga') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
                 <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" wire:model="aktif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <input type="checkbox" wire:model="aktif" class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     {{ __('master.produk_aktif') }}
                 </label>
             </div>
@@ -139,13 +139,13 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('master.jumlah') }}</label>
                     <input type="number" wire:model="jumlahPenyesuaian" placeholder="{{ __('master.jumlah_contoh') }}"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('jumlahPenyesuaian') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.keterangan') }}</label>
                     <input type="text" wire:model="keteranganPenyesuaian" placeholder="{{ __('master.keterangan_contoh') }}"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('keteranganPenyesuaian') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
             </div>

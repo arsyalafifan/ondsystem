@@ -29,12 +29,12 @@ enum JenisFotoKunjungan: string
     public function ikon(): string
     {
         return match ($this) {
-            self::SalesDepanToko => '🧍',
-            self::FreezerSebelum => '🧊',
-            self::FreezerSesudah => '✨',
-            self::Spanduk => '🏳️',
-            self::FlagHanger => '🚩',
-            self::SuhuFreezer => '🌡️',
+            self::SalesDepanToko => 'heroicon-o-user',
+            self::FreezerSebelum => 'heroicon-o-cube-transparent',
+            self::FreezerSesudah => 'heroicon-o-sparkles',
+            self::Spanduk => 'heroicon-o-flag',
+            self::FlagHanger => 'heroicon-o-bookmark',
+            self::SuhuFreezer => 'heroicon-o-fire',
         };
     }
 

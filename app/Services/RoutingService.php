@@ -212,7 +212,14 @@ class RoutingService
                 'updated_at' => now(),
             ]);
 
-            $batch->kendaraans()->update(['status' => 'siap']);
+            // Muatan saat berangkat disalin ke target_dus dan tidak pernah
+            // berubah lagi. Ia menjadi penyebut persentase pengiriman, supaya
+            // toko yang dibatalkan di jalan menurunkan angka itu alih-alih
+            // menyusutkan targetnya sendiri.
+            $batch->kendaraans()->update([
+                'status' => 'siap',
+                'target_dus' => DB::raw('total_dus'),
+            ]);
 
             $batch->update([
                 'status' => 'disetujui',

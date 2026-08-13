@@ -3,14 +3,14 @@
         <x-slot:aksi>
             <a href="{{ route('kunjungan.penugasan') }}" wire:navigate
                class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
-                🗂️ {{ __('nav.penugasan') }}
+                <x-heroicon-o-folder-open class="size-4 inline" /> {{ __('nav.penugasan') }}
             </a>
         </x-slot:aksi>
     </x-judul-halaman>
 
     @if ($this->menungguTinjauan > 0)
         <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            ⚠ {{ __('kunjungan.ada_menunggu_tinjauan', ['jumlah' => $this->menungguTinjauan]) }}
+            <x-heroicon-o-exclamation-triangle class="size-4 inline" /> {{ __('kunjungan.ada_menunggu_tinjauan', ['jumlah' => $this->menungguTinjauan]) }}
         </div>
     @endif
 
@@ -55,7 +55,7 @@
 
                 <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                     <span>👤 {{ $periode->periodeSales->count() }}</span>
-                    @if ($r['tutup'] > 0)<span>🚪 {{ $r['tutup'] }}</span>@endif
+                    @if ($r['tutup'] > 0)<span><x-heroicon-o-arrow-right-start-on-rectangle class="size-4 inline" /> {{ $r['tutup'] }}</span>@endif
                     @if ($r['menunggu'] > 0)
                         <span class="font-medium text-amber-700">⏳ {{ $r['menunggu'] }}</span>
                     @endif
@@ -64,7 +64,7 @@
         @empty
             <div class="sm:col-span-2 lg:col-span-3">
                 <x-kartu>
-                    <x-kosong ikon="🧭" :judul="__('kunjungan.periode_kosong')" :keterangan="__('kunjungan.periode_kosong_ket')" />
+                    <x-kosong ikon="paper-airplane" :judul="__('kunjungan.periode_kosong')" :keterangan="__('kunjungan.periode_kosong_ket')" />
                 </x-kartu>
             </div>
         @endforelse

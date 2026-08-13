@@ -20,4 +20,10 @@ return [
     'estimasi_selesai' => '預計完成',
     'belum_diambil_singkat' => '未領取',
     'pesanan_hari_ini' => '今日訂單',
+    'dus_terkirim' => '已送達 :terkirim / :target 箱',
+    'dibatalkan_jumlah' => '已取消 :jumlah 家',
+    'dibatalkan' => '已取消',
+    'dus_sudah_kirim' => '已送箱數',
+    'dus_sisa_mobil' => '車上餘量',
+    'persen_dus' => '箱數進度',
 ];

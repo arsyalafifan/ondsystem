@@ -12,6 +12,7 @@ return [
     'cari' => '搜索',
     'bersihkan' => '清除',
     'ganti' => '更换',
+    'terapkan' => '套用',
     'setujui' => '批准',
     'proses' => '处理',
     'unduh' => '下载',
@@ -50,6 +51,9 @@ return [
     'memproses' => '处理中…',
     'mengunggah' => '上传中…',
     'mencari' => '搜索中…',
+    'lokasi_saya' => '📍 我的位置',
+    'gps_tidak_didukung' => '此设备不支持获取位置。',
+    'gps_gagal' => '无法获取位置，请确认已开启位置权限。',
     'pilih_bahasa' => '选择语言',
     'bahasa_diubah' => '语言已切换为 :bahasa。',
 ];

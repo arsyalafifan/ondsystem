@@ -32,7 +32,7 @@
 
     @if ($r['menunggu'] > 0)
         <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            ⚠ {{ __('kunjungan.ada_menunggu_tinjauan', ['jumlah' => $r['menunggu']]) }}
+            <x-heroicon-o-exclamation-triangle class="size-4 inline" /> {{ __('kunjungan.ada_menunggu_tinjauan', ['jumlah' => $r['menunggu']]) }}
         </div>
     @endif
 
@@ -70,7 +70,13 @@
                         </span>
                     </span>
 
-                    <span class="shrink-0 text-gray-400">{{ $dibuka ? '▾' : '▸' }}</span>
+                    <span class="shrink-0 text-gray-400">
+                        @if($dibuka)
+                            <x-heroicon-o-chevron-down class="size-3 inline" />
+                        @else
+                            <x-heroicon-o-chevron-right class="size-3 inline" />
+                        @endif
+                    </span>
                 </button>
 
                 @if ($dibuka)
@@ -78,7 +84,7 @@
                         <div class="flex flex-wrap items-center gap-2 bg-gray-50 px-4 py-2">
                             <label class="text-xs text-gray-600">{{ __('umum.status') }}</label>
                             <select wire:model.live="saringStatus"
-                                    class="rounded-lg border-gray-300 py-1 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="py-1 text-xs rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                 <option value="">{{ __('kunjungan.semua_status') }}</option>
                                 @foreach ($this->statusTersedia as $s)
                                     <option value="{{ $s->value }}">{{ $s->label() }}</option>
@@ -103,7 +109,7 @@
                                             @if ($kunjungan->selesai_at)
                                                 <span>{{ $kunjungan->selesai_at->isoFormat('ll') }} {{ $kunjungan->selesai_at->format('H:i') }}</span>
                                             @endif
-                                            <span>📷 {{ $kunjungan->fotos->count() }}/{{ $kunjungan->jumlah_foto_wajib }}</span>
+                                            <span><x-heroicon-o-camera class="size-4 inline" /> {{ $kunjungan->fotos->count() }}/{{ $kunjungan->jumlah_foto_wajib }}</span>
                                         </p>
 
                                         @if ($kunjungan->catatan_sales)
@@ -114,7 +120,7 @@
 
                                         @if ($kunjungan->lokasi_mencurigakan)
                                             <p class="mt-1 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                                                ⚠ {{ __('kunjungan.lokasi_jauh', ['jarak' => $kunjungan->jarak_dari_toko_m]) }}
+                                                <x-heroicon-o-exclamation-triangle class="size-4 inline" /> {{ __('kunjungan.lokasi_jauh', ['jarak' => $kunjungan->jarak_dari_toko_m]) }}
                                             </p>
                                         @endif
                                     </div>
@@ -256,7 +262,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('kunjungan.catatan_admin') }}</label>
                     <textarea wire:model="catatanAdmin" rows="2"
-                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
             </div>
 

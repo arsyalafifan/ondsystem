@@ -42,6 +42,8 @@ return [
     'notif_disetujui_massal' => ':jumlah pesanan disetujui menjadi PROCESS.',
     'notif_dilewati' => ':jumlah pesanan dilewati karena statusnya sudah berubah.',
     'batalkan' => 'Batalkan',
+    'cetak_nota' => 'Cetak Nota',
+    'galat_tak_bisa_cetak' => 'Nota pesanan ini belum/tidak bisa dicetak.',
     'judul_batalkan' => 'Batalkan Pesanan',
     'ket_batalkan' => 'Stok yang terkunci akan dilepas kembali dan toko boleh dipesan lagi. Kalau pesanan sudah masuk rute, kunjungannya ikut dikeluarkan dari daftar driver.',
     'alasan_batal' => 'Alasan pembatalan',

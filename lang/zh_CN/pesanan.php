@@ -42,6 +42,8 @@ return [
     'notif_disetujui_massal' => ':jumlah 个订单已批准为“已审核”。',
     'notif_dilewati' => '有 :jumlah 个订单因状态已变更而被跳过。',
     'batalkan' => '取消订单',
+    'cetak_nota' => '打印小票',
+    'galat_tak_bisa_cetak' => '此订单的小票还不能打印。',
     'judul_batalkan' => '取消订单',
     'ket_batalkan' => '已锁定的库存将被释放，该商店可再次下单。若订单已排入路线，其站点会从司机列表中移除。',
     'alasan_batal' => '取消原因',

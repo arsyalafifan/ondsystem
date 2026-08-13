@@ -16,4 +16,10 @@ return [
     'email_wajib' => 'Email is required.',
     'email_format' => 'That email address is not valid.',
     'sandi_wajib' => 'Password is required.',
+    'judul_ganti_sandi' => 'Change Password',
+    'kata_sandi_lama' => 'Current password',
+    'kata_sandi_baru' => 'New password',
+    'kata_sandi_baru_ulang' => 'Confirm new password',
+    'kata_sandi_lama_salah' => 'The current password you entered is incorrect.',
+    'sandi_diperbarui' => 'Password changed successfully.',
 ];

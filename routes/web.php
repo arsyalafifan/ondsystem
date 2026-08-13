@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\NotaPesananController;
+use App\Livewire\Akun\GantiKataSandi;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
 use App\Livewire\Driver\DaftarKunjungan;
@@ -12,6 +14,10 @@ use App\Livewire\Kunjungan\TugasSaya;
 use App\Livewire\Master\DaftarProduk;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Master\DaftarWilayah;
+use App\Livewire\Pembayaran\BelumLunas;
+use App\Livewire\Pembayaran\Pelunasan;
+use App\Livewire\Pembayaran\Pendapatan;
+use App\Livewire\Pengguna\DaftarPengguna;
 use App\Livewire\Pesanan\BuatPesanan;
 use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Routing\GenerateRouting;
@@ -63,6 +69,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/kunjungan/periode/{periode}', DetailPeriode::class)->name('kunjungan.periode.lihat');
         Route::get('/kunjungan/penugasan', Penugasan::class)->name('kunjungan.penugasan');
 
+        Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan');
+        Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas');
+        Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan');
+
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
         Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah');
@@ -72,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('peran:admin,sales')->group(function () {
         Route::get('/pesanan/buat', BuatPesanan::class)->name('pesanan.buat');
         Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar');
+        Route::get('/pesanan/{pesanan}/nota', [NotaPesananController::class, 'cetak'])->name('pesanan.nota');
     });
 
     // --- Sales ---
@@ -85,4 +96,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
+
+    // --- Superadmin ---
+    Route::middleware('peran:superadmin')->group(function () {
+        Route::get('/pengguna', DaftarPengguna::class)->name('pengguna.daftar');
+    });
+
+    // --- Semua peran yang sudah masuk ---
+    Route::get('/akun/kata-sandi', GantiKataSandi::class)->name('akun.kata-sandi');
 });

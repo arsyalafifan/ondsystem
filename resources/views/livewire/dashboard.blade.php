@@ -4,7 +4,7 @@
     <x-judul-halaman :judul="__('dashboard.judul')" :keterangan="__('dashboard.ket')">
         <x-slot:aksi>
             <input type="date" wire:model.live="tanggal"
-                   class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                   class="rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
         </x-slot:aksi>
     </x-judul-halaman>
 
@@ -50,7 +50,7 @@
                 <x-slot:aksi>
                     @if ($t['kendaraan'] > 0)
                         <span class="text-xs text-gray-500">
-                            {{ __('dashboard.toko_selesai', ['selesai' => $t['selesai'], 'total' => $t['toko']]) }} · {{ $t['persen'] }}%
+                            {{ __('dashboard.dus_terkirim', ['terkirim' => \App\Support\Bahasa::angka($t['dus_terkirim']), 'target' => \App\Support\Bahasa::angka($t['dus_target'])]) }} · {{ $t['persen'] }}%
                         </span>
                     @endif
                 </x-slot:aksi>
@@ -60,7 +60,7 @@
                     <button type="button" wire:click="$set('kendaraanDilihat', {{ $k->id }})"
                             class="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left last:border-0 hover:bg-gray-50">
                         <span class="grid size-9 shrink-0 place-items-center rounded-lg text-white"
-                              style="background: {{ $k->warna }}">🚚</span>
+                              style="background: {{ $k->warna }}"><x-heroicon-o-truck class="size-4 inline" /></span>
 
                         <span class="min-w-0 flex-1">
                             <span class="flex items-baseline justify-between gap-2">
@@ -68,7 +68,10 @@
                                 <span class="shrink-0 text-xs tabular-nums text-gray-500">{{ $persen }}%</span>
                             </span>
                             <span class="block text-xs text-gray-500">
-                                {{ __('dashboard.toko_selesai', ['selesai' => $k->total_selesai, 'total' => $k->total_toko]) }}
+                                {{ __('dashboard.dus_terkirim', ['terkirim' => \App\Support\Bahasa::angka($k->dus_terkirim), 'target' => \App\Support\Bahasa::angka($k->target_dus)]) }}
+                                @if ($k->total_dibatalkan > 0)
+                                    · <span class="text-rose-700">{{ __('dashboard.dibatalkan_jumlah', ['jumlah' => $k->total_dibatalkan]) }}</span>
+                                @endif
                                 @if ($k->driver)
                                     · {{ $k->driver->name }}
                                 @else
@@ -82,7 +85,7 @@
                         </span>
                     </button>
                 @empty
-                    <x-kosong ikon="🚚" :judul="__('dashboard.belum_ada_kendaraan')"
+                    <x-kosong ikon="truck" :judul="__('dashboard.belum_ada_kendaraan')"
                               :keterangan="__('dashboard.belum_ada_kendaraan_ket')" />
                 @endforelse
 
@@ -129,8 +132,12 @@
                     @foreach ([
                         [__('dashboard.total_toko'), $k->total_toko],
                         [__('dashboard.selesai'), $k->total_selesai],
+                        [__('dashboard.dibatalkan'), $k->total_dibatalkan],
                         [__('dashboard.belum'), $k->total_belum],
-                        [__('dashboard.total_dus'), \App\Support\Bahasa::angka($k->total_dus)],
+                        [__('dashboard.total_dus'), \App\Support\Bahasa::angka($k->target_dus)],
+                        [__('dashboard.dus_sudah_kirim'), \App\Support\Bahasa::angka($k->dus_terkirim)],
+                        [__('dashboard.dus_sisa_mobil'), \App\Support\Bahasa::angka($k->dus_tersisa)],
+                        [__('dashboard.persen_dus'), $k->persen_selesai.'%'],
                     ] as [$label, $nilai])
                         <div>
                             <p class="text-xs text-gray-500">{{ $label }}</p>
@@ -170,7 +177,7 @@
                                     <td class="px-3 py-2 text-right tabular-nums">@angka($stop->total_dus)</td>
                                     <td class="px-3 py-2 tabular-nums text-gray-600">{{ $stop->eta ? substr((string) $stop->eta, 0, 5) : '—' }}</td>
                                     <td class="px-3 py-2">
-                                        @if ($stop->status === 'selesai')
+                                        @if ($stop->status === \App\Enums\StatusStop::Selesai)
                                             <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
                                                 {{ __('driver.selesai_pukul', ['waktu' => $stop->selesai_at?->format('H:i')]) }}
                                             </span>
