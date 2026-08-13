@@ -56,7 +56,7 @@
                     @empty
                         <tr>
                             <td colspan="10">
-                                <x-kosong ikon="🗺️" :judul="__('routing.riwayat_kosong')" :keterangan="__('routing.riwayat_kosong_ket')" />
+                                <x-kosong ikon="map" :judul="__('routing.riwayat_kosong')" :keterangan="__('routing.riwayat_kosong_ket')" />
                             </td>
                         </tr>
                     @endforelse

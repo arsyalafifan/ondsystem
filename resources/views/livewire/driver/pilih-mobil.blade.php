@@ -9,7 +9,7 @@
                     style="border-left-color: {{ $k->warna }}">
                 <div class="flex items-start justify-between gap-2">
                     <div>
-                        <p class="text-lg font-semibold text-gray-900">🚚 {{ $k->nama }}</p>
+                        <p class="text-lg font-semibold text-gray-900"><x-heroicon-o-truck class="size-4 inline" /> {{ $k->nama }}</p>
                         @if ($k->wilayah)
                             <p class="text-sm text-gray-500">{{ $k->wilayah->nama }}</p>
                         @endif
@@ -53,7 +53,7 @@
         @empty
             <div class="sm:col-span-2 lg:col-span-3">
                 <x-kartu>
-                    <x-kosong ikon="🚚" :judul="__('driver.belum_ada_mobil')" :keterangan="__('driver.belum_ada_mobil_ket')" />
+                    <x-kosong ikon="truck" :judul="__('driver.belum_ada_mobil')" :keterangan="__('driver.belum_ada_mobil_ket')" />
                 </x-kartu>
             </div>
         @endforelse

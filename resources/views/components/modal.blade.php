@@ -10,7 +10,9 @@
                 <h2 class="text-sm font-semibold text-gray-900">{{ $judul }}</h2>
                 @if ($tutup)
                     <button type="button" wire:click="{{ $tutup }}"
-                            class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">✕</button>
+                            class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <x-heroicon-o-x-mark class="size-5" />
+                    </button>
                 @endif
             </div>
 

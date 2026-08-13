@@ -35,7 +35,9 @@
                  x-transition.opacity>
                 <span class="flex-1" x-text="pesan"></span>
                 <button type="button" @click="pesan = null"
-                        class="shrink-0 opacity-60 hover:opacity-100">✕</button>
+                        class="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                    <x-heroicon-o-x-mark class="size-4" />
+                </button>
             </div>
         </div>
     </template>

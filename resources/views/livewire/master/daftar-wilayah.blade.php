@@ -54,7 +54,7 @@
                     @empty
                         <tr>
                             <td colspan="7">
-                                <x-kosong ikon="📍" :judul="__('master.wilayah_kosong')" :keterangan="__('master.wilayah_kosong_ket')" />
+                                <x-kosong ikon="map-pin" :judul="__('master.wilayah_kosong')" :keterangan="__('master.wilayah_kosong_ket')" />
                             </td>
                         </tr>
                     @endforelse
@@ -69,22 +69,22 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.kode') }}</label>
                     <input type="text" wire:model="kode" placeholder="{{ __('master.kode_contoh_wilayah') }}"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('kode') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.nama') }}</label>
                     <input type="text" wire:model="nama" placeholder="{{ __('master.nama_contoh_wilayah') }}"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.keterangan') }}</label>
                     <textarea wire:model="keterangan" rows="2"
-                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
                 <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" wire:model="aktif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <input type="checkbox" wire:model="aktif" class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     {{ __('master.wilayah_aktif') }}
                 </label>
             </div>

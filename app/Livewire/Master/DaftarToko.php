@@ -74,6 +74,8 @@ class DaftarToko extends Component
 
     public ?string $hasilGeocode = null;
 
+    public string $koordinatTempel = '';
+
     // --- Impor ---
     public bool $imporTerbuka = false;
 
@@ -184,7 +186,7 @@ class DaftarToko extends Component
         $this->reset([
             'tokoId', 'kode', 'assetId', 'freezerTipe', 'nama', 'alamat', 'wilayahId',
             'kelurahan', 'kecamatan', 'kota', 'kodePos', 'telepon', 'namaPemilik',
-            'latitude', 'longitude', 'hasilGeocode',
+            'latitude', 'longitude', 'hasilGeocode', 'koordinatTempel',
         ]);
 
         $this->sumberKoordinat = 'belum';
@@ -199,6 +201,51 @@ class DaftarToko extends Component
         $this->longitude = $lng;
         $this->sumberKoordinat = 'manual';
         $this->hasilGeocode = __('master.titik_dari_peta');
+    }
+
+    /** Dipanggil dari tombol "Lokasi Saya", setelah browser memberi izin GPS. */
+    public function lokasiSayaDipilih(float $lat, float $lng): void
+    {
+        $this->latitude = $lat;
+        $this->longitude = $lng;
+        $this->sumberKoordinat = 'manual';
+        $this->hasilGeocode = __('master.titik_dari_gps');
+
+        $this->dispatch('pindahkan-penanda', lat: $lat, lng: $lng);
+    }
+
+    /**
+     * Menerima format "lat, lng" yang biasa disalin langsung dari Google Maps,
+     * misalnya "1.0574377910177943, 104.03874610943407".
+     */
+    public function terapkanKoordinatTempel(): void
+    {
+        $this->resetErrorBag('koordinatTempel');
+
+        $bagian = array_map('trim', explode(',', $this->koordinatTempel));
+
+        if (count($bagian) !== 2 || ! is_numeric($bagian[0]) || ! is_numeric($bagian[1])) {
+            $this->addError('koordinatTempel', __('master.koordinat_tempel_tidak_valid'));
+
+            return;
+        }
+
+        $lat = (float) $bagian[0];
+        $lng = (float) $bagian[1];
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            $this->addError('koordinatTempel', __('master.koordinat_tempel_tidak_valid'));
+
+            return;
+        }
+
+        $this->latitude = $lat;
+        $this->longitude = $lng;
+        $this->sumberKoordinat = 'manual';
+        $this->hasilGeocode = __('master.titik_dari_tempel');
+        $this->koordinatTempel = '';
+
+        $this->dispatch('pindahkan-penanda', lat: $lat, lng: $lng);
     }
 
     /** Mencari koordinat dari alamat yang sedang diketik. */

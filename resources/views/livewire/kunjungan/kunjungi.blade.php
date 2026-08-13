@@ -32,7 +32,7 @@
     {{-- Penanda lokasi, selalu terlihat supaya sales tahu GPS-nya sudah dapat --}}
     <div class="mb-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
          :class="lokasi ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'">
-        <span x-text="lokasi ? '📍' : '🛰️'"></span>
+        <span x-text="lokasi ? '<x-heroicon-o-map-pin class="size-4 inline" />' : '<x-heroicon-o-signal class="size-4 inline" />'"></span>
         <span x-show="lokasi" x-cloak
               x-text="'{{ __('kunjungan.lokasi_terbaca', ['akurasi' => '__A__']) }}'.replace('__A__', lokasi?.akurasi ?? '?')"></span>
         <span x-show="!lokasi">{{ __('kunjungan.lokasi_belum') }}</span>
@@ -65,21 +65,21 @@
                 {{-- Tombol lensa dan senter, muncul hanya bila perangkatnya mendukung --}}
                 <div class="absolute right-2 top-2 flex flex-col gap-2">
                     <button type="button" id="tombol-ganti-lensa" title="{{ __('kunjungan.ganti_lensa') }}"
-                            class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔄</button>
+                            class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur"><x-heroicon-o-arrow-path class="size-4 inline" /></button>
                     <button type="button" id="tombol-senter" title="{{ __('kunjungan.senter') }}"
-                            class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔦</button>
+                            class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur"><x-heroicon-o-light-bulb class="size-4 inline" /></button>
                 </div>
             </div>
 
             <div class="space-y-2 p-4">
                 <button type="button" id="tombol-mulai-pindai"
                         class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-                    📷 {{ __('kunjungan.nyalakan_kamera') }}
+                    <x-heroicon-o-camera class="size-4 inline" /> {{ __('kunjungan.nyalakan_kamera') }}
                 </button>
                 <p id="pesan-pindai" class="hidden rounded-lg bg-red-50 p-2 text-xs text-red-800"></p>
                 <p class="text-xs text-gray-500">{{ __('kunjungan.ket_pindai') }}</p>
                 {{-- <p id="petunjuk-pindai" class="hidden rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-                    💡 {{ __('kunjungan.qr_sulit_terbaca') }}
+                    <x-heroicon-o-information-circle class="size-4 inline" /> {{ __('kunjungan.qr_sulit_terbaca') }}
                 </p> --}}
             </div>
         </x-kartu>
@@ -148,7 +148,11 @@
                     <div class="flex items-start gap-3 p-3">
                         <span class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg text-lg
                                      {{ $foto ? 'bg-emerald-100' : 'bg-gray-100' }}">
-                            {{ $foto ? '✅' : $jenis->ikon() }}
+                            @if($foto)
+                                <x-heroicon-s-check-circle class="size-5 text-emerald-500 inline" />
+                            @else
+                                @svg($jenis->ikon(), 'size-5 text-gray-500 inline')
+                            @endif
                         </span>
 
                         <div class="min-w-0 flex-1">
@@ -199,20 +203,20 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('kunjungan.catatan_kunjungan') }}</label>
                     <textarea wire:model="catatan" rows="2" placeholder="{{ __('kunjungan.catatan_kunjungan_contoh') }}"
-                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
 
                 <button type="button" wire:click="selesaikan" wire:loading.attr="disabled"
                         @disabled(! $k->foto_lengkap)
                         class="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300">
-                    <span wire:loading.remove wire:target="selesaikan">✅ {{ __('kunjungan.selesaikan_kunjungan') }}</span>
+                    <span wire:loading.remove wire:target="selesaikan"><x-heroicon-s-check-circle class="size-5 text-emerald-500 inline" /> {{ __('kunjungan.selesaikan_kunjungan') }}</span>
                     <span wire:loading wire:target="selesaikan">{{ __('umum.menyimpan') }}</span>
                 </button>
 
                 <div class="flex gap-2">
                     <button type="button" wire:click="$set('formTutupTerbuka', true)"
                             class="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50">
-                        🚪 {{ __('kunjungan.lapor_toko_tutup') }}
+                        <x-heroicon-o-arrow-right-start-on-rectangle class="size-4 inline" /> {{ __('kunjungan.lapor_toko_tutup') }}
                     </button>
                     <button type="button" wire:click="kembaliPindai"
                             class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
@@ -238,7 +242,7 @@
         <div class="flex items-center justify-between px-4 py-3 text-white">
             <span class="text-sm font-medium" x-text="jenisAktif ? window._labelJenis?.[jenisAktif] : ''"></span>
             <button type="button" @click="kameraTerbuka = false; window._kameraKunjungan?.matikan()"
-                    class="rounded p-2 text-white/70 hover:bg-white/10">✕</button>
+                    class="rounded p-2 text-white/70 hover:bg-white/10"><x-heroicon-o-x-mark class="size-4 inline" /></button>
         </div>
 
         <div id="bidik-foto" class="relative flex-1 overflow-hidden">
@@ -246,9 +250,9 @@
 
             <div class="absolute right-3 top-3 flex flex-col gap-2">
                 <button type="button" id="tombol-ganti-lensa-foto" title="{{ __('kunjungan.ganti_lensa') }}"
-                        class="hidden rounded-full bg-white/20 px-3 py-2 text-base text-white backdrop-blur">🔄</button>
+                        class="hidden rounded-full bg-white/20 px-3 py-2 text-base text-white backdrop-blur"><x-heroicon-o-arrow-path class="size-4 inline" /></button>
                 <button type="button" id="tombol-senter-foto" title="{{ __('kunjungan.senter') }}"
-                        class="hidden rounded-full bg-white/20 px-3 py-2 text-base text-white backdrop-blur">🔦</button>
+                        class="hidden rounded-full bg-white/20 px-3 py-2 text-base text-white backdrop-blur"><x-heroicon-o-light-bulb class="size-4 inline" /></button>
             </div>
         </div>
 
@@ -261,7 +265,7 @@
             <button type="button"
                     @click="window._kameraKunjungan?.jepret(jenisAktif); kameraTerbuka = false"
                     class="grid size-20 place-items-center rounded-full border-4 border-white bg-white/20 text-3xl text-white active:scale-95">
-                📸
+                <x-heroicon-o-camera class="size-4 inline" />
             </button>
         </div>
     </div>
@@ -275,7 +279,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('kunjungan.alasan_tutup') }}</label>
                     <textarea wire:model="catatanTutup" rows="3" placeholder="{{ __('kunjungan.alasan_tutup_contoh') }}"
-                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
             </div>
 

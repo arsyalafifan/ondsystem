@@ -72,14 +72,24 @@ class Dashboard extends Component
         $totalToko = (int) $kendaraans->sum('total_toko');
         $selesai = $kendaraans->sum(fn (Kendaraan $k) => $k->total_selesai);
 
+        // Progres diukur dari dus yang benar-benar sampai ke toko, bukan dari
+        // jumlah toko: satu toko yang dibatalkan tetap terhitung tuntas bagi
+        // driver, tapi muatannya belum sampai ke mana pun.
+        $target = (int) $kendaraans->sum('target_dus');
+        $terkirim = $kendaraans->sum(fn (Kendaraan $k) => $k->dus_terkirim);
+
         return [
             'kendaraan' => $kendaraans->count(),
             'toko' => $totalToko,
             'selesai' => $selesai,
             'belum' => $totalToko - $selesai,
             'dus' => (int) $kendaraans->sum('total_dus'),
+            'dus_target' => $target,
+            'dus_terkirim' => $terkirim,
+            'dus_sisa' => $kendaraans->sum(fn (Kendaraan $k) => $k->dus_tersisa),
+            'dibatalkan' => $kendaraans->sum(fn (Kendaraan $k) => $k->total_dibatalkan),
             'jarak_km' => round($kendaraans->sum('total_jarak_m') / 1000, 1),
-            'persen' => $totalToko === 0 ? 0 : (int) round($selesai / $totalToko * 100),
+            'persen' => $target === 0 ? 0 : (int) round($terkirim / $target * 100),
         ];
     }
 

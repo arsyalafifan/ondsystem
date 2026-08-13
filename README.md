@@ -56,6 +56,40 @@ Driver        Kirim + upload nota► SELESAI
 Pembatalan bisa dilakukan pada status ORDER, PROCESS, dan DELIVERY selama foto
 nota belum diunggah.
 
+### Tiga keputusan driver di lapangan
+
+Rencana di kantor jarang selamat bertemu kenyataan di jalan. Selain navigasi
+dan unggah nota, driver punya tiga tindakan pada setiap toko di daftarnya:
+
+- **Cancel** — toko tidak bisa dikirimi (tutup, pindah, menolak). Alasannya
+  sama dengan daftar alasan pembatalan milik admin. Kewajiban driver atas toko
+  itu dianggap tuntas, tapi dusnya **tidak** terhitung terkirim — barangnya
+  masih di mobil.
+- **Coret nota** — pesanan 10 dus tapi toko hanya mau 5. Driver mencatat jumlah
+  yang benar-benar diterima per produk. Pesanan tetap SELESAI, ditandai
+  `kurang_kirim`, dan sisanya menjadi muatan yang boleh dikampaskan. Sisa yang
+  dicoret tetap harus memenuhi batas minimal pesanan; toko yang mau kurang dari
+  itu semestinya dibatalkan, bukan dicoret.
+- **Kampas** — menyalurkan sisa muatan ke toko lain di jalan. Tokonya dipilih
+  dengan cara yang sama seperti input pesanan (ketik atau pindai QR), tapi di
+  sini **semua toko boleh dipilih**, termasuk yang masih punya pesanan
+  berjalan. Tidak ada batas minimal 5 dus. Toko yang dipilih otomatis masuk ke
+  daftar kunjungan mobil itu.
+
+Jatah kampas dihitung **per produk**, bukan sebagai satu angka gelondongan:
+2 toko batal berisi 5 dus air dan 5 dus teh memberi jatah 5 air + 5 teh, bukan
+10 dus bebas. Tanpa itu driver bisa menjanjikan barang yang tidak ada di
+mobilnya.
+
+### Progres pengiriman dihitung dari dus
+
+Penyebutnya adalah muatan yang dibawa mobil saat berangkat (`target_dus`),
+dan pembilangnya adalah dus yang benar-benar sampai ke toko. Penyebut ini
+sengaja tidak ikut menyusut saat ada pembatalan: kalau ia menyusut, mobil yang
+membatalkan separuh rutenya akan terlihat 100% padahal separuh muatannya
+pulang lagi. Menghitung berdasarkan jumlah toko punya cacat yang sama —
+toko batal terhitung tuntas, sehingga kekurangan kiriman tersembunyi.
+
 ### Memilih toko saat input pesanan
 
 Dua jalan, dan keduanya melewati pemeriksaan yang sama — toko harus aktif dan
@@ -85,6 +119,12 @@ gudang:
 
 Yang bisa dipesan adalah selisih keduanya. Setiap pergerakan tercatat di tabel
 `stok_mutasis`.
+
+Aturan yang mengikat ketiga tindakan lapangan: **`stok` hanya berkurang
+sebanyak dus yang benar-benar diterima toko.** Dus yang dibatalkan, dicoret,
+atau tidak jadi dikampaskan pulang bersama mobilnya, jadi kunciannya dilepas
+tapi angka stoknya utuh. Kampas memotong `stok` tanpa menyentuh
+`stok_reserved`, karena barangnya sudah lepas kunci sejak pembatalan.
 
 ---
 
@@ -428,7 +468,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-167 tes, mencakup:
+194 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -448,6 +488,14 @@ php artisan test
 - **[`tests/Feature/AlurRoutingTest.php`](tests/Feature/AlurRoutingTest.php)** —
   alur penuh dari PROCESS sampai SELESAI, termasuk pemindahan toko antar mobil
   dan pembatalan pesanan yang sudah masuk rute.
+- **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
+  ketiga tindakan driver dan pembukuan stoknya: pembatalan yang menuntaskan
+  toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah
+  batas minimal, jatah kampas per produk yang menolak permintaan melebihi sisa
+  produk itu meski total jatahnya cukup, dan pemeriksaan bahwa dus yang tidak
+  sampai ke mana pun tidak memotong stok gudang. Termasuk cegatan di layar:
+  isian yang melebihi jatah dipotong dan diberitahukan sejak diketik, bukan
+  baru setelah nota terunggah.
 - **[`tests/Feature/HalamanTest.php`](tests/Feature/HalamanTest.php)** —
   setiap halaman tampil dan setiap peran hanya bisa membuka haknya.
 - **[`tests/Feature/KunjunganTest.php`](tests/Feature/KunjunganTest.php)** —

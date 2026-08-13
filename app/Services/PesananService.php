@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StatusPesanan;
+use App\Enums\StatusStop;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
@@ -153,7 +154,7 @@ class PesananService
      */
     public function selesaikanPengiriman(KendaraanStop $stop, string $pathFotoNota, User $driver, ?string $catatan = null): void
     {
-        if ($stop->status === 'selesai') {
+        if ($stop->status !== StatusStop::Pending) {
             throw new RuntimeException(__('pesanan.galat_sudah_selesai'));
         }
 
@@ -169,7 +170,10 @@ class PesananService
             }
 
             $stop->update([
-                'status' => 'selesai',
+                'status' => StatusStop::Selesai,
+                // Pengiriman biasa berarti seluruh isi nota diterima toko.
+                // Pengiriman sebagian ditangani PengirimanService::coretNota().
+                'total_dus_terkirim' => $stop->total_dus,
                 'foto_nota' => $pathFotoNota,
                 'catatan_driver' => $catatan,
                 'selesai_at' => now(),
@@ -186,7 +190,7 @@ class PesananService
 
             $kendaraan = $stop->kendaraan;
 
-            if ($kendaraan->stops()->where('status', 'pending')->doesntExist()) {
+            if ($kendaraan->stops()->where('status', StatusStop::Pending)->doesntExist()) {
                 $kendaraan->update(['status' => 'selesai']);
             } elseif ($kendaraan->status === 'siap') {
                 $kendaraan->update(['status' => 'jalan']);
@@ -211,7 +215,7 @@ class PesananService
 
             $stop = $pesanan->stop;
 
-            if ($stop !== null && $stop->status === 'selesai') {
+            if ($stop !== null && $stop->status === StatusStop::Selesai) {
                 throw new RuntimeException(__('pesanan.galat_sudah_diterima'));
             }
 

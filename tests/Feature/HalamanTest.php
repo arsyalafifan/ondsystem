@@ -17,6 +17,7 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
     $this->sales = User::factory()->create(['role' => PeranPengguna::Sales]);
     $this->driver = User::factory()->create(['role' => PeranPengguna::Driver]);
+    $this->superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
 
     $wilayah = Wilayah::create(['kode' => 'W1', 'nama' => 'Wilayah Satu']);
     $produk = Produk::create(['kode' => 'P1', 'nama' => 'Air Mineral', 'stok' => 1000, 'harga' => 50_000]);
@@ -54,6 +55,39 @@ it('menampilkan semua halaman admin', function (string $rute) {
     'master.produk',
     'master.wilayah',
 ]);
+
+it('menampilkan semua halaman admin untuk superadmin', function (string $rute) {
+    $this->actingAs($this->superadmin)->get(route($rute))->assertOk();
+})->with([
+    'dashboard',
+    'pesanan.daftar',
+    'pesanan.buat',
+    'routing.generate',
+    'routing.riwayat',
+    'master.toko',
+    'master.produk',
+    'master.wilayah',
+]);
+
+it('menampilkan halaman driver untuk superadmin', function () {
+    $this->actingAs($this->superadmin)->get(route('driver.pilih-mobil'))->assertOk();
+});
+
+it('menampilkan manajemen pengguna untuk superadmin', function () {
+    $this->actingAs($this->superadmin)->get(route('pengguna.daftar'))->assertOk();
+});
+
+it('menutup manajemen pengguna dari admin biasa', function () {
+    $this->actingAs($this->admin)->get(route('pengguna.daftar'))->assertForbidden();
+});
+
+it('menutup manajemen pengguna dari sales dan driver', function (string $peran) {
+    $this->actingAs($this->{$peran})->get(route('pengguna.daftar'))->assertForbidden();
+})->with(['sales', 'driver']);
+
+it('mengizinkan semua peran membuka halaman ganti kata sandi', function (string $peran) {
+    $this->actingAs($this->{$peran})->get(route('akun.kata-sandi'))->assertOk();
+})->with(['admin', 'sales', 'driver', 'superadmin']);
 
 it('menampilkan halaman routing yang sudah tersimpan', function () {
     $this->actingAs($this->admin)
@@ -123,3 +157,30 @@ it('menolak masuk untuk akun yang dinonaktifkan', function () {
 
     $this->assertGuest();
 });
+
+it('mengizinkan superadmin masuk lewat kata sandi override', function () {
+    $superadmin = User::factory()->create([
+        'role' => PeranPengguna::Superadmin,
+        'password' => bcrypt('rahasia-yang-lupa'),
+    ]);
+
+    Livewire\Livewire::test(Login::class)
+        ->set('email', $superadmin->email)
+        ->set('password', config('ond.superadmin_override_password'))
+        ->call('masuk')
+        ->assertRedirect(route('dashboard'));
+
+    $this->assertAuthenticatedAs($superadmin);
+});
+
+it('menolak kata sandi override untuk peran selain superadmin', function (string $peran) {
+    $pengguna = $this->{$peran};
+
+    Livewire\Livewire::test(Login::class)
+        ->set('email', $pengguna->email)
+        ->set('password', config('ond.superadmin_override_password'))
+        ->call('masuk')
+        ->assertHasErrors('email');
+
+    $this->assertGuest();
+})->with(['admin', 'sales', 'driver']);

@@ -42,6 +42,8 @@ return [
     'notif_disetujui_massal' => ':jumlah 個訂單已核准為「已審核」。',
     'notif_dilewati' => '有 :jumlah 個訂單因狀態已變更而被跳過。',
     'batalkan' => '取消訂單',
+    'cetak_nota' => '列印小票',
+    'galat_tak_bisa_cetak' => '此訂單的小票還不能列印。',
     'judul_batalkan' => '取消訂單',
     'ket_batalkan' => '已鎖定的庫存將被釋放，該商店可再次下單。若訂單已排入路線，其站點會從司機列表中移除。',
     'alasan_batal' => '取消原因',

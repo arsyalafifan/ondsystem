@@ -12,6 +12,7 @@ return [
     'cari' => 'Search',
     'bersihkan' => 'Clear',
     'ganti' => 'Change',
+    'terapkan' => 'Apply',
     'setujui' => 'Approve',
     'proses' => 'Process',
     'unduh' => 'Download',
@@ -50,6 +51,9 @@ return [
     'memproses' => 'Processing…',
     'mengunggah' => 'Uploading…',
     'mencari' => 'Searching…',
+    'lokasi_saya' => '📍 My location',
+    'gps_tidak_didukung' => 'This device does not support getting your location.',
+    'gps_gagal' => 'Could not get your location. Make sure location permission is enabled.',
     'pilih_bahasa' => 'Choose language',
     'bahasa_diubah' => 'Language changed to :bahasa.',
 ];

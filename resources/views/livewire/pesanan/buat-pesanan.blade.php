@@ -21,7 +21,9 @@
                                 <p class="text-sm text-gray-600">{{ $this->toko->kode }} · {{ $this->toko->wilayah->nama }}</p>
                                 <p class="mt-1 text-sm text-gray-500">{{ $this->toko->alamat }}</p>
                                 @unless ($this->toko->punya_koordinat)
-                                    <p class="mt-1 text-sm text-amber-700">⚠ {{ __('pesanan.toko_tanpa_koordinat') }}</p>
+                                    <p class="mt-1 text-sm text-amber-700">
+                                        <x-heroicon-o-exclamation-triangle class="size-4 inline mr-1" />{{ __('pesanan.toko_tanpa_koordinat') }}
+                                    </p>
                                 @endunless
                             </div>
                             <button type="button" wire:click="batalPilihToko"
@@ -31,15 +33,16 @@
                         </div>
                     @else
                         {{-- Dua cara memilih toko: mengetik, atau memindai QR freezer --}}
-                        <div class="mb-3 inline-flex rounded-lg border border-gray-300 p-0.5">
-                            @foreach ([['ketik', '⌨️', __('pesanan.cara_ketik')], ['pindai', '📷', __('pesanan.cara_pindai')]] as [$cara, $ikon, $label])
+                        <div class="mb-3 inline-flex rounded-lg border border-gray-300 p-0.5 bg-gray-50">
+                            @foreach ([['ketik', 'pencil-square', __('pesanan.cara_ketik')], ['pindai', 'camera', __('pesanan.cara_pindai')]] as [$cara, $ikon, $label])
                                 <button type="button" wire:click="gantiCaraPilih('{{ $cara }}')"
                                         @class([
-                                            'rounded-md px-3 py-1.5 text-sm font-medium transition',
-                                            'bg-blue-600 text-white' => $caraPilihToko === $cara,
-                                            'text-gray-600 hover:bg-gray-50' => $caraPilihToko !== $cara,
+                                            'rounded-md px-3 py-2 text-sm font-medium transition-all flex items-center gap-2',
+                                            'bg-white text-blue-600 shadow-sm ring-1 ring-gray-200' => $caraPilihToko === $cara,
+                                            'text-gray-500 hover:text-gray-900' => $caraPilihToko !== $cara,
                                         ])>
-                                    {{ $ikon }} {{ $label }}
+                                    @svg('heroicon-o-'.$ikon, ['class' => 'size-4'])
+                                    {{ $label }}
                                 </button>
                             @endforeach
                         </div>
@@ -47,7 +50,7 @@
                         @if ($caraPilihToko === 'ketik')
                             <input type="search" wire:model.live.debounce.300ms="cariToko"
                                    placeholder="{{ __('pesanan.cari_toko') }}"
-                                   class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                   class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
 
                             @if (mb_strlen(trim($cariToko)) >= 2)
                                 <div class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
@@ -107,15 +110,20 @@
 
                             <div class="absolute right-2 top-2 flex flex-col gap-2">
                                 <button type="button" id="lensa-toko" title="{{ __('kunjungan.ganti_lensa') }}"
-                                        class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔄</button>
+                                        class="hidden rounded-full bg-black/50 p-2.5 text-white backdrop-blur hover:bg-black/70 transition">
+                                    <x-heroicon-o-arrow-path class="size-5" />
+                                </button>
                                 <button type="button" id="senter-toko" title="{{ __('kunjungan.senter') }}"
-                                        class="hidden rounded-full bg-black/55 px-3 py-2 text-base text-white backdrop-blur">🔦</button>
+                                        class="hidden rounded-full bg-black/50 p-2.5 text-white backdrop-blur hover:bg-black/70 transition">
+                                    <x-heroicon-o-light-bulb class="size-5" />
+                                </button>
                             </div>
                         </div>
 
                         <button type="button" id="mulai-pindai-toko"
-                                class="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-                            📷 {{ __('kunjungan.nyalakan_kamera') }}
+                                class="mt-2 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition">
+                            <x-heroicon-o-camera class="size-5" />
+                            {{ __('kunjungan.nyalakan_kamera') }}
                         </button>
                         <p id="pesan-pindai-toko" class="mt-2 hidden rounded-lg bg-red-50 p-2 text-xs text-red-800"></p>
                         {{-- <p id="tips-pindai-toko" class="mt-2 hidden rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
@@ -153,7 +161,7 @@
                                 <tr>
                                     <td class="px-4 py-2">
                                         <select wire:model.live="baris.{{ $i }}.produk_id"
-                                                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                             <option value="">{{ __('pesanan.pilih_produk') }}</option>
                                             @foreach ($this->produks as $p)
                                                 <option value="{{ $p->id }}">{{ $p->nama }} ({{ $p->kode }})</option>
@@ -162,7 +170,7 @@
                                     </td>
                                     <td class="px-4 py-2">
                                         <input type="number" min="1" wire:model.live.debounce.400ms="baris.{{ $i }}.jumlah_dus"
-                                               class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     </td>
                                     <td class="px-4 py-2 text-right {{ $produk && (int) ($b['jumlah_dus'] ?: 0) > $produk->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
                                         {{ $produk ? \App\Support\Bahasa::angka($produk->stok_tersedia) : '—' }}
@@ -172,7 +180,9 @@
                                     </td>
                                     <td class="px-4 py-2 text-right">
                                         <button type="button" wire:click="hapusBaris({{ $i }})"
-                                                class="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600">✕</button>
+                                                class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                            <x-heroicon-o-trash class="size-5" />
+                                        </button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -195,7 +205,7 @@
             <x-kartu :judul="__('pesanan.langkah_catatan')">
                 <div class="p-4">
                     <textarea wire:model="catatan" rows="2" placeholder="{{ __('pesanan.catatan_contoh') }}"
-                              class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
             </x-kartu>
         </div>
@@ -214,8 +224,12 @@
                     @endphp
 
                     @foreach ($periksa as $p)
-                        <div class="flex items-center gap-2 text-sm {{ $p['lulus'] ? 'text-emerald-700' : 'text-gray-500' }}">
-                            <span>{{ $p['lulus'] ? '✅' : '⬜' }}</span>
+                        <div class="flex items-center gap-2.5 text-sm {{ $p['lulus'] ? 'text-emerald-700' : 'text-gray-500' }}">
+                            @if ($p['lulus'])
+                                <x-heroicon-s-check-circle class="size-5 text-emerald-500" />
+                            @else
+                                <div class="size-5 rounded-full border-2 border-gray-300"></div>
+                            @endif
                             {{ $p['teks'] }}
                         </div>
                     @endforeach

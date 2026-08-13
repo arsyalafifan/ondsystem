@@ -37,14 +37,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Override darurat superadmin
+    |--------------------------------------------------------------------------
+    | Kata sandi cadangan khusus akun superadmin, dipakai bila superadmin
+    | lupa kata sandinya sendiri dan tidak ada superadmin lain yang bisa
+    | mengatur ulang. Tidak pernah berlaku untuk peran lain. Ubah lewat .env
+    | sebelum aplikasi dipakai sungguhan.
+    */
+
+    'superadmin_override_password' => env('SUPERADMIN_OVERRIDE_PASSWORD', 'ikanbakar'),
+
+    /*
+    |--------------------------------------------------------------------------
     | OSRM - jarak & durasi jalan sebenarnya
     |--------------------------------------------------------------------------
-    | Server demo publik punya rate limit. Kalau volume sudah besar, jalankan
-    | OSRM sendiri lewat Docker lalu ganti OSRM_URL ke http://localhost:5000.
+    | Server demo publik punya rate limit dan tanpa SLA. Kalau volume sudah
+    | besar, jalankan OSRM sendiri lewat Docker (lihat scripts/setup-osrm.sh)
+    | dan arahkan OSRM_URL ke sana — biasanya http://127.0.0.1:5000.
+    |
+    | OSRM_FALLBACK_URL opsional: dicoba kalau OSRM_URL (server utama, biasa-
+    | nya self-hosted) gagal dihubungi. Kalau keduanya gagal, mesin routing
+    | otomatis jatuh ke perhitungan garis lurus (haversine) — rute tetap
+    | terbentuk, hanya akurasinya menurun.
     */
 
     'osrm' => [
         'url' => rtrim((string) env('OSRM_URL', 'https://router.project-osrm.org'), '/'),
+        'fallback_url' => rtrim((string) env('OSRM_FALLBACK_URL', ''), '/') ?: null,
         'timeout' => (int) env('OSRM_TIMEOUT', 20),
         // Batas jumlah titik per permintaan /table. Server demo menolak
         // matriks yang terlalu besar, jadi kita pecah bila melebihi ini.

@@ -42,6 +42,8 @@ return [
     'notif_disetujui_massal' => ':jumlah orders approved to PROCESS.',
     'notif_dilewati' => ':jumlah orders were skipped because their status had already changed.',
     'batalkan' => 'Cancel order',
+    'cetak_nota' => 'Print Receipt',
+    'galat_tak_bisa_cetak' => 'This order’s receipt cannot be printed yet.',
     'judul_batalkan' => 'Cancel Order',
     'ket_batalkan' => 'Reserved stock is released and the store can be ordered for again. If the order was already routed, its stop is removed from the driver’s list.',
     'alasan_batal' => 'Cancellation reason',

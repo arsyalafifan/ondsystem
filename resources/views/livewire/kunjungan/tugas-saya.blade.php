@@ -5,7 +5,7 @@
         <x-slot:aksi>
             <a href="{{ route('kunjungan.kunjungi') }}" wire:navigate
                class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                📷 {{ __('nav.mulai_kunjungan') }}
+                <x-heroicon-o-camera class="size-4 inline" /> {{ __('nav.mulai_kunjungan') }}
             </a>
         </x-slot:aksi>
     </x-judul-halaman>
@@ -49,12 +49,12 @@
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.cari') }}</label>
                 <input type="search" wire:model.live.debounce.300ms="cari"
                        placeholder="{{ __('master.cari_toko') }}"
-                       class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.status') }}</label>
                 <select wire:model.live="saringStatus"
-                        class="mt-1 block rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     <option value="">{{ __('kunjungan.semua_status') }}</option>
                     <option value="belum">{{ __('kunjungan.saring_belum') }}</option>
                     @foreach (\App\Enums\StatusKunjungan::cases() as $s)
@@ -70,7 +70,13 @@
                 <li class="flex items-start gap-3 p-3">
                     <span class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg text-lg"
                           style="background: {{ $kunjungan ? $kunjungan->status->warna().'22' : '#f3f4f6' }}">
-                        {{ $kunjungan?->status->sudahTuntas() ? '✅' : ($kunjungan ? '⏳' : '🏪') }}
+                        @if($kunjungan?->status->sudahTuntas())
+                            <x-heroicon-s-check-circle class="size-5 text-emerald-500 inline" />
+                        @elseif($kunjungan)
+                            <x-heroicon-o-clock class="size-5 text-amber-500 inline" />
+                        @else
+                            <x-heroicon-o-building-storefront class="size-5 text-gray-500 inline" />
+                        @endif
                     </span>
 
                     <div class="min-w-0 flex-1">
@@ -99,12 +105,12 @@
                     @if ($toko->punya_koordinat)
                         <a href="https://www.google.com/maps/dir/?api=1&destination={{ $toko->latitude }},{{ $toko->longitude }}"
                            target="_blank" rel="noopener" title="{{ __('driver.buka_navigasi') }}"
-                           class="shrink-0 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm hover:bg-gray-50">🧭</a>
+                           class="shrink-0 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm hover:bg-gray-50"><x-heroicon-o-paper-airplane class="size-4 inline" /></a>
                     @endif
                 </li>
             @empty
                 <li>
-                    <x-kosong ikon="🏪" :judul="__('kunjungan.tugas_kosong')" :keterangan="__('kunjungan.tugas_kosong_ket')" />
+                    <x-kosong ikon="building-storefront" :judul="__('kunjungan.tugas_kosong')" :keterangan="__('kunjungan.tugas_kosong_ket')" />
                 </li>
             @endforelse
         </ul>

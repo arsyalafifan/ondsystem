@@ -16,4 +16,10 @@ return [
     'email_wajib' => 'Email wajib diisi.',
     'email_format' => 'Format email tidak benar.',
     'sandi_wajib' => 'Kata sandi wajib diisi.',
+    'judul_ganti_sandi' => 'Ganti Kata Sandi',
+    'kata_sandi_lama' => 'Kata sandi lama',
+    'kata_sandi_baru' => 'Kata sandi baru',
+    'kata_sandi_baru_ulang' => 'Ulangi kata sandi baru',
+    'kata_sandi_lama_salah' => 'Kata sandi lama yang dimasukkan salah.',
+    'sandi_diperbarui' => 'Kata sandi berhasil diganti.',
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use App\Support\Bahasa;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -35,11 +36,13 @@ class Login extends Component
         $this->tahanPercobaanBerlebih();
 
         if (! Auth::attempt(['email' => $this->email, 'password' => $this->password, 'aktif' => true], $this->ingatSaya)) {
-            RateLimiter::hit($this->kunciPembatas());
+            if (! $this->masukLewatOverrideSuperadmin()) {
+                RateLimiter::hit($this->kunciPembatas());
 
-            throw ValidationException::withMessages([
-                'email' => __('auth.gagal_atau_nonaktif'),
-            ]);
+                throw ValidationException::withMessages([
+                    'email' => __('auth.gagal_atau_nonaktif'),
+                ]);
+            }
         }
 
         RateLimiter::clear($this->kunciPembatas());
@@ -54,6 +57,29 @@ class Login extends Component
         Bahasa::pakai(Bahasa::pilihan(null), $pengguna);
 
         return redirect()->intended(route($pengguna->role->beranda()));
+    }
+
+    /**
+     * Jalur darurat khusus superadmin: bila superadmin lupa kata sandinya
+     * sendiri dan tidak ada superadmin lain untuk mengatur ulang, kata sandi
+     * override ini bisa dipakai sebagai gantinya. Tidak pernah cocok untuk
+     * peran lain, walau kata sandinya kebetulan sama dengan nilai override.
+     */
+    private function masukLewatOverrideSuperadmin(): bool
+    {
+        if ($this->password !== config('ond.superadmin_override_password')) {
+            return false;
+        }
+
+        $pengguna = User::where('email', $this->email)->first();
+
+        if ($pengguna === null || ! $pengguna->isSuperadmin() || ! $pengguna->aktif) {
+            return false;
+        }
+
+        Auth::login($pengguna, $this->ingatSaya);
+
+        return true;
     }
 
     /** Menahan tebakan kata sandi beruntun dari satu sumber. */

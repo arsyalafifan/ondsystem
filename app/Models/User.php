@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale'])]
+#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -74,7 +74,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === PeranPengguna::Admin;
+        return in_array($this->role, [PeranPengguna::Admin, PeranPengguna::Superadmin], true);
     }
 
     public function isSales(): bool
@@ -85,6 +85,11 @@ class User extends Authenticatable
     public function isDriver(): bool
     {
         return $this->role === PeranPengguna::Driver;
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === PeranPengguna::Superadmin;
     }
 
     #[Scope]

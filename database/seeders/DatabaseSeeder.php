@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(SuperadminSeeder::class);
         $this->pengguna();
         $wilayahs = $this->wilayah();
         $this->produk();
@@ -31,7 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->penugasanKunjungan();
 
         $this->command->newLine();
-        $this->command->info('Akun untuk mencoba (kata sandi semuanya: password)');
+        $this->command->info('Akun demo untuk mencoba (kata sandi semuanya: password)');
         $this->command->table(
             ['Peran', 'Email'],
             [
