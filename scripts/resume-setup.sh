@@ -211,6 +211,19 @@ chmod -R 755 $APP_PATH
 chmod -R 775 $APP_PATH/storage
 chmod -R 775 $APP_PATH/bootstrap/cache
 
+# chmod -R 755 di atas menimpa .env (dan .env.backup) kembali ke 755 (bisa
+# dibaca semua user, padahal isinya DB_PASSWORD dan APP_KEY) — dikembalikan
+# ke 600 di sini.
+chmod 600 $APP_PATH/.env
+[ -f $APP_PATH/.env.backup ] && chmod 600 $APP_PATH/.env.backup
+
+# PHP-FPM berjalan sebagai www-data, bukan $APP_USER. storage/bootstrap
+# cache dimiliki $APP_USER mode 775 (tulis hanya owner+group) — tanpa
+# www-data ikut grup $APP_USER, request lewat browser gagal tempnam() 500
+# meski semua perintah artisan CLI (jalan sebagai $APP_USER) normal.
+usermod -aG $APP_USER www-data
+systemctl restart php8.3-fpm
+
 log_success "Storage configured"
 
 ###############################################################################
@@ -247,6 +260,14 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
+
+    # ^~ memaksa nginx berhenti di sini dan tidak lanjut ke location regex
+    # "~ /\." di bawah — tanpa ini, aturan blokir dotfile ikut memblokir
+    # /.well-known/acme-challenge/ dan certbot gagal verifikasi domain (404).
+    location ^~ /.well-known/acme-challenge/ {
+        allow all;
+        try_files \$uri =404;
+    }
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
