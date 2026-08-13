@@ -86,8 +86,10 @@ fi
 # 1. Update System
 ###############################################################################
 log_info "=== 1. Update System ==="
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 apt-get update
-apt-get upgrade -y
+apt-get -o Dpkg::Options::="--force-confold" upgrade -y
 apt-get install -y curl wget git zip unzip software-properties-common
 
 log_success "System updated"
@@ -163,7 +165,8 @@ log_success "Nginx installed"
 # 6. Install Node.js & npm
 ###############################################################################
 log_info "=== 6. Install Node.js & npm ==="
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+# Vite 8 (rolldown-vite) butuh node:util.styleText, baru ada di Node 20.19+/22+.
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 
 log_success "Node.js installed"
@@ -359,70 +362,46 @@ log_info "=== 17. Configure Nginx ==="
 # Backup original config
 cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
 
-# Create new config
-cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_CONFIG'
+# Config HTTP-only dulu — sertifikat SSL belum ada di titik ini. Kalau
+# ssl_certificate langsung ditulis mengarah ke file yang belum dibuat
+# certbot, `nginx -t` di bawah akan gagal dan menghentikan seluruh script
+# (set -e). certbot --nginx di step 18 yang nanti menyisipkan blok SSL
+# setelah sertifikatnya benar-benar ada.
+cat > /etc/nginx/sites-available/$DOMAIN << NGINX_CONFIG
 server {
     listen 80;
     listen [::]:80;
-    server_name DOMAIN_PLACEHOLDER;
+    server_name $DOMAIN;
 
-    root APP_PATH_PLACEHOLDER/public;
+    root $APP_PATH/public;
     index index.php index.html;
 
-    # Redirect to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name DOMAIN_PLACEHOLDER;
-
-    root APP_PATH_PLACEHOLDER/public;
-    index index.php index.html;
-
-    # SSL certificates (placeholder)
-    ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-
-    # Gzip compression
     gzip on;
     gzip_types text/plain text/css text/xml text/javascript
                application/x-javascript application/xml+rss
                application/json application/javascript;
 
-    # Client upload limit
     client_max_body_size 50M;
 
-    # Logs
-    access_log /var/log/nginx/DOMAIN_PLACEHOLDER-access.log;
-    error_log /var/log/nginx/DOMAIN_PLACEHOLDER-error.log;
+    access_log /var/log/nginx/$DOMAIN-access.log;
+    error_log /var/log/nginx/$DOMAIN-error.log;
 
-    # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
-    # Laravel routing
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
-    # PHP processing
-    location ~ \.php$ {
+    location ~ \.php\$ {
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_intercept_errors on;
-        fastcgi_param HTTPS on;
     }
 
-    # Deny access to .env and other sensitive files
     location ~ /\.env {
         deny all;
     }
@@ -435,10 +414,6 @@ server {
 }
 NGINX_CONFIG
 
-# Replace placeholders
-sed -i "s|DOMAIN_PLACEHOLDER|$DOMAIN|g" /etc/nginx/sites-available/$DOMAIN
-sed -i "s|APP_PATH_PLACEHOLDER|$APP_PATH|g" /etc/nginx/sites-available/$DOMAIN
-
 # Enable site
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
@@ -449,7 +424,7 @@ nginx -t
 # Reload Nginx
 systemctl reload nginx
 
-log_success "Nginx configured"
+log_success "Nginx configured (HTTP dulu, SSL disisipkan certbot di step berikutnya)"
 
 ###############################################################################
 # 18. Setup SSL Certificate (Let's Encrypt)
@@ -457,8 +432,9 @@ log_success "Nginx configured"
 log_info "=== 18. Setup SSL Certificate ==="
 apt-get install -y certbot python3-certbot-nginx
 
-# Get certificate
-certbot certonly --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN
+# --nginx (bukan certonly) supaya certbot otomatis menyisipkan blok SSL,
+# gzip, dan redirect HTTPS ke config yang baru dibuat di atas.
+certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN --redirect
 
 log_success "SSL certificate installed"
 
