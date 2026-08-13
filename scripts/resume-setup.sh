@@ -92,6 +92,12 @@ if [ -f .env ]; then
     cp .env .env.backup
 fi
 
+# Dibangkitkan sekali di sini dan dipakai ulang persis (bukan dibaca ulang
+# dari .env) saat membuat user MySQL di step berikutnya — kalau base64
+# menghasilkan '=' di akhir, membaca ulang lewat cut -d '=' akan memotongnya
+# dan bikin password di MySQL beda dari yang tersimpan di .env.
+DB_PASS=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-32)
+
 cat > .env << EOF
 APP_NAME="OND System"
 APP_ENV=production
@@ -106,7 +112,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=${DOMAIN//./_}
 DB_USERNAME=ond_app
-DB_PASSWORD=$(openssl rand -base64 32)
+DB_PASSWORD=$DB_PASS
 
 CACHE_DRIVER=redis
 SESSION_DRIVER=redis
@@ -162,7 +168,7 @@ log_success "Application key generated"
 log_info "=== 3. Create Database & User ==="
 DB_NAME=${DOMAIN//./_}
 DB_USER="ond_app"
-DB_PASS=$(grep "DB_PASSWORD" $APP_PATH/.env | cut -d '=' -f 2)
+# $DB_PASS dipakai dari langkah "Setup Environment" — bukan dibaca ulang dari .env.
 
 mysql -u root -p"$MYSQL_ROOT_PASS" << MYSQL_SCRIPT
 CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;
