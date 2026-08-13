@@ -49,7 +49,7 @@
                             </button>
                         </li>
                     @empty
-                        <li><x-kosong ikon="👤" :judul="__('kunjungan.tugas_kosong')" /></li>
+                        <li><x-kosong ikon="user" :judul="__('kunjungan.tugas_kosong')" /></li>
                     @endforelse
                 </ul>
             </x-kartu>

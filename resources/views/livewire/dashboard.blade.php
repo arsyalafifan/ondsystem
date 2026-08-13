@@ -109,6 +109,10 @@
         {{-- Peta --}}
         <div class="lg:col-span-3">
             <x-kartu :judul="__('dashboard.peta_monitoring')">
+                <x-slot:aksi>
+                    <x-tombol-lokasi-saya callback="pusatkanLokasiSayaMonitoring" />
+                </x-slot:aksi>
+
                 <div wire:ignore id="peta-monitoring" class="peta h-[520px]"></div>
 
                 <div class="flex flex-wrap gap-3 border-t border-gray-200 p-3 text-xs">
@@ -204,6 +208,8 @@
             $wire.on('peta-diperbarui', (payload) => {
                 peta.gambar(payload.data ?? payload[0]?.data ?? payload);
             });
+
+            window.pusatkanLokasiSayaMonitoring = (lat, lng) => peta.pusatkanKe(lat, lng);
         }
     </script>
     @endscript
