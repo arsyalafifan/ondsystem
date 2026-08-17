@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'id',
     'kode', 'asset_id', 'freezer_tipe', 'freezer_pelanggan', 'nama', 'wilayah_id',
     'alamat', 'kelurahan', 'kecamatan', 'kota', 'kode_pos', 'telepon',
-    'nama_pemilik', 'latitude', 'longitude', 'sumber_koordinat', 'geocoded_at',
+    'nama_pemilik', 'nik_pemilik', 'latitude', 'longitude', 'sumber_koordinat', 'geocoded_at',
     'geocode_catatan', 'aktif',
 ])]
 class Toko extends Model

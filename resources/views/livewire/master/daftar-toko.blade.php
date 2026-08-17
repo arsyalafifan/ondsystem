@@ -209,6 +209,13 @@
                         </div>
                     </div>
 
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('master.nik_pemilik') }}</label>
+                        <input type="text" inputmode="numeric" maxlength="16" wire:model="nikPemilik" placeholder="3171012501900001"
+                               class="mt-1 block w-full font-mono rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        @error('nikPemilik') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
                     <label class="flex items-center gap-2 text-sm">
                         <input type="checkbox" wire:model="aktif" class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         {{ __('master.toko_aktif') }}
@@ -313,9 +320,9 @@
                 <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
                     <p class="font-medium">{{ __('master.kolom_dikenali') }}</p>
                     <p class="mt-1 text-xs">
-                        <code>kode</code>, <code>nama</code>, <code>alamat</code>, <code>wilayah</code>,
+                        <code>kode</code>, <code>asset_id</code>, <code>nama</code>, <code>alamat</code>, <code>wilayah</code>,
                         <code>kelurahan</code>, <code>kecamatan</code>, <code>kota</code>, <code>kode_pos</code>,
-                        <code>telepon</code>, <code>pemilik</code>, <code>latitude</code>, <code>longitude</code>.
+                        <code>telepon</code>, <code>pemilik</code>, <code>nik</code>, <code>latitude</code>, <code>longitude</code>.
                     </p>
                     <p class="mt-2 text-xs">
                         {{ __('master.ket_impor', ['wajib' => 'nama, alamat, wilayah']) }}
@@ -326,7 +333,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('master.berkas_csv') }}</label>
-                    <input type="file" wire:model="berkasCsv" accept=".csv,text/csv"
+                    <input type="file" wire:model="berkasCsv" accept=".csv,.xlsx,.xls,text/csv"
                            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
                     @error('berkasCsv') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     <div wire:loading wire:target="berkasCsv" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>

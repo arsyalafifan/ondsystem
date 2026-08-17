@@ -12,6 +12,10 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Master toko, termasuk pekerjaan yang paling menentukan mutu routing:
@@ -63,6 +67,8 @@ class DaftarToko extends Component
     public string $telepon = '';
 
     public string $namaPemilik = '';
+
+    public string $nikPemilik = '';
 
     public ?float $latitude = null;
 
@@ -166,6 +172,7 @@ class DaftarToko extends Component
         $this->kodePos = $toko->kode_pos ?? '';
         $this->telepon = $toko->telepon ?? '';
         $this->namaPemilik = $toko->nama_pemilik ?? '';
+        $this->nikPemilik = $toko->nik_pemilik ?? '';
         $this->latitude = $toko->latitude;
         $this->longitude = $toko->longitude;
         $this->sumberKoordinat = $toko->sumber_koordinat;
@@ -185,7 +192,7 @@ class DaftarToko extends Component
     {
         $this->reset([
             'tokoId', 'kode', 'assetId', 'freezerTipe', 'nama', 'alamat', 'wilayahId',
-            'kelurahan', 'kecamatan', 'kota', 'kodePos', 'telepon', 'namaPemilik',
+            'kelurahan', 'kecamatan', 'kota', 'kodePos', 'telepon', 'namaPemilik', 'nikPemilik',
             'latitude', 'longitude', 'hasilGeocode', 'koordinatTempel',
         ]);
 
@@ -303,15 +310,19 @@ class DaftarToko extends Component
             'kodePos' => 'nullable|string|max:10',
             'telepon' => 'nullable|string|max:30',
             'namaPemilik' => 'nullable|string|max:255',
+            'nikPemilik' => 'nullable|digits:16',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-        ], [], [
+        ], [
+            'nikPemilik.digits' => __('master.nik_tidak_valid'),
+        ], [
             'kode' => __('master.atr_kode_toko'),
             'assetId' => __('master.atr_asset_id'),
             'nama' => __('master.atr_nama_toko'),
             'wilayahId' => __('master.atr_wilayah'),
             'kodePos' => __('master.atr_kode_pos'),
             'namaPemilik' => __('master.atr_nama_pemilik'),
+            'nikPemilik' => __('master.atr_nik_pemilik'),
         ]);
 
         Toko::updateOrCreate(['id' => $this->tokoId], [
@@ -329,6 +340,7 @@ class DaftarToko extends Component
             'kode_pos' => $this->kodePos ?: null,
             'telepon' => $this->telepon ?: null,
             'nama_pemilik' => $this->namaPemilik ?: null,
+            'nik_pemilik' => $this->nikPemilik ?: null,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'sumber_koordinat' => $this->latitude === null ? 'belum' : $this->sumberKoordinat,
@@ -404,26 +416,29 @@ class DaftarToko extends Component
     }
 
     // ------------------------------------------------------------------
-    // Impor CSV
+    // Impor CSV / Excel
     // ------------------------------------------------------------------
 
     public function imporCsv(): void
     {
         $this->validate([
-            'berkasCsv' => 'required|file|mimes:csv,txt|max:5120',
+            'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
         ], [
             'berkasCsv.required' => __('master.pilih_csv_dulu'),
             'berkasCsv.mimes' => __('master.harus_csv'),
         ]);
 
         $jalur = $this->berkasCsv->getRealPath();
-        $tangan = fopen($jalur, 'r');
+        $ekstensi = mb_strtolower((string) $this->berkasCsv->getClientOriginalExtension());
 
-        $judul = fgetcsv($tangan);
+        $semuaBaris = in_array($ekstensi, ['xlsx', 'xls'], true)
+            ? $this->bacaBarisExcel($jalur)
+            : $this->bacaBarisCsv($jalur);
 
-        if ($judul === false) {
+        $judul = array_shift($semuaBaris);
+
+        if ($judul === null) {
             $this->addError('berkasCsv', __('master.berkas_kosong'));
-            fclose($tangan);
 
             return;
         }
@@ -445,8 +460,10 @@ class DaftarToko extends Component
         $dilewati = [];
         $nomor = 1;
 
-        while (($baris = fgetcsv($tangan)) !== false) {
+        foreach ($semuaBaris as $barisMentah) {
             $nomor++;
+
+            $baris = $this->normalisasiBaris($barisMentah);
 
             if (count(array_filter($baris, fn ($n) => trim((string) $n) !== '')) === 0) {
                 continue;
@@ -458,6 +475,9 @@ class DaftarToko extends Component
             $nama = trim((string) ($data['nama'] ?? $data['nama_toko'] ?? ''));
             $alamat = trim((string) ($data['alamat'] ?? ''));
             $wilayahTeks = mb_strtolower(trim((string) ($data['wilayah'] ?? '')));
+
+            $assetIdMentah = trim((string) ($data['asset_id'] ?? $data['kode_aset'] ?? $data['no_aset'] ?? ''));
+            $assetId = $assetIdMentah === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $assetIdMentah));
 
             if ($nama === '' || $alamat === '') {
                 $dilewati[] = __('master.lewat_kosong', ['nomor' => $nomor]);
@@ -477,30 +497,58 @@ class DaftarToko extends Component
             $lng = $this->angkaAtauNull($data['longitude'] ?? $data['lng'] ?? $data['lon'] ?? null);
             $punyaTitik = $lat !== null && $lng !== null;
 
-            $kode = $kode !== '' ? $kode : $this->kodeBerikutnya();
-            $adaSebelumnya = Toko::where('kode', $kode)->exists();
+            // Toko yang sama dikenali lewat nomor aset (paling andal, karena
+            // tercetak di badan freezer) atau kode toko, supaya baris yang
+            // mengacu ke toko lama memperbarui datanya, bukan menggandakan.
+            $tokoLama = $assetId !== null ? Toko::where('asset_id', $assetId)->first() : null;
+            $tokoLama ??= $kode !== '' ? Toko::where('kode', $kode)->first() : null;
 
-            Toko::updateOrCreate(['kode' => $kode], [
+            $kodeAkhir = $tokoLama->kode ?? ($kode !== '' ? $kode : $this->kodeBerikutnya());
+            $adaSebelumnya = $tokoLama !== null;
+
+            $dataSimpan = [
                 'nama' => $nama,
                 'alamat' => $alamat,
                 'wilayah_id' => $wilayahId,
+                'aktif' => true,
+            ];
+
+            // Kolom opsional (termasuk nomor aset) hanya ditimpa kalau
+            // berkasnya memang mengisi nilainya. Toko sering dilengkapi
+            // bertahap lewat beberapa kali upload — kolom yang masih kosong
+            // di berkas terbaru tidak boleh menghapus data yang sudah
+            // tersimpan dari upload atau input sebelumnya.
+            $kolomOpsional = [
+                'asset_id' => $assetId,
                 'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
                 'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
                 'kota' => $this->teksAtauNull($data['kota'] ?? null),
                 'kode_pos' => $this->teksAtauNull($data['kode_pos'] ?? null),
                 'telepon' => $this->teksAtauNull($data['telepon'] ?? null),
                 'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
-                'latitude' => $lat,
-                'longitude' => $lng,
-                'sumber_koordinat' => $punyaTitik ? 'manual' : 'belum',
-                'geocoded_at' => $punyaTitik ? now() : null,
-                'aktif' => true,
-            ]);
+                'nik_pemilik' => $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null),
+            ];
+
+            foreach ($kolomOpsional as $kolom => $nilai) {
+                if ($nilai !== null) {
+                    $dataSimpan[$kolom] = $nilai;
+                }
+            }
+
+            // Koordinat sama-sama diperlakukan begitu: hanya ditimpa saat
+            // baris punya lat/lng lengkap. Baris yang belum punya koordinat
+            // tidak menghapus titik yang sudah digeocode atau ditaruh manual.
+            if ($punyaTitik) {
+                $dataSimpan['latitude'] = $lat;
+                $dataSimpan['longitude'] = $lng;
+                $dataSimpan['sumber_koordinat'] = 'manual';
+                $dataSimpan['geocoded_at'] = now();
+            }
+
+            Toko::updateOrCreate(['kode' => $kodeAkhir], $dataSimpan);
 
             $adaSebelumnya ? $diperbarui++ : $baru++;
         }
-
-        fclose($tangan);
 
         $this->hasilImpor = [
             'baru' => $baru,
@@ -512,19 +560,82 @@ class DaftarToko extends Component
         unset($this->tokos, $this->jumlahTanpaKoordinat);
     }
 
+    /** @return array<int, array<int, mixed>> */
+    private function bacaBarisCsv(string $jalur): array
+    {
+        $tangan = fopen($jalur, 'r');
+        $baris = [];
+
+        while (($satu = fgetcsv($tangan)) !== false) {
+            $baris[] = $satu;
+        }
+
+        fclose($tangan);
+
+        return $baris;
+    }
+
+    /** @return array<int, array<int, mixed>> */
+    private function bacaBarisExcel(string $jalur): array
+    {
+        return IOFactory::load($jalur)->getSheet(0)->toArray(null, true, true, false);
+    }
+
+    /**
+     * Sel angka dari Excel (kode pos, telepon, NIK) diratakan jadi teks biasa
+     * tanpa notasi ilmiah, supaya nol di depan tidak dianggap hilang dan
+     * angka besar tidak berubah jadi "8.1235E+10".
+     *
+     * @param  array<int, mixed>  $baris
+     * @return array<int, string>
+     */
+    private function normalisasiBaris(array $baris): array
+    {
+        return array_map(function ($nilai) {
+            if (is_float($nilai) && fmod($nilai, 1.0) === 0.0) {
+                return number_format($nilai, 0, '', '');
+            }
+
+            return trim((string) $nilai);
+        }, $baris);
+    }
+
     public function unduhContohCsv()
     {
         $wilayah = Wilayah::value('nama') ?? 'Jakarta Pusat';
 
-        return response()->streamDownload(function () use ($wilayah): void {
-            $keluaran = fopen('php://output', 'w');
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
 
-            fputcsv($keluaran, ['kode', 'nama', 'alamat', 'wilayah', 'kelurahan', 'kecamatan', 'kota', 'kode_pos', 'telepon', 'pemilik', 'latitude', 'longitude']);
-            fputcsv($keluaran, ['TK-0001', 'Toko Contoh Jaya', 'Jl. Merdeka No. 10', $wilayah, 'Gambir', 'Gambir', 'Jakarta Pusat', '10110', '081234567890', 'Budi', '-6.1751', '106.8272']);
-            fputcsv($keluaran, ['', 'Toko Tanpa Koordinat', 'Jl. Sudirman No. 5', $wilayah, '', '', 'Jakarta Pusat', '', '', '', '', '']);
+        $sheet->fromArray(
+            ['kode', 'asset_id', 'nama', 'alamat', 'wilayah', 'telepon', 'pemilik', 'nik', 'latitude', 'longitude'],
+            null, 'A1',
+        );
+        $sheet->fromArray(
+            ['TK-0001', 'IDNAH202528004381', 'Toko Contoh Jaya', 'Jl. Merdeka No. 10', $wilayah, '081234567890', 'Budi', '3171012501900001', '-6.1751', '106.8272'],
+            null, 'A2',
+        );
+        $sheet->fromArray(
+            ['', '', 'Toko Tanpa Koordinat', 'Jl. Sudirman No. 5', $wilayah, '', '', '', '', ''],
+            null, 'A3',
+        );
 
-            fclose($keluaran);
-        }, 'contoh-import-toko.csv', ['Content-Type' => 'text/csv']);
+        // Kolom yang rawan diubah otomatis jadi angka atau format lain oleh
+        // Excel (nol di depan hilang, notasi ilmiah) dipaksa berformat teks,
+        // supaya aman ditimpa pengguna dengan data mereka sendiri.
+        foreach (['B', 'F', 'H'] as $kolom) {
+            $sheet->getStyle("{$kolom}1:{$kolom}1000")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+
+        foreach (range('A', 'J') as $kolom) {
+            $sheet->getColumnDimension($kolom)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'contoh-import-toko.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     private function angkaAtauNull($nilai): ?float

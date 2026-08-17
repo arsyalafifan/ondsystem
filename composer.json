@@ -14,7 +14,8 @@
         "blade-ui-kit/blade-heroicons": "*",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
-        "livewire/livewire": "^3.6"
+        "livewire/livewire": "^3.6",
+        "phpoffice/phpspreadsheet": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

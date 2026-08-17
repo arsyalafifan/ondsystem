@@ -20,8 +20,37 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        // Jaring pengaman global — tanpa ini, exception yang lolos dari
+        // pesan Windows (mis. dari event handler tombol) membuat proses
+        // mati diam-diam tanpa pesan apa pun ke pengguna.
+        Application.ThreadException += (_, e) => Log.Fatal(e.Exception, "Application.ThreadException");
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                Log.Fatal(ex, "AppDomain.UnhandledException");
+            }
+        };
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+
         Application.EnableVisualStyles();
 
+        try
+        {
+            Jalankan(args);
+        }
+        catch (Exception ex)
+        {
+            // Menangkap exception yang terjadi SEBELUM Application.Run mulai
+            // memompa pesan Windows — misalnya dari constructor form itu
+            // sendiri. Application.ThreadException di atas tidak menjangkau
+            // titik ini karena message loop-nya belum berjalan.
+            Log.Fatal(ex, "Main");
+        }
+    }
+
+    private static void Jalankan(string[] args)
+    {
         if (args.Length == 1 && args[0].Equals("--uninstall", StringComparison.OrdinalIgnoreCase))
         {
             Pendaftaran.Lepas();
@@ -83,22 +112,36 @@ internal static class Program
             }
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            var data = http.GetByteArrayAsync(uriSumber).GetAwaiter().GetResult();
+            // HttpClient tidak mengirim User-Agent sama sekali secara bawaan
+            // — beberapa server/WAF (mis. Cloudflare, ModSecurity) langsung
+            // menolak permintaan tanpa header ini dengan 403, di luar
+            // urusan tanda tangan link sama sekali.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("OndPrintHelper/1.0");
+
+            using var respons = http.GetAsync(uriSumber).GetAwaiter().GetResult();
+
+            if (respons.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new InvalidOperationException(
+                    "Server menolak permintaan (403 Forbidden) — kemungkinan besar link cetak ini sudah kedaluwarsa "
+                        + "(berlaku 5 menit sejak halaman nota dibuka). Kembali ke web, buka ulang halaman nota, lalu "
+                        + "klik \"Cetak Langsung ke Printer\" lagi tanpa jeda lama.");
+            }
+
+            respons.EnsureSuccessStatusCode();
+
+            var data = respons.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
 
             if (data.Length == 0)
             {
-                throw new InvalidOperationException("Server mengembalikan berkas kosong — kemungkinan link cetak sudah kedaluwarsa. Klik ulang tombol Cetak dari web.");
+                throw new InvalidOperationException("Server mengembalikan berkas kosong. Klik ulang tombol Cetak dari web.");
             }
 
             RawPrinter.KirimMentah(namaPrinter, data, "Nota OND System");
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                ex.Message,
-                "OND Print Helper - Gagal Mencetak",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+            Log.Fatal(ex, "ProsesCetak");
         }
     }
 
