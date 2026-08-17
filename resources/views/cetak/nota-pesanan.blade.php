@@ -23,24 +23,35 @@
             padding: 0;
         }
 
+        {{-- Sans-serif tebal dipilih sengaja, bukan sekadar selera: baris tipis
+             font monospace (Courier) sebagian hilang saat dirasterisasi ke
+             kerapatan titik printer dot-matrix, membuat hasil cetak terlihat
+             pecah/kurang tajam meski mode printer sudah NLQ. --}}
         body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 10.5px;
-            line-height: 1.35;
+            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+            font-size: 13.5px;
+            font-weight: 500;
+            line-height: 1.4;
             color: #000;
             width: 22.4cm;
         }
 
+        {{-- display:table dipakai di seluruh berkas ini, bukan flex — supaya
+             satu template yang sama bisa dirender identik oleh Dompdf (untuk
+             tombol Unduh PDF) maupun oleh browser (untuk tombol Cetak).
+             Dompdf tidak mendukung flexbox sama sekali. --}}
         /* --- Kop: perusahaan | kepada | faktur, sebaris seperti aslinya --- */
         .header {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
+            display: table;
+            width: 100%;
             margin-bottom: 4px;
         }
 
         .perusahaan {
-            flex: 1.2;
+            display: table-cell;
+            vertical-align: top;
+            width: 38%;
+            padding-right: 10px;
         }
 
         .perusahaan p {
@@ -53,7 +64,9 @@
         }
 
         .kepada {
-            flex: 1;
+            display: table-cell;
+            vertical-align: top;
+            padding-right: 10px;
         }
 
         .kepada table {
@@ -72,7 +85,8 @@
         }
 
         .faktur {
-            flex: 0 0 auto;
+            display: table-cell;
+            vertical-align: top;
             text-align: right;
             white-space: nowrap;
         }
@@ -117,8 +131,9 @@
 
         table.item th {
             text-align: left;
-            border-top: 1px solid #000;
-            border-bottom: 1px solid #000;
+            font-weight: 700;
+            border-top: 1.5px solid #000;
+            border-bottom: 1.5px solid #000;
         }
 
         table.item td.num, table.item th.num {
@@ -126,7 +141,7 @@
         }
 
         table.item tfoot .garis td {
-            border-top: 1px solid #000;
+            border-top: 1.5px solid #000;
             padding: 0;
         }
 
@@ -145,30 +160,34 @@
 
         table.item tfoot .catatan-pajak {
             text-align: right;
-            font-size: 0.85em;
+            font-size: 1em;
             font-style: italic;
             color: #333;
         }
 
         /* --- Baris bawah: tanda tangan di kiri, status di kanan --- */
         .bawah {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 10px;
+            display: table;
+            width: 100%;
             margin-top: 6px;
         }
 
         .ttd {
-            display: flex;
-            flex: 0 0 50%;
-            max-width: 50%;
-            gap: 8px;
+            display: table-cell;
+            width: 50%;
+            vertical-align: bottom;
+        }
+
+        .ttd-tabel {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
         }
 
         .ttd .kotak {
-            flex: 1;
+            display: table-cell;
             text-align: center;
+            padding: 0 4px;
         }
 
         .ttd .kotak p {
@@ -176,18 +195,41 @@
         }
 
         .ttd .garis-ttd {
-            border-bottom: 1px solid #000;
+            border-bottom: 1.5px solid #000;
         }
 
         .status {
-            flex: 0 0 auto;
+            display: table-cell;
+            width: 50%;
+            vertical-align: bottom;
             text-align: right;
             white-space: nowrap;
         }
 
         .no-print {
-            margin-top: 8px;
+            margin-top: 16px;
             text-align: center;
+        }
+
+        .no-print button,
+        .no-print a {
+            display: inline-block;
+            margin: 0 4px;
+            padding: 8px 20px;
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .no-print a {
+            background: #fff;
+            color: #2563eb;
         }
 
         @media print {
@@ -302,21 +344,23 @@
 
     <div class="bawah">
         <div class="ttd">
-            <div class="kotak">
-                <p>Fakturis,</p>
-                <div class="garis-ttd">&nbsp;</div>
-            </div>
-            <div class="kotak">
-                <p>Gudang,</p>
-                <div class="garis-ttd">&nbsp;</div>
-            </div>
-            <div class="kotak">
-                <p>Driver,</p>
-                <div class="garis-ttd">&nbsp;</div>
-            </div>
-            <div class="kotak">
-                <p>Pelanggan,</p>
-                <div class="garis-ttd">&nbsp;</div>
+            <div class="ttd-tabel">
+                <div class="kotak">
+                    <p>Fakturis,</p>
+                    <div class="garis-ttd">&nbsp;</div>
+                </div>
+                <div class="kotak">
+                    <p>Gudang,</p>
+                    <div class="garis-ttd">&nbsp;</div>
+                </div>
+                <div class="kotak">
+                    <p>Driver,</p>
+                    <div class="garis-ttd">&nbsp;</div>
+                </div>
+                <div class="kotak">
+                    <p>Pelanggan,</p>
+                    <div class="garis-ttd">&nbsp;</div>
+                </div>
             </div>
         </div>
         <div class="status">
@@ -325,14 +369,19 @@
         </div>
     </div>
 
-    <div class="no-print">
-        <button type="button" onclick="window.print()">Cetak</button>
-    </div>
-
-    <script>
-        window.addEventListener('load', function () {
-            window.print();
-        }, { once: true });
-    </script>
+    {{-- Dua opsi saja, meniru menu cetak Accurate: Cetak (window.print, jadi
+         terhubung ke driver printer lokal apa pun yang tersedia) dan Unduh PDF
+         (berkas PDF sungguhan dari server, bukan hasil "print to PDF"
+         browser). Tidak ada auto-print saat halaman dibuka — pengguna
+         memilih sendiri salah satu tombol, sama seperti alur Accurate.
+         Disembunyikan total (bukan cuma @media print) saat dirender Dompdf
+         untuk Unduh PDF — Dompdf tidak memedulikan @media print maupun
+         window.print(). --}}
+    @unless ($untukPdf)
+        <div class="no-print">
+            <button type="button" onclick="window.print()">🖨 Cetak</button>
+            <a href="{{ route('pesanan.nota.pdf', $pesanan) }}">⬇ Unduh PDF</a>
+        </div>
+    @endunless
 </body>
 </html>
