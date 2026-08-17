@@ -44,10 +44,12 @@ if [ ! -f "$APP_PATH/.env" ]; then
     exit 1
 fi
 
-DB_NAME=$(grep "DB_DATABASE=" $APP_PATH/.env | cut -d '=' -f 2)
-DB_USER=$(grep "DB_USERNAME=" $APP_PATH/.env | cut -d '=' -f 2)
-DB_PASS=$(grep "DB_PASSWORD=" $APP_PATH/.env | cut -d '=' -f 2)
-DB_HOST=$(grep "DB_HOST=" $APP_PATH/.env | cut -d '=' -f 2 | tr -d ' ')
+# -f2- (bukan -f2) supaya nilai yang kebetulan mengandung karakter '='
+# (mis. password base64) tidak terpotong saat dibaca ulang dari .env.
+DB_NAME=$(grep "^DB_DATABASE=" $APP_PATH/.env | cut -d '=' -f 2-)
+DB_USER=$(grep "^DB_USERNAME=" $APP_PATH/.env | cut -d '=' -f 2-)
+DB_PASS=$(grep "^DB_PASSWORD=" $APP_PATH/.env | cut -d '=' -f 2-)
+DB_HOST=$(grep "^DB_HOST=" $APP_PATH/.env | cut -d '=' -f 2- | tr -d ' ')
 
 ###############################################################################
 # 1. Backup Database
@@ -55,7 +57,7 @@ DB_HOST=$(grep "DB_HOST=" $APP_PATH/.env | cut -d '=' -f 2 | tr -d ' ')
 log_info "=== Backup Database ==="
 DB_BACKUP="$BACKUP_DIR/db_${TIMESTAMP}.sql.gz"
 
-if mysqldump -h $DB_HOST -u $DB_USER -p"$DB_PASS" $DB_NAME | gzip > $DB_BACKUP; then
+if mysqldump --no-tablespaces -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" | gzip > $DB_BACKUP; then
     DB_SIZE=$(du -h $DB_BACKUP | cut -f1)
     log_success "Database backup: $DB_BACKUP ($DB_SIZE)"
 else

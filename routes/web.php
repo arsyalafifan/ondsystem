@@ -55,6 +55,13 @@ Route::post('/keluar', function () {
     return redirect()->route('masuk');
 })->name('logout');
 
+// Dipanggil OND Print Helper (.exe Windows), bukan dari sesi browser — jadi
+// di luar middleware auth, dan diamankan lewat tanda tangan sementara
+// (URL::temporarySignedRoute) alih-alih login/cookie sama sekali.
+Route::get('/pesanan/{pesanan}/nota/escp/signed', [NotaPesananController::class, 'escpUntukAgenCetak'])
+    ->name('pesanan.nota.escp.signed')
+    ->middleware('signed');
+
 Route::middleware('auth')->group(function () {
 
     // --- Admin ---
@@ -84,6 +91,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar');
         Route::get('/pesanan/{pesanan}/nota', [NotaPesananController::class, 'cetak'])->name('pesanan.nota');
         Route::get('/pesanan/{pesanan}/nota/pdf', [NotaPesananController::class, 'unduhPdf'])->name('pesanan.nota.pdf');
+        Route::get('/pesanan/{pesanan}/nota/escp', [NotaPesananController::class, 'unduhEscp'])->name('pesanan.nota.escp');
     });
 
     // --- Sales ---

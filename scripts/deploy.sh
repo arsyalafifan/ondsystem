@@ -81,7 +81,10 @@ DB_NAME=$(grep "^DB_DATABASE=" .env | cut -d '=' -f 2-)
 DB_USER=$(grep "^DB_USERNAME=" .env | cut -d '=' -f 2-)
 DB_PASS=$(grep "^DB_PASSWORD=" .env | cut -d '=' -f 2-)
 
-mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > $BACKUP_FILE
+# --no-tablespaces: user aplikasi (ond_app) sengaja dibatasi hanya ke
+# database sendiri, tanpa privilege PROCESS global — tanpa flag ini,
+# mysqldump di MySQL 8 gagal dengan "Access denied ... PROCESS privilege".
+mysqldump --no-tablespaces -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > $BACKUP_FILE
 log_success "Database backed up: $BACKUP_FILE"
 
 ###############################################################################
