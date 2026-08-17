@@ -95,3 +95,19 @@ it('selalu mencetak dengan ukuran kertas besar 24x28cm, apapun jumlah itemnya', 
         ->assertOk()
         ->assertSee('size: 24cm 28cm;', false);
 })->with([5, 6]);
+
+it('mengunduh nota sebagai berkas PDF sungguhan', function () {
+    $pesanan = buatPesananProcess(3);
+
+    $respons = $this->actingAs($this->admin)->get(route('pesanan.nota.pdf', $pesanan));
+
+    $respons->assertOk();
+    expect($respons->headers->get('content-type'))->toBe('application/pdf');
+    expect(str_starts_with($respons->getContent(), '%PDF-'))->toBeTrue();
+});
+
+it('menolak unduh PDF untuk pesanan berstatus ORDER', function () {
+    $pesanan = $this->pesananService->buat($this->toko, buatItemUji(1), $this->sales);
+
+    $this->actingAs($this->admin)->get(route('pesanan.nota.pdf', $pesanan))->assertForbidden();
+});

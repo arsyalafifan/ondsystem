@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pesanan/buat', BuatPesanan::class)->name('pesanan.buat');
         Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar');
         Route::get('/pesanan/{pesanan}/nota', [NotaPesananController::class, 'cetak'])->name('pesanan.nota');
+        Route::get('/pesanan/{pesanan}/nota/pdf', [NotaPesananController::class, 'unduhPdf'])->name('pesanan.nota.pdf');
     });
 
     // --- Sales ---
