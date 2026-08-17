@@ -17,7 +17,6 @@ final class NotaPesananController extends Controller
         return view('cetak.nota-pesanan', [
             'pesanan' => $pesanan,
             'pencetak' => Auth::user(),
-            'ukuran' => $pesanan->items->count() <= 5 ? 'kecil' : 'besar',
         ]);
     }
 }
