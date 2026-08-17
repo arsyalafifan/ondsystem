@@ -378,10 +378,44 @@
          untuk Unduh PDF — Dompdf tidak memedulikan @media print maupun
          window.print(). --}}
     @unless ($untukPdf)
+        @php
+            // Tanda tangan sementara (5 menit) supaya OND Print Helper bisa
+            // mengambil isi ESC/P tanpa sesi login sama sekali — link ini
+            // hanya berlaku sekali proses cetak, bukan link permanen.
+            $urlEscpUntukAgen = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                'pesanan.nota.escp.signed',
+                now()->addMinutes(5),
+                ['pesanan' => $pesanan->id, 'pencetak' => $pencetak->id],
+            );
+            // Nama printer TIDAK dikirim dari sini — OND Print Helper memakai
+            // pilihan yang sudah disimpan lokal di komputer masing-masing
+            // (lihat PengaturanForm/PengaturanPrinter di sisi .exe), karena
+            // nama printer yang sama bisa berbeda-beda per komputer Windows.
+            $linkOndPrint = 'ondprint://print?url='.urlencode($urlEscpUntukAgen);
+        @endphp
+
         <div class="no-print">
             <button type="button" onclick="window.print()">🖨 Cetak</button>
             <a href="{{ route('pesanan.nota.pdf', $pesanan) }}">⬇ Unduh PDF</a>
+            {{-- <a href="{{ route('pesanan.nota.escp', $pesanan) }}">⬇ Unduh ESC/P (.prn)</a> --}}
+            <a href="{{ $linkOndPrint }}">🖨 Print Direct</a>
         </div>
+
+        {{-- <p class="no-print" style="font-size:11px;color:#666;max-width:22.4cm;margin:8px auto 0;">
+            "Cetak Langsung ke Printer" butuh OND Print Helper terpasang di komputer Windows ini
+            (sekali install, printernya dipilih sendiri saat pasang). Kalau belum terpasang, pakai
+            "Unduh ESC/P" berikut ini untuk sementara:
+        </p> --}}
+
+        {{-- Opsi manual: teks mentah + kode printer, tanpa lewat rasterisasi
+             browser sama sekali — untuk hasil setajam printer aslinya. Bukan
+             untuk dibuka/di-print biasa; kirim apa adanya ke printer (lihat
+             komentar di NotaPesananController::unduhEscp()). --}}
+        {{-- <p class="no-print" style="font-size:11px;color:#666;max-width:22.4cm;margin:8px auto 0;">
+            "Cetak Langsung (ESC/P)" mengunduh berkas .prn — jangan dibuka lewat dialog cetak biasa,
+            kirim apa adanya ke printer (mis. lewat antrean "Generic / Text Only" di port yang sama,
+            atau <code>copy /b nama-berkas.prn USB001</code> dari Command Prompt).
+        </p> --}}
     @endunless
 </body>
 </html>
