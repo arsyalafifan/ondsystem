@@ -88,18 +88,10 @@ it('menolak driver mengakses nota', function () {
     $this->actingAs($this->driver)->get(route('pesanan.nota', $pesanan))->assertForbidden();
 });
 
-it('memilih ukuran kecil untuk lima item atau kurang', function () {
-    $pesanan = buatPesananProcess(5);
+it('selalu mencetak dengan ukuran kertas besar 24x28cm, apapun jumlah itemnya', function (int $jumlahItem) {
+    $pesanan = buatPesananProcess($jumlahItem);
 
     $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
         ->assertOk()
-        ->assertViewHas('ukuran', 'kecil');
-});
-
-it('memilih ukuran besar untuk lebih dari lima item', function () {
-    $pesanan = buatPesananProcess(6);
-
-    $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
-        ->assertOk()
-        ->assertViewHas('ukuran', 'besar');
-});
+        ->assertSee('size: 24cm 28cm;', false);
+})->with([5, 6]);

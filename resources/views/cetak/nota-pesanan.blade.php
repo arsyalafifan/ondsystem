@@ -4,8 +4,13 @@
     <meta charset="utf-8">
     <title>Nota {{ $pesanan->kode }}</title>
     <style>
+        {{-- Selalu ukuran besar (24x28cm, portrait): kertas continuous form fisiknya
+             9.5x11 inci, dan bila item pesanannya sedikit, sisa kertas kosong di
+             bawah nota tinggal disobek manual. Ukuran "kecil" sengaja tidak lagi
+             dipakai — bentuknya lebih lebar daripada tinggi (landscape), yang
+             membuat driver printer salah merotasi hasil cetak. --}}
         @page {
-            size: 24cm {{ $ukuran === 'kecil' ? '14cm' : '28cm' }};
+            size: 24cm 28cm;
             margin: 0.5cm 0.8cm;
         }
 
@@ -20,7 +25,7 @@
 
         body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: {{ $ukuran === 'kecil' ? '9px' : '10.5px' }};
+            font-size: 10.5px;
             line-height: 1.35;
             color: #000;
             width: 22.4cm;

@@ -45,36 +45,65 @@ if [ ! -d .git ]; then
     exit 1
 fi
 
-read -p "Lanjutkan deploy? (y/n): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    log_error "Deploy dibatalkan"
-    exit 1
+# git dijalankan sebagai root (lewat sudo) di atas direktori milik $APP_USER —
+# tanpa ini git menolak semua perintah dengan "detected dubious ownership".
+git config --global --add safe.directory "$APP_PATH"
+
+# chmod -R 755 di step permission (di bawah) mengubah execute-bit SEMUA file,
+# termasuk yang git lacak sebagai non-executable (blade, php, json, dst).
+# Tanpa core.fileMode=false, git status/diff akan menganggap seluruh repo
+# "modified" walau isinya sama persis — pernah bikin bingung membedakan
+# perubahan asli dari noise permission.
+git config core.fileMode false
+
+if [ -t 0 ]; then
+    read -p "Lanjutkan deploy? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_error "Deploy dibatalkan"
+        exit 1
+    fi
 fi
 
 ###############################################################################
-# 1. Git Pull
+# 1. Backup Database (sebelum kode berubah, bukan sesudah)
 ###############################################################################
-log_info "=== 1. Pull Latest Changes ==="
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-git pull origin $CURRENT_BRANCH
-log_success "Code updated"
-
-###############################################################################
-# 2. Backup Database
-###############################################################################
-log_info "=== 2. Backup Database ==="
+log_info "=== 1. Backup Database ==="
 BACKUP_DIR="$APP_PATH/backups"
 mkdir -p $BACKUP_DIR
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/db_backup_${TIMESTAMP}.sql"
 
-DB_NAME=$(grep "DB_DATABASE=" .env | cut -d '=' -f 2)
-DB_USER=$(grep "DB_USERNAME=" .env | cut -d '=' -f 2)
-DB_PASS=$(grep "DB_PASSWORD=" .env | cut -d '=' -f 2)
+# -f2- (bukan -f2) supaya password yang kebetulan mengandung karakter '='
+# tidak terpotong saat dibaca ulang dari .env — lihat catatan yang sama di
+# setup.sh soal DB_PASS.
+DB_NAME=$(grep "^DB_DATABASE=" .env | cut -d '=' -f 2-)
+DB_USER=$(grep "^DB_USERNAME=" .env | cut -d '=' -f 2-)
+DB_PASS=$(grep "^DB_PASSWORD=" .env | cut -d '=' -f 2-)
 
-mysqldump -u $DB_USER -p"$DB_PASS" $DB_NAME > $BACKUP_FILE
+mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > $BACKUP_FILE
 log_success "Database backed up: $BACKUP_FILE"
+
+###############################################################################
+# 2. Sync Kode ke origin (bukan git pull biasa)
+###############################################################################
+log_info "=== 2. Sync ke origin ==="
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git fetch origin
+
+# reset --hard (bukan pull/merge) supaya server selalu persis sama dengan
+# origin — git pull bisa konflik atau diam-diam tidak fast-forward kalau ada
+# perubahan lokal di server (mis. file sempat ditempel manual saat darurat).
+# Deployment target seharusnya tidak pernah punya riwayat sendiri yang perlu
+# dipertahankan; kalau ada perubahan yang ingin disimpan, commit & push dulu
+# SEBELUM menjalankan script ini.
+git reset --hard "origin/$CURRENT_BRANCH"
+log_success "Code updated to $(git rev-parse --short HEAD)"
+
+# git di atas jalan sebagai root (lewat sudo bash deploy.sh) dan file yang
+# disentuhnya jadi milik root — composer/npm di bawah jalan sebagai
+# $APP_USER dan akan gagal tulis kalau ownership tidak dikembalikan dulu.
+chown -R $APP_USER:$APP_USER $APP_PATH
 
 ###############################################################################
 # 3. Install Dependencies
@@ -98,14 +127,41 @@ log_success "Assets built"
 # 6. Run Migrations
 ###############################################################################
 log_info "=== 6. Run Database Migrations ==="
-read -p "Run migrations? (y/n): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+RUN_MIGRATE=y
+if [ -t 0 ]; then
+    read -p "Run migrations? (y/n): " -n 1 -r
+    echo
+    RUN_MIGRATE=$REPLY
+fi
+if [[ $RUN_MIGRATE =~ ^[Yy]$ ]]; then
     sudo -u $APP_USER php artisan migrate --force
     log_success "Migrations completed"
 else
     log_info "Migrations skipped"
 fi
+
+###############################################################################
+# 6b. Permission (urutan ini penting — lihat catatan di bawah)
+###############################################################################
+log_info "=== 6b. Fix Permissions ==="
+
+# chmod -R 755 dulu, BARU .env dikunci 600 setelahnya — kalau dibalik,
+# recursive chmod di atas akan menimpa ulang .env jadi 755 (bisa dibaca
+# semua user, padahal isinya DB_PASSWORD dan APP_KEY). Ini bug nyata yang
+# pernah terjadi di setup.sh sebelum diperbaiki.
+chmod -R 755 $APP_PATH
+chmod -R 775 $APP_PATH/storage
+chmod -R 775 $APP_PATH/bootstrap/cache
+chmod 600 $APP_PATH/.env
+[ -f $APP_PATH/.env.backup ] && chmod 600 $APP_PATH/.env.backup
+
+# PHP-FPM jalan sebagai www-data, bukan $APP_USER. Tanpa www-data ikut
+# grup $APP_USER, request lewat browser gagal tulis ke storage/framework
+# (tempnam() 500 error) meski command artisan CLI selalu normal karena
+# jalan sebagai $APP_USER langsung. usermod -aG aman dipanggil berulang.
+usermod -aG $APP_USER www-data
+
+log_success "Permissions fixed"
 
 ###############################################################################
 # 7. Clear Cache
