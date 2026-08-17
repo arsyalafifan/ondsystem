@@ -25,16 +25,29 @@ hanya aktif sebentar saat dipanggil, lalu keluar sendiri.
 
 ## Instalasi (sekali saja, per komputer yang mencetak)
 
-1. Salin `OndPrintHelper.exe` ke lokasi permanen di komputer tersebut,
-   misalnya `C:\OndPrintHelper\OndPrintHelper.exe`. **Jangan taruh di folder
-   Downloads atau folder yang sering dibersihkan** — begitu didaftarkan,
-   link cetak akan selalu memanggil persis lokasi ini.
-2. Klik dua kali `OndPrintHelper.exe`.
-3. Akan muncul jendela **Pengaturan** berisi daftar printer yang terpasang
+1. Ambil `OndPrintHelper.exe` **dari folder `publish`**, bukan folder
+   `bin\Release\net9.0-windows\win-x64\` di luarnya:
+   ```
+   bin/Release/net9.0-windows/win-x64/publish/OndPrintHelper.exe
+   ```
+   Ini berkas tunggal berukuran sekitar 113 MB, sudah menyertakan semuanya
+   (termasuk .NET runtime) — tidak butuh berkas `.dll` lain di sebelahnya.
+   **Kalau ukurannya jauh lebih kecil (ratusan KB saja) atau ada banyak
+   `.dll` lain di folder yang sama, berarti salah ambil** — itu berkas dari
+   folder `bin\Release\net9.0-windows\win-x64\` (tanpa `publish`), yang
+   butuh ~200 berkas `.dll` pendamping dan tidak akan berjalan sendirian
+   (gejalanya: Windows bilang "The application to execute does not exist:
+   ...\OndPrintHelper.dll").
+2. Salin **hanya berkas `.exe` itu saja** ke lokasi permanen di komputer
+   tersebut, misalnya `C:\OndPrintHelper\OndPrintHelper.exe`. **Jangan taruh
+   di folder Downloads atau folder yang sering dibersihkan** — begitu
+   didaftarkan, link cetak akan selalu memanggil persis lokasi ini.
+3. Klik dua kali `OndPrintHelper.exe`.
+4. Akan muncul jendela **Pengaturan** berisi daftar printer yang terpasang
    di Windows (diambil otomatis) — pilih printer dot-matrix yang dituju
    (mis. `EPSON LX-310 ESC/P`, atau `EPSON LX-310 ESC/P (Copy 1)`, apa pun
    nama persisnya di komputer itu), lalu klik **Simpan**.
-4. Selesai — satu klik itu sekaligus mendaftarkan `.exe` ke Windows dan
+5. Selesai — satu klik itu sekaligus mendaftarkan `.exe` ke Windows dan
    menyimpan pilihan printernya. Tombol "Cetak Langsung ke Printer
    (Windows)" di web sekarang akan langsung mencetak dari komputer ini.
 
@@ -91,10 +104,17 @@ bin/Release/net9.0-windows/win-x64/publish/OndPrintHelper.exe
 ## Kalau ada masalah saat mencetak
 
 `.exe` ini menampilkan jendela pesan error kalau ada yang gagal (link
-kedaluwarsa, printer tidak ditemukan, dll) — bacaan pesannya sudah dalam
-Bahasa Indonesia dan menjelaskan penyebabnya. Kalau printer tidak
-ditemukan, langkah pertama: cek nama printer di Windows persis sama dengan
-yang disebutkan di jendela error tersebut.
+kedaluwarsa, printer tidak ditemukan, layanan Print Spooler mati, dll) —
+bacaan pesannya sudah dalam Bahasa Indonesia dan menjelaskan penyebabnya.
+
+**Kalau diklik dua kali dan sama sekali tidak muncul jendela apa pun**
+(tidak ada pesan error, tidak ada jendela Pengaturan): cek berkas log di
+`%LOCALAPPDATA%\OndPrintHelper\error.log` — semua kegagalan, termasuk yang
+terjadi sebelum jendela sempat tampil, tercatat di sana beserta rinciannya.
+Kalau berkas itu sendiri tidak ada, kemungkinan besar Windows SmartScreen
+menghentikan `.exe`-nya sebelum sempat jalan sama sekali (klik kanan
+berkasnya → Properties → centang "Unblock" di bagian bawah kalau ada, atau
+saat peringatan SmartScreen muncul klik "More info" → "Run anyway").
 
 Tombol **"Unduh ESC/P (.prn)"** di halaman cetak tetap tersedia sebagai
 jalur cadangan manual kalau OND Print Helper belum terpasang atau

@@ -34,9 +34,26 @@ internal sealed class PengaturanForm : Form
         var lblPrinter = new Label { Text = "Printer:", AutoSize = true, Location = new Point(20, 85) };
         cboPrinter.Location = new Point(20, 105);
 
-        foreach (string nama in PrinterSettings.InstalledPrinters)
+        try
         {
-            cboPrinter.Items.Add(nama);
+            foreach (string nama in PrinterSettings.InstalledPrinters)
+            {
+                cboPrinter.Items.Add(nama);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Paling sering karena layanan Print Spooler Windows mati/macet
+            // — enumerasi printer lewat cara ini bergantung penuh padanya.
+            MessageBox.Show(
+                this,
+                "Tidak bisa membaca daftar printer dari Windows.\n\n"
+                    + $"Rincian: {ex.Message}\n\n"
+                    + "Kemungkinan besar layanan \"Print Spooler\" di Windows sedang berhenti — "
+                    + "buka services.msc, cari \"Print Spooler\", pastikan statusnya Running, lalu jalankan ulang OND Print Helper.",
+                "OND Print Helper",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
         }
 
         var tersimpan = PengaturanPrinter.Ambil();
