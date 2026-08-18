@@ -608,22 +608,22 @@ class DaftarToko extends Component
         $sheet = $spreadsheet->getActiveSheet();
 
         $sheet->fromArray(
-            ['kode', 'asset_id', 'nama', 'alamat', 'wilayah', 'telepon', 'pemilik', 'nik', 'latitude', 'longitude'],
+            ['kode', 'nama', 'pemilik', 'alamat', 'nik', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id'],
             null, 'A1',
         );
         $sheet->fromArray(
-            ['TK-0001', 'IDNAH202528004381', 'Toko Contoh Jaya', 'Jl. Merdeka No. 10', $wilayah, '081234567890', 'Budi', '3171012501900001', '-6.1751', '106.8272'],
+            ['TK-0001', 'Toko Contoh Jaya', 'Budi', 'Jl. Merdeka No. 10', '3171012501900001', '081234567890', '-6.1751', '106.8272', $wilayah, 'IDNAH202528004381'],
             null, 'A2',
         );
         $sheet->fromArray(
-            ['', '', 'Toko Tanpa Koordinat', 'Jl. Sudirman No. 5', $wilayah, '', '', '', '', ''],
+            ['', 'Toko Tanpa Koordinat', '', 'Jl. Sudirman No. 5', '', '', '', '', $wilayah, ''],
             null, 'A3',
         );
 
         // Kolom yang rawan diubah otomatis jadi angka atau format lain oleh
         // Excel (nol di depan hilang, notasi ilmiah) dipaksa berformat teks,
         // supaya aman ditimpa pengguna dengan data mereka sendiri.
-        foreach (['B', 'F', 'H'] as $kolom) {
+        foreach (['E', 'F', 'J'] as $kolom) {
             $sheet->getStyle("{$kolom}1:{$kolom}1000")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         }
 

@@ -54,6 +54,7 @@ return [
     'geocode_tingkat_catatan' => 'Tingkat: :tingkat — :alamat',
     'judul_impor' => 'Impor Toko dari CSV/Excel',
     'kolom_dikenali' => 'Kolom yang dikenali',
+    'kolom_tambahan' => 'Kolom tambahan opsional',
     'ket_impor' => ':wajib wajib diisi. Kolom wilayah dicocokkan dengan nama atau kode wilayah yang sudah ada; baris dengan wilayah kosong atau tidak dikenal akan dilewati. Baris yang nomor asetnya atau kode tokonya sudah ada akan memperbarui toko itu, bukan membuat toko baru — kolom lain yang dikosongkan tidak akan menghapus data yang sudah tersimpan, jadi toko boleh dilengkapi bertahap lewat beberapa kali upload. Toko tanpa lat/lng bisa dilengkapi belakangan lewat pencarian otomatis.',
     'unduh_contoh' => 'Unduh contoh berkas (Excel)',
     'berkas_csv' => 'Berkas CSV atau Excel',

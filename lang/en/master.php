@@ -54,6 +54,7 @@ return [
     'geocode_tingkat_catatan' => 'Level: :tingkat — :alamat',
     'judul_impor' => 'Import Stores from CSV/Excel',
     'kolom_dikenali' => 'Recognised columns',
+    'kolom_tambahan' => 'Optional extra columns',
     'ket_impor' => ':wajib are required. The region column is matched against existing region names or codes; rows with a blank or unrecognised region are skipped. Rows whose asset ID or store code already exists update that store rather than creating a duplicate — leaving other columns blank never erases data already saved, so a store can be filled in gradually across several uploads. Stores without lat/lng can be filled in later with the automatic lookup.',
     'unduh_contoh' => 'Download a sample file (Excel)',
     'berkas_csv' => 'CSV or Excel file',
