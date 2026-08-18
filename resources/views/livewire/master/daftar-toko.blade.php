@@ -25,6 +25,14 @@
         </div>
     @endif
 
+    @if ($this->jumlahTanpaWilayah > 0)
+        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p class="text-sm text-amber-900">
+                {!! __('master.peringatan_wilayah', ['jumlah' => '<strong>'.$this->jumlahTanpaWilayah.'</strong>']) !!}
+            </p>
+        </div>
+    @endif
+
     <x-kartu>
         <div class="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
             <div class="min-w-56 flex-1">
@@ -46,6 +54,11 @@
                 <input type="checkbox" wire:model.live="tanpaKoordinat"
                        class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                 {{ __('master.hanya_tanpa_koordinat') }}
+            </label>
+            <label class="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" wire:model.live="tanpaWilayah"
+                       class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                {{ __('master.hanya_tanpa_wilayah') }}
             </label>
         </div>
 
@@ -80,7 +93,13 @@
                                     <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">{{ __('master.pesanan_aktif') }}</span>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $toko->wilayah->nama }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                @if ($toko->wilayah)
+                                    {{ $toko->wilayah->nama }}
+                                @else
+                                    <span class="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-800">{{ __('master.belum_ada_wilayah') }}</span>
+                                @endif
+                            </td>
                             <td class="max-w-xs truncate px-4 py-2 text-gray-600">{{ $toko->alamat }}</td>
                             <td class="whitespace-nowrap px-4 py-2">
                                 @if ($toko->punya_koordinat)
@@ -144,6 +163,9 @@
                             <label class="block text-sm font-medium text-gray-700">{{ __('umum.wilayah') }}</label>
                             <select wire:model="wilayahId"
                                     class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                @if ($wilayahId === null)
+                                    <option value="">{{ __('master.pilih_wilayah') }}</option>
+                                @endif
                                 @foreach ($this->wilayahs as $w)
                                     <option value="{{ $w->id }}">{{ $w->nama }}</option>
                                 @endforeach
@@ -352,6 +374,16 @@
                             </p>
                             <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto text-xs text-amber-800">
                                 @foreach ($hasilImpor['dilewati'] as $baris)
+                                    <li>• {{ $baris }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                        @if ($hasilImpor['catatan'] ?? [])
+                            <p class="mt-2 font-medium text-blue-900">
+                                {{ __('master.baris_catatan', ['jumlah' => count($hasilImpor['catatan'])]) }}
+                            </p>
+                            <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto text-xs text-blue-800">
+                                @foreach ($hasilImpor['catatan'] as $baris)
                                     <li>• {{ $baris }}</li>
                                 @endforeach
                             </ul>

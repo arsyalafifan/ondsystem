@@ -3,6 +3,7 @@
 namespace App\Livewire\Master;
 
 use App\Enums\StatusPesanan;
+use App\Models\Pesanan;
 use App\Models\Toko;
 use App\Models\Wilayah;
 use App\Services\Peta\NominatimGeocoder;
@@ -38,6 +39,9 @@ class DaftarToko extends Component
 
     #[Url]
     public bool $tanpaKoordinat = false;
+
+    #[Url]
+    public bool $tanpaWilayah = false;
 
     // --- Formulir ---
     public ?int $tokoId = null;
@@ -94,7 +98,7 @@ class DaftarToko extends Component
 
     public function updated(string $kolom): void
     {
-        if (in_array($kolom, ['cari', 'filterWilayah', 'tanpaKoordinat'], true)) {
+        if (in_array($kolom, ['cari', 'filterWilayah', 'tanpaKoordinat', 'tanpaWilayah'], true)) {
             $this->resetPage();
         }
     }
@@ -107,6 +111,7 @@ class DaftarToko extends Component
             ->withCount(['pesanans as pesanan_aktif' => fn ($q) => $q->whereIn('status', StatusPesanan::aktif())])
             ->when($this->filterWilayah !== '', fn ($q) => $q->where('wilayah_id', $this->filterWilayah))
             ->when($this->tanpaKoordinat, fn ($q) => $q->tanpaKoordinat())
+            ->when($this->tanpaWilayah, fn ($q) => $q->tanpaWilayah())
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('nama', 'like', "%{$this->cari}%")
                 ->orWhere('kode', 'like', "%{$this->cari}%")
@@ -126,6 +131,12 @@ class DaftarToko extends Component
     public function jumlahTanpaKoordinat(): int
     {
         return Toko::aktif()->tanpaKoordinat()->count();
+    }
+
+    #[Computed]
+    public function jumlahTanpaWilayah(): int
+    {
+        return Toko::aktif()->tanpaWilayah()->count();
     }
 
     #[Computed]
@@ -351,7 +362,7 @@ class DaftarToko extends Component
         $pesan = $this->tokoId === null ? __('master.toko_tersimpan') : __('master.toko_diperbarui');
 
         $this->tutupForm();
-        unset($this->tokos, $this->jumlahTanpaKoordinat);
+        unset($this->tokos, $this->jumlahTanpaKoordinat, $this->jumlahTanpaWilayah);
 
         $this->dispatch('notifikasi', pesan: $pesan);
     }
@@ -458,6 +469,7 @@ class DaftarToko extends Component
         $baru = 0;
         $diperbarui = 0;
         $dilewati = [];
+        $catatan = [];
         $nomor = 1;
 
         foreach ($semuaBaris as $barisMentah) {
@@ -485,12 +497,20 @@ class DaftarToko extends Component
                 continue;
             }
 
-            $wilayahId = $wilayahPerNama[$wilayahTeks] ?? $wilayahPerKode[$wilayahTeks] ?? null;
+            // Wilayah boleh kosong — tokonya tetap dibuat/diperbarui, tinggal
+            // dilengkapi belakangan lewat upload susulan atau formulir edit.
+            // Baris hanya dilewati kalau wilayahnya DIISI tapi tidak dikenal,
+            // karena itu biasanya salah ketik yang perlu diperbaiki dulu.
+            $wilayahId = null;
 
-            if ($wilayahId === null) {
-                $dilewati[] = __('master.lewat_wilayah', ['nomor' => $nomor, 'wilayah' => $wilayahTeks]);
+            if ($wilayahTeks !== '') {
+                $wilayahId = $wilayahPerNama[$wilayahTeks] ?? $wilayahPerKode[$wilayahTeks] ?? null;
 
-                continue;
+                if ($wilayahId === null) {
+                    $dilewati[] = __('master.lewat_wilayah', ['nomor' => $nomor, 'wilayah' => $wilayahTeks]);
+
+                    continue;
+                }
             }
 
             $lat = $this->angkaAtauNull($data['latitude'] ?? $data['lat'] ?? null);
@@ -506,19 +526,27 @@ class DaftarToko extends Component
             $kodeAkhir = $tokoLama->kode ?? ($kode !== '' ? $kode : $this->kodeBerikutnya());
             $adaSebelumnya = $tokoLama !== null;
 
+            // Toko yang masih punya pesanan berjalan tidak boleh diseret
+            // wilayah/nomor asetnya lewat impor massal — itu bisa mengacaukan
+            // routing atau pengenalan QR di tengah transaksi. Baris tetap
+            // diproses, hanya kolom kritisnya yang dikunci dan dicatat.
+            $pesananAktifAda = $adaSebelumnya && Pesanan::where('toko_id', $tokoLama->id)
+                ->whereIn('status', StatusPesanan::aktif())
+                ->exists();
+
             $dataSimpan = [
                 'nama' => $nama,
                 'alamat' => $alamat,
-                'wilayah_id' => $wilayahId,
                 'aktif' => true,
             ];
 
-            // Kolom opsional (termasuk nomor aset) hanya ditimpa kalau
-            // berkasnya memang mengisi nilainya. Toko sering dilengkapi
+            // Kolom opsional (termasuk nomor aset dan wilayah) hanya ditimpa
+            // kalau berkasnya memang mengisi nilainya. Toko sering dilengkapi
             // bertahap lewat beberapa kali upload — kolom yang masih kosong
             // di berkas terbaru tidak boleh menghapus data yang sudah
             // tersimpan dari upload atau input sebelumnya.
             $kolomOpsional = [
+                'wilayah_id' => $wilayahId,
                 'asset_id' => $assetId,
                 'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
                 'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
@@ -528,6 +556,17 @@ class DaftarToko extends Component
                 'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
                 'nik_pemilik' => $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null),
             ];
+
+            $kolomTerkunci = [];
+
+            if ($pesananAktifAda) {
+                foreach (['wilayah_id' => 'master.kolom_wilayah', 'asset_id' => 'master.kolom_asset_id'] as $kolom => $labelKey) {
+                    if ($kolomOpsional[$kolom] !== null) {
+                        $kolomTerkunci[] = __($labelKey);
+                        unset($kolomOpsional[$kolom]);
+                    }
+                }
+            }
 
             foreach ($kolomOpsional as $kolom => $nilai) {
                 if ($nilai !== null) {
@@ -539,13 +578,25 @@ class DaftarToko extends Component
             // baris punya lat/lng lengkap. Baris yang belum punya koordinat
             // tidak menghapus titik yang sudah digeocode atau ditaruh manual.
             if ($punyaTitik) {
-                $dataSimpan['latitude'] = $lat;
-                $dataSimpan['longitude'] = $lng;
-                $dataSimpan['sumber_koordinat'] = 'manual';
-                $dataSimpan['geocoded_at'] = now();
+                if ($pesananAktifAda) {
+                    $kolomTerkunci[] = __('master.kolom_koordinat');
+                } else {
+                    $dataSimpan['latitude'] = $lat;
+                    $dataSimpan['longitude'] = $lng;
+                    $dataSimpan['sumber_koordinat'] = 'manual';
+                    $dataSimpan['geocoded_at'] = now();
+                }
             }
 
             Toko::updateOrCreate(['kode' => $kodeAkhir], $dataSimpan);
+
+            if ($kolomTerkunci !== []) {
+                $catatan[] = __('master.catatan_kolom_terkunci', [
+                    'nomor' => $nomor,
+                    'kode' => $kodeAkhir,
+                    'kolom' => implode(', ', $kolomTerkunci),
+                ]);
+            }
 
             $adaSebelumnya ? $diperbarui++ : $baru++;
         }
@@ -554,10 +605,11 @@ class DaftarToko extends Component
             'baru' => $baru,
             'diperbarui' => $diperbarui,
             'dilewati' => $dilewati,
+            'catatan' => $catatan,
         ];
 
         $this->berkasCsv = null;
-        unset($this->tokos, $this->jumlahTanpaKoordinat);
+        unset($this->tokos, $this->jumlahTanpaKoordinat, $this->jumlahTanpaWilayah);
     }
 
     /** @return array<int, array<int, mixed>> */

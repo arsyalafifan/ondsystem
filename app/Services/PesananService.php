@@ -55,6 +55,16 @@ class PesananService
             ]);
         }
 
+        // Toko boleh diimpor tanpa wilayah dan dilengkapi belakangan, tapi
+        // pesanan mewarisi wilayah_id dari tokonya (dipakai untuk routing) —
+        // kolom itu wajib terisi di tabel pesanans, jadi harus dicegat di
+        // sini, bukan menunggu gagal di lapisan basis data.
+        if ($toko->wilayah_id === null) {
+            throw ValidationException::withMessages([
+                'toko_id' => __('pesanan.galat_toko_tanpa_wilayah', ['nama' => $toko->nama]),
+            ]);
+        }
+
         return DB::transaction(function () use ($toko, $items, $pembuat, $catatan, $totalDus): Pesanan {
             // Dikunci di dalam transaksi supaya dua sales yang menekan simpan
             // bersamaan tidak sama-sama lolos pemeriksaan pesanan aktif.

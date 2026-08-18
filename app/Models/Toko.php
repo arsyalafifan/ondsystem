@@ -95,6 +95,13 @@ class Toko extends Model
         $query->where('aktif', true);
     }
 
+    /** Toko yang belum diketahui wilayahnya — belum bisa dipesan atau ikut routing. */
+    #[Scope]
+    protected function tanpaWilayah(Builder $query): void
+    {
+        $query->whereNull('wilayah_id');
+    }
+
     /** Toko yang freezernya sudah punya nomor aset, jadi bisa dipindai sales. */
     #[Scope]
     protected function berassetId(Builder $query): void

@@ -64,6 +64,7 @@ return [
     'galat_minimal_satu' => '訂單至少須包含一項產品。',
     'galat_min_dus' => '每家商店訂單至少 :min 箱，目前為 :sekarang 箱。',
     'galat_toko_nonaktif' => '商店 :nama 已停用。',
+    'galat_toko_tanpa_wilayah' => '商店 :nama 尚未設定區域，請先在商店主檔中設定區域再下單。',
     'galat_pesanan_aktif' => '商店 :nama 仍有進行中的訂單，請先完成或取消。',
     'galat_produk_hilang' => '有產品不存在或已停用。',
     'galat_stok_kurang' => ':nama 庫存不足：需求 :diminta 箱，可用 :tersedia 箱。',
@@ -79,6 +80,7 @@ return [
     'belum_ada_produk' => '尚未填寫產品。',
     'toko_belum_dipilih' => '尚未選擇商店。',
     'halangan_pesanan_aktif' => '該商店仍有進行中的訂單（:kode，狀態 :status）。每家商店只能有一個進行中的訂單。',
+    'halangan_toko_tanpa_wilayah' => '該商店尚未設定區域，請先在商店主檔中設定區域再儲存訂單。',
     'halangan_min_dus' => '每家商店最少 :min 箱，目前 :sekarang 箱。',
     'cara_ketik' => '輸入',
     'cara_pindai' => '掃碼',
@@ -86,4 +88,5 @@ return [
     'ket_pindai_qr_toko' => '將鏡頭對準冰櫃上的 QR code。系統會用資產編號比對商店主檔並自動選取該門店。',
     'notif_toko_dari_qr' => '已透過 QR code 選取門店：:nama（:aset）。',
     'toko_tanpa_aset' => '無資產編號',
+    'toko_tanpa_wilayah' => '尚無區域',
 ];

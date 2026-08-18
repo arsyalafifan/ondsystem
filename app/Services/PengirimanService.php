@@ -277,6 +277,12 @@ class PengirimanService
             throw new RuntimeException(__('pesanan.galat_toko_nonaktif', ['nama' => $toko->nama]));
         }
 
+        // Sama seperti pesanan biasa: wilayah_id toko diwariskan ke pesanan
+        // kampas dan wajib terisi di tabel pesanans.
+        if ($toko->wilayah_id === null) {
+            throw new RuntimeException(__('pesanan.galat_toko_tanpa_wilayah', ['nama' => $toko->nama]));
+        }
+
         $jatah = $this->jatahKampas($kendaraan)->keyBy(fn (array $b) => $b['produk']->id);
 
         foreach ($diminta as $produkId => $jumlah) {

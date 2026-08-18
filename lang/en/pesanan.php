@@ -64,6 +64,7 @@ return [
     'galat_minimal_satu' => 'An order must contain at least one product.',
     'galat_min_dus' => 'Orders must be at least :min boxes per store. Currently :sekarang boxes.',
     'galat_toko_nonaktif' => 'Store :nama is inactive.',
+    'galat_toko_tanpa_wilayah' => 'Store :nama does not have a region yet. Set its region in Master Stores before it can be ordered.',
     'galat_pesanan_aktif' => 'Store :nama still has an open order. Complete or cancel it first.',
     'galat_produk_hilang' => 'A product could not be found or is inactive.',
     'galat_stok_kurang' => 'Not enough stock for :nama. Requested :diminta boxes, available :tersedia.',
@@ -79,6 +80,7 @@ return [
     'belum_ada_produk' => 'No products entered yet.',
     'toko_belum_dipilih' => 'No store selected.',
     'halangan_pesanan_aktif' => 'This store still has an open order (:kode, status :status). A store may only have one open order.',
+    'halangan_toko_tanpa_wilayah' => 'This store does not have a region yet. Set it in Master Stores before the order can be saved.',
     'halangan_min_dus' => 'Minimum :min boxes per store. Currently :sekarang boxes.',
     'cara_ketik' => 'Type',
     'cara_pindai' => 'Scan QR',
@@ -86,4 +88,5 @@ return [
     'ket_pindai_qr_toko' => 'Point the camera at the QR on the freezer. Its asset ID is matched against the store master and the store is selected automatically.',
     'notif_toko_dari_qr' => 'Store selected from QR: :nama (:aset).',
     'toko_tanpa_aset' => 'no asset ID',
+    'toko_tanpa_wilayah' => 'no region yet',
 ];
