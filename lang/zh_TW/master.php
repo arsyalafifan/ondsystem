@@ -54,6 +54,7 @@ return [
     'geocode_tingkat_catatan' => '層級：:tingkat — :alamat',
     'judul_impor' => '從 CSV/Excel 匯入商店',
     'kolom_dikenali' => '可辨識的欄位',
+    'kolom_tambahan' => '可選附加欄位',
     'ket_impor' => ':wajib 為必填。區域欄位會與既有區域名稱或編號比對，區域空白或無法辨識的列將被跳過。資產編號或商店編號已存在的列將更新該商店而非重複建立——其餘留白的欄位不會清除已儲存的資料，因此商店資料可以分多次上傳逐步補齊。沒有經緯度的商店可稍後用自動查找補齊。',
     'unduh_contoh' => '下載範例檔（Excel）',
     'berkas_csv' => 'CSV 或 Excel 檔案',

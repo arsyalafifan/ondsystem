@@ -320,9 +320,11 @@
                 <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
                     <p class="font-medium">{{ __('master.kolom_dikenali') }}</p>
                     <p class="mt-1 text-xs">
-                        <code>kode</code>, <code>asset_id</code>, <code>nama</code>, <code>alamat</code>, <code>wilayah</code>,
-                        <code>kelurahan</code>, <code>kecamatan</code>, <code>kota</code>, <code>kode_pos</code>,
-                        <code>telepon</code>, <code>pemilik</code>, <code>nik</code>, <code>latitude</code>, <code>longitude</code>.
+                        <code>kode</code>, <code>nama</code>, <code>pemilik</code>, <code>alamat</code>, <code>nik</code>,
+                        <code>telepon</code>, <code>latitude</code>, <code>longitude</code>, <code>wilayah</code>, <code>asset_id</code>.
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500">
+                        {{ __('master.kolom_tambahan') }}: <code>kelurahan</code>, <code>kecamatan</code>, <code>kota</code>, <code>kode_pos</code>.
                     </p>
                     <p class="mt-2 text-xs">
                         {{ __('master.ket_impor', ['wajib' => 'nama, alamat, wilayah']) }}
