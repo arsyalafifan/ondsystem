@@ -32,15 +32,23 @@ final class EscpNotaBuilder
 
     private const FORM_FEED = "\x0C";
 
-    private const LEBAR = 80;
+    // Margin kiri kecil (bukan 0) supaya teks tidak menempel persis di tepi
+    // kertas; lebar konten dilebarkan mendekati lebar cetak sungguhan
+    // printer (bukan cuma 80 kolom) supaya sisi kanan tidak kosong dan nama
+    // barang/toko yang panjang tidak keburu terpotong.
+    private const MARGIN_KIRI = 3;
+
+    private const LEBAR = 100;
 
     public static function build(Pesanan $pesanan, User $pencetak): string
     {
         $b = self::INIT.self::NLQ_ON.self::ELITE_ON;
+        $b .= self::ESC.'l'.chr(self::MARGIN_KIRI);
+        $b .= self::ESC.'Q'.chr(self::MARGIN_KIRI + self::LEBAR);
 
         $b .= self::header($pesanan, $pencetak);
         $b .= self::garis().self::crlf();
-        $b .= self::baris(self::pusat($pesanan->toko->asset_id ?? '—', self::LEBAR)).self::crlf().self::crlf();
+        $b .= self::baris(self::pusat($pesanan->toko->asset_id ?? '-', self::LEBAR)).self::crlf().self::crlf();
         $b .= self::tabelItem($pesanan);
         $b .= self::ringkasan($pesanan);
         $b .= self::crlf().self::crlf();
@@ -49,7 +57,13 @@ final class EscpNotaBuilder
         $b .= self::status();
         $b .= self::FORM_FEED;
 
-        return $b;
+        // Dikirim mentah ke printer, bukan lewat GDI — printer dot-matrix
+        // cuma mengerti satu code page byte-tunggal (CP437 di LX-310), bukan
+        // UTF-8. Tanpa ini, karakter di luar ASCII (termasuk yang sudah
+        // ditransliterasi TRANSLIT-nya) tampil sebagai glyph acak di kertas.
+        // Byte kontrol (ESC dkk, semuanya di bawah 0x80) tidak terpengaruh —
+        // ASCII adalah subset identik di UTF-8 maupun CP437.
+        return iconv('UTF-8', 'CP437//TRANSLIT//IGNORE', $b) ?: $b;
     }
 
     private static function header(Pesanan $pesanan, User $pencetak): string
@@ -62,10 +76,12 @@ final class EscpNotaBuilder
             (string) config('perusahaan.bank'),
         ];
 
+        $lebarKepada = 26;
+
         $kepada = [
             'Kepada: '.$pesanan->toko->nama,
-            $pesanan->toko->telepon ?? '—',
-            ...self::pecahBaris($pesanan->toko->alamatLengkap ?: '—', 24),
+            $pesanan->toko->telepon ?? '-',
+            ...self::pecahBaris($pesanan->toko->alamatLengkap ?: '-', $lebarKepada),
         ];
 
         $faktur = [
@@ -73,18 +89,18 @@ final class EscpNotaBuilder
             'No. Faktur : '.$pesanan->kode,
             'Tanggal    : '.$pesanan->tanggal->format('d/m/Y'),
             'Sales      : '.$pencetak->name,
-            'No. HP     : '.($pencetak->no_hp ?? '—'),
+            'No. HP     : '.($pencetak->no_hp ?? '-'),
         ];
 
         // Kolom faktur sengaja dilebihkan (bukan cuma cukup pas) — kode nota
         // TIDAK BOLEH terpotong, beda dengan label lain yang aman kalau
         // kepanjangan dan sedikit terpotong.
-        return self::gabungKolom([$perusahaan, $kepada, $faktur], [24, 20, 34]);
+        return self::gabungKolom([$perusahaan, $kepada, $faktur], [30, $lebarKepada, 40]);
     }
 
     private static function tabelItem(Pesanan $pesanan): string
     {
-        $lebar = ['no' => 3, 'nama' => 30, 'qty' => 5, 'satuan' => 6, 'harga' => 12, 'disc' => 5, 'total' => 13];
+        $lebar = ['no' => 3, 'nama' => 40, 'qty' => 6, 'satuan' => 7, 'harga' => 13, 'disc' => 6, 'total' => 15];
 
         $b = self::BOLD_ON;
         $b .= self::gabung([
@@ -200,14 +216,25 @@ final class EscpNotaBuilder
         return array_filter(explode("\n", wordwrap($teks, $lebar, "\n", true)), fn ($b) => $b !== '');
     }
 
+    /**
+     * Bukan str_pad() biasa — str_pad() menghitung panjang per BYTE, sedangkan
+     * karakter multi-byte (mis. sebelum konversi CP437 di atas) akan
+     * membuat paddingnya salah hitung dan kolom-kolom geser. mb_strlen()
+     * menghitung per KARAKTER, sesuai jumlah byte akhir setelah konversi
+     * CP437 (satu karakter Unicode = tepat satu byte CP437).
+     */
     private static function kiri(string $teks, int $lebar): string
     {
-        return str_pad(self::potong($teks, $lebar), $lebar);
+        $teks = self::potong($teks, $lebar);
+
+        return $teks.str_repeat(' ', max(0, $lebar - mb_strlen($teks)));
     }
 
     private static function kanan(string $teks, int $lebar): string
     {
-        return str_pad(self::potong($teks, $lebar), $lebar, ' ', STR_PAD_LEFT);
+        $teks = self::potong($teks, $lebar);
+
+        return str_repeat(' ', max(0, $lebar - mb_strlen($teks))).$teks;
     }
 
     private static function pusat(string $teks, int $lebar): string

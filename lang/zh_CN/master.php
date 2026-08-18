@@ -74,6 +74,7 @@ return [
     'kolom_wilayah' => '区域',
     'kolom_asset_id' => '资产编号',
     'kolom_koordinat' => '坐标',
+    'catatan_koordinat_tidak_valid' => '第 :nomor 行（:kode）：坐标数值超出合理范围，已忽略——可能是 Excel 数字格式问题。请将 latitude/longitude 列设为文本格式，再用小数点重新输入（例如 -6.1751）。',
     'proses_impor' => '开始导入',
     'judul_produk' => '产品主数据',
     'ket_produk' => '可用库存 = 实物库存 − 进行中订单已锁定的数量。',
