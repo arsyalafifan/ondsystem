@@ -400,7 +400,7 @@
                                             <span class="truncate text-xs text-gray-500">
                                                 {{ $toko->kode }}
                                                 @if ($toko->asset_id) · {{ $toko->asset_id }} @endif
-                                                · {{ $toko->wilayah->nama }}
+                                                · {{ $toko->wilayah?->nama ?? __('pesanan.toko_tanpa_wilayah') }}
                                             </span>
                                         </button>
                                     @empty

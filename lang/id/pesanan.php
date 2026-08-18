@@ -64,6 +64,7 @@ return [
     'galat_minimal_satu' => 'Pesanan harus berisi minimal satu produk.',
     'galat_min_dus' => 'Jumlah pesanan minimal :min dus per toko. Saat ini baru :sekarang dus.',
     'galat_toko_nonaktif' => 'Toko :nama berstatus nonaktif.',
+    'galat_toko_tanpa_wilayah' => 'Toko :nama belum punya wilayah. Lengkapi wilayahnya dulu di Master Toko sebelum bisa dipesan.',
     'galat_pesanan_aktif' => 'Toko :nama masih punya pesanan yang berjalan. Selesaikan atau batalkan dulu pesanan tersebut.',
     'galat_produk_hilang' => 'Ada produk yang tidak ditemukan atau sudah nonaktif.',
     'galat_stok_kurang' => 'Stok :nama tidak mencukupi. Diminta :diminta dus, tersedia :tersedia dus.',
@@ -79,6 +80,7 @@ return [
     'belum_ada_produk' => 'Belum ada produk yang diisi.',
     'toko_belum_dipilih' => 'Toko belum dipilih.',
     'halangan_pesanan_aktif' => 'Toko ini masih punya pesanan berjalan (:kode, status :status). Satu toko hanya boleh punya satu pesanan aktif.',
+    'halangan_toko_tanpa_wilayah' => 'Toko ini belum punya wilayah. Lengkapi dulu di Master Toko sebelum pesanan bisa disimpan.',
     'halangan_min_dus' => 'Minimal pesanan :min dus per toko. Saat ini :sekarang dus.',
     'cara_ketik' => 'Ketik',
     'cara_pindai' => 'Pindai QR',
@@ -86,4 +88,5 @@ return [
     'ket_pindai_qr_toko' => 'Arahkan kamera ke QR pada freezer. Nomor asetnya dicocokkan dengan master toko, dan tokonya langsung terpilih.',
     'notif_toko_dari_qr' => 'Toko terpilih dari QR: :nama (:aset).',
     'toko_tanpa_aset' => 'tanpa nomor aset',
+    'toko_tanpa_wilayah' => 'belum ada wilayah',
 ];

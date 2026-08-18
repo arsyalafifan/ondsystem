@@ -415,6 +415,12 @@ class DaftarKunjungan extends Component
             return;
         }
 
+        if ($toko->wilayah_id === null) {
+            $this->tolakPindaian(__('pesanan.galat_toko_tanpa_wilayah', ['nama' => $toko->nama]));
+
+            return;
+        }
+
         $this->pilihTokoKampas($toko->id);
 
         $this->dispatch('notifikasi', pesan: __('pesanan.notif_toko_dari_qr', [

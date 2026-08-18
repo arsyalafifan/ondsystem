@@ -64,6 +64,7 @@ return [
     'galat_minimal_satu' => '订单至少须包含一项产品。',
     'galat_min_dus' => '每家商店订单至少 :min 箱，目前为 :sekarang 箱。',
     'galat_toko_nonaktif' => '商店 :nama 已停用。',
+    'galat_toko_tanpa_wilayah' => '商店 :nama 尚未设置区域，请先在商店主数据中设置区域再下单。',
     'galat_pesanan_aktif' => '商店 :nama 仍有进行中的订单，请先完成或取消。',
     'galat_produk_hilang' => '有产品不存在或已停用。',
     'galat_stok_kurang' => ':nama 库存不足：需求 :diminta 箱，可用 :tersedia 箱。',
@@ -79,6 +80,7 @@ return [
     'belum_ada_produk' => '尚未填写产品。',
     'toko_belum_dipilih' => '尚未选择商店。',
     'halangan_pesanan_aktif' => '该商店仍有进行中的订单（:kode，状态 :status）。每家商店只能有一个进行中的订单。',
+    'halangan_toko_tanpa_wilayah' => '该商店尚未设置区域，请先在商店主数据中设置区域再保存订单。',
     'halangan_min_dus' => '每家商店最少 :min 箱，目前 :sekarang 箱。',
     'cara_ketik' => '输入',
     'cara_pindai' => '扫码',
@@ -86,4 +88,5 @@ return [
     'ket_pindai_qr_toko' => '将镜头对准冰柜上的二维码。系统会用资产编号匹配商店主数据并自动选中该门店。',
     'notif_toko_dari_qr' => '已通过二维码选中门店：:nama（:aset）。',
     'toko_tanpa_aset' => '无资产编号',
+    'toko_tanpa_wilayah' => '尚无区域',
 ];

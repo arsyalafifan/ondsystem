@@ -98,6 +98,12 @@ class BuatPesanan extends Component
             return;
         }
 
+        if ($toko->wilayah_id === null) {
+            $this->tolakPindaian(__('pesanan.galat_toko_tanpa_wilayah', ['nama' => $toko->nama]));
+
+            return;
+        }
+
         // Toko yang masih punya pesanan berjalan tidak langsung dipilih, sama
         // seperti pada daftar hasil ketikan yang barisnya dibuat tidak bisa
         // diklik. Kalau tetap dipilih, sales baru tahu ditolaknya setelah
@@ -235,6 +241,8 @@ class BuatPesanan extends Component
 
         if ($this->tokoId === null) {
             $masalah[] = ['jenis' => 'toko', 'pesan' => __('pesanan.toko_belum_dipilih')];
+        } elseif ($this->toko?->wilayah_id === null) {
+            $masalah[] = ['jenis' => 'toko_tanpa_wilayah', 'pesan' => __('pesanan.halangan_toko_tanpa_wilayah')];
         } elseif ($this->pesananAktifToko !== null) {
             $p = $this->pesananAktifToko;
             $masalah[] = [
