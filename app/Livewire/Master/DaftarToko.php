@@ -515,6 +515,20 @@ class DaftarToko extends Component
 
             $lat = $this->angkaAtauNull($data['latitude'] ?? $data['lat'] ?? null);
             $lng = $this->angkaAtauNull($data['longitude'] ?? $data['lng'] ?? $data['lon'] ?? null);
+
+            // Kalau kolom latitude/longitude di Excel tidak berformat Teks,
+            // sebagian pengaturan lokal membaca titik desimalnya sebagai
+            // pemisah ribuan dan mengubah koordinat jadi angka raksasa di
+            // luar jangkauan bumi. Baris tetap diproses, koordinatnya saja
+            // yang diabaikan dan dicatat supaya kelihatan alasannya.
+            $koordinatTidakValid = ($lat !== null && ($lat < -90 || $lat > 90))
+                || ($lng !== null && ($lng < -180 || $lng > 180));
+
+            if ($koordinatTidakValid) {
+                $lat = null;
+                $lng = null;
+            }
+
             $punyaTitik = $lat !== null && $lng !== null;
 
             // Toko yang sama dikenali lewat nomor aset (paling andal, karena
@@ -598,6 +612,13 @@ class DaftarToko extends Component
                 ]);
             }
 
+            if ($koordinatTidakValid) {
+                $catatan[] = __('master.catatan_koordinat_tidak_valid', [
+                    'nomor' => $nomor,
+                    'kode' => $kodeAkhir,
+                ]);
+            }
+
             $adaSebelumnya ? $diperbarui++ : $baru++;
         }
 
@@ -672,10 +693,13 @@ class DaftarToko extends Component
             null, 'A3',
         );
 
-        // Kolom yang rawan diubah otomatis jadi angka atau format lain oleh
-        // Excel (nol di depan hilang, notasi ilmiah) dipaksa berformat teks,
-        // supaya aman ditimpa pengguna dengan data mereka sendiri.
-        foreach (['E', 'F', 'J'] as $kolom) {
+        // Kolom yang rawan diubah otomatis oleh Excel dipaksa berformat teks:
+        // nol di depan hilang atau notasi ilmiah untuk nik/telepon/asset_id,
+        // dan yang lebih berbahaya lagi untuk latitude/longitude — pada
+        // pengaturan lokal yang memakai titik sebagai pemisah ribuan, titik
+        // desimal koordinat bisa terbaca keliru dan mengubahnya jadi angka
+        // raksasa yang tidak masuk akal.
+        foreach (['E', 'F', 'G', 'H', 'J'] as $kolom) {
             $sheet->getStyle("{$kolom}1:{$kolom}1000")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         }
 
