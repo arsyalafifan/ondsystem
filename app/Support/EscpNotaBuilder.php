@@ -33,12 +33,14 @@ final class EscpNotaBuilder
     private const FORM_FEED = "\x0C";
 
     // Margin kiri kecil (bukan 0) supaya teks tidak menempel persis di tepi
-    // kertas; lebar konten dilebarkan mendekati lebar cetak sungguhan
-    // printer (bukan cuma 80 kolom) supaya sisi kanan tidak kosong dan nama
-    // barang/toko yang panjang tidak keburu terpotong.
+    // kertas. LEBAR sengaja dikembalikan ke 80 (bukan dilebarkan lagi) —
+    // percobaan melebarkan ke 100 terbukti melewati lebar cetak sungguhan
+    // printer ini, membuat baris auto-wrap di tengah kata dan merusak
+    // perataan vertikal seluruh nota. 80 kolom sudah terbukti pas di
+    // printer ini tanpa wrap sama sekali.
     private const MARGIN_KIRI = 3;
 
-    private const LEBAR = 100;
+    private const LEBAR = 80;
 
     public static function build(Pesanan $pesanan, User $pencetak): string
     {
@@ -76,7 +78,7 @@ final class EscpNotaBuilder
             (string) config('perusahaan.bank'),
         ];
 
-        $lebarKepada = 26;
+        $lebarKepada = 20;
 
         $kepada = [
             'Kepada: '.$pesanan->toko->nama,
@@ -95,12 +97,12 @@ final class EscpNotaBuilder
         // Kolom faktur sengaja dilebihkan (bukan cuma cukup pas) — kode nota
         // TIDAK BOLEH terpotong, beda dengan label lain yang aman kalau
         // kepanjangan dan sedikit terpotong.
-        return self::gabungKolom([$perusahaan, $kepada, $faktur], [30, $lebarKepada, 40]);
+        return self::gabungKolom([$perusahaan, $kepada, $faktur], [24, $lebarKepada, 34]);
     }
 
     private static function tabelItem(Pesanan $pesanan): string
     {
-        $lebar = ['no' => 3, 'nama' => 40, 'qty' => 6, 'satuan' => 7, 'harga' => 13, 'disc' => 6, 'total' => 15];
+        $lebar = ['no' => 3, 'nama' => 30, 'qty' => 5, 'satuan' => 6, 'harga' => 12, 'disc' => 5, 'total' => 13];
 
         $b = self::BOLD_ON;
         $b .= self::gabung([
