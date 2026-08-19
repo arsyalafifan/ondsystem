@@ -7,6 +7,9 @@ use App\Models\Pesanan;
 use App\Models\Toko;
 use App\Models\Wilayah;
 use App\Services\Peta\NominatimGeocoder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -93,6 +96,34 @@ class DaftarToko extends Component
 
     /** @var array<string, mixed>|null */
     public ?array $hasilImpor = null;
+
+    /**
+     * Berkas besar (ribuan baris) diproses bertahap lewat beberapa request
+     * kecil, bukan sekaligus dalam satu request — supaya tidak kena batas
+     * waktu eksekusi PHP/web-server di production. Baris-baris yang sudah
+     * dinormalkan disimpan sementara di disk lokal antar-tahap, karena
+     * menyimpannya di properti Livewire akan membengkakkan payload yang
+     * dikirim bolak-balik setiap tahap.
+     */
+    public bool $imporBerjalan = false;
+
+    public ?string $imporToken = null;
+
+    public int $imporOffset = 0;
+
+    public int $imporTotal = 0;
+
+    public int $imporBaru = 0;
+
+    public int $imporDiperbarui = 0;
+
+    /** @var array<int, string> */
+    public array $imporDilewati = [];
+
+    /** @var array<int, string> */
+    public array $imporCatatan = [];
+
+    private int $ukuranBatchImpor = 250;
 
     public bool $sedangGeocodeMassal = false;
 
@@ -430,10 +461,15 @@ class DaftarToko extends Component
     // Impor CSV / Excel
     // ------------------------------------------------------------------
 
-    public function imporCsv(): void
+    /**
+     * Membaca dan menormalkan seluruh berkas sekali di awal, lalu
+     * menyimpannya sementara di disk supaya tiap tahap tinggal membaca
+     * potongan barisnya — bukan mengurai ulang berkas Excel-nya setiap kali.
+     */
+    public function mulaiImporCsv(): void
     {
         $this->validate([
-            'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
+            'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:20480',
         ], [
             'berkasCsv.required' => __('master.pilih_csv_dulu'),
             'berkasCsv.mimes' => __('master.harus_csv'),
@@ -461,176 +497,311 @@ class DaftarToko extends Component
             $judul,
         );
 
+        // Dinormalkan sekali di sini supaya tiap tahap tinggal memakai teks
+        // biasa, tidak perlu menangani sel Excel mentah berulang kali.
+        $barisNormal = array_values(array_map(
+            fn ($baris) => $this->normalisasiBaris($baris),
+            $semuaBaris,
+        ));
+
+        if ($barisNormal === []) {
+            $this->addError('berkasCsv', __('master.berkas_kosong'));
+
+            return;
+        }
+
+        $token = (string) Str::uuid();
+        Storage::disk('local')->put(
+            "impor-toko/{$token}.json",
+            json_encode(['judul' => $judul, 'baris' => $barisNormal]),
+        );
+
+        $this->imporToken = $token;
+        $this->imporOffset = 0;
+        $this->imporTotal = count($barisNormal);
+        $this->imporBaru = 0;
+        $this->imporDiperbarui = 0;
+        $this->imporDilewati = [];
+        $this->imporCatatan = [];
+        $this->hasilImpor = null;
+        $this->berkasCsv = null;
+        $this->imporBerjalan = true;
+    }
+
+    /**
+     * Dipanggil berulang oleh wire:poll di tampilan selama $imporBerjalan
+     * masih true, tiap kali memproses satu batch kecil. Dengan begitu satu
+     * berkas berisi ribuan baris tetap selesai lewat banyak request pendek,
+     * bukan satu request raksasa yang gampang kena batas waktu di
+     * production.
+     */
+    public function lanjutkanImporCsv(): void
+    {
+        if (! $this->imporBerjalan || $this->imporToken === null) {
+            return;
+        }
+
+        $jalurBerkas = "impor-toko/{$this->imporToken}.json";
+
+        if (! Storage::disk('local')->exists($jalurBerkas)) {
+            $this->selesaikanImporCsv();
+
+            return;
+        }
+
+        $tersimpan = json_decode(Storage::disk('local')->get($jalurBerkas), true);
+        $judul = $tersimpan['judul'];
+        $batch = array_slice($tersimpan['baris'], $this->imporOffset, $this->ukuranBatchImpor);
+
         $wilayahPerNama = Wilayah::pluck('id', 'nama')
             ->mapWithKeys(fn ($id, $nama) => [mb_strtolower($nama) => $id]);
         $wilayahPerKode = Wilayah::pluck('id', 'kode')
             ->mapWithKeys(fn ($id, $kode) => [mb_strtolower($kode) => $id]);
 
+        // Toko yang sudah ada dan status pesanannya diambil sekaligus di
+        // depan tiap batch (bukan satu query per baris) — berkas
+        // beratus/beribu baris sebelumnya bisa memicu ribuan query kecil dan
+        // membuat impor melebihi batas waktu di production. Hanya kolom yang
+        // dipakai untuk pencocokan yang diambil, supaya ringan walau
+        // toko-nya banyak.
+        $tokoRingkas = Toko::query()->select(['id', 'kode', 'asset_id'])->get();
+        $tokoPerKode = $tokoRingkas->keyBy('kode');
+        $tokoPerAssetId = $tokoRingkas->whereNotNull('asset_id')->keyBy('asset_id');
+
+        $tokoIdPesananAktif = Pesanan::query()
+            ->whereIn('status', StatusPesanan::aktif())
+            ->distinct()
+            ->pluck('toko_id')
+            ->flip();
+
+        // Nomor urut kode otomatis dihitung ulang tiap batch dari data
+        // terbaru (batch sebelumnya sudah tersimpan ke basis data), lalu
+        // dinaikkan di memori selama batch ini berjalan.
+        $kodeTerakhirAngka = (int) substr((string) (
+            Toko::query()->where('kode', 'like', 'TK-%')->orderByDesc('kode')->value('kode') ?? 'TK-0000'
+        ), 3);
+
         $baru = 0;
         $diperbarui = 0;
         $dilewati = [];
         $catatan = [];
-        $nomor = 1;
+        $nomor = $this->imporOffset + 1;
 
-        foreach ($semuaBaris as $barisMentah) {
-            $nomor++;
+        DB::transaction(function () use (
+            $batch, $judul, $wilayahPerNama, $wilayahPerKode,
+            &$tokoPerKode, &$tokoPerAssetId, $tokoIdPesananAktif, &$kodeTerakhirAngka,
+            &$baru, &$diperbarui, &$dilewati, &$catatan, &$nomor,
+        ): void {
+            foreach ($batch as $baris) {
+                $nomor++;
 
-            $baris = $this->normalisasiBaris($barisMentah);
+                if (count(array_filter($baris, fn ($n) => trim((string) $n) !== '')) === 0) {
+                    continue;
+                }
 
-            if (count(array_filter($baris, fn ($n) => trim((string) $n) !== '')) === 0) {
-                continue;
-            }
+                $data = array_combine($judul, array_pad(array_slice($baris, 0, count($judul)), count($judul), null));
 
-            $data = array_combine($judul, array_pad(array_slice($baris, 0, count($judul)), count($judul), null));
+                $kode = trim((string) ($data['kode'] ?? $data['kode_toko'] ?? ''));
+                $nama = trim((string) ($data['nama'] ?? $data['nama_toko'] ?? ''));
+                $alamat = trim((string) ($data['alamat'] ?? ''));
+                $wilayahTeks = mb_strtolower(trim((string) ($data['wilayah'] ?? '')));
 
-            $kode = trim((string) ($data['kode'] ?? $data['kode_toko'] ?? ''));
-            $nama = trim((string) ($data['nama'] ?? $data['nama_toko'] ?? ''));
-            $alamat = trim((string) ($data['alamat'] ?? ''));
-            $wilayahTeks = mb_strtolower(trim((string) ($data['wilayah'] ?? '')));
+                $assetIdMentah = trim((string) ($data['asset_id'] ?? $data['kode_aset'] ?? $data['no_aset'] ?? ''));
+                $assetId = $assetIdMentah === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $assetIdMentah));
 
-            $assetIdMentah = trim((string) ($data['asset_id'] ?? $data['kode_aset'] ?? $data['no_aset'] ?? ''));
-            $assetId = $assetIdMentah === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $assetIdMentah));
-
-            if ($nama === '' || $alamat === '') {
-                $dilewati[] = __('master.lewat_kosong', ['nomor' => $nomor]);
-
-                continue;
-            }
-
-            // Wilayah boleh kosong — tokonya tetap dibuat/diperbarui, tinggal
-            // dilengkapi belakangan lewat upload susulan atau formulir edit.
-            // Baris hanya dilewati kalau wilayahnya DIISI tapi tidak dikenal,
-            // karena itu biasanya salah ketik yang perlu diperbaiki dulu.
-            $wilayahId = null;
-
-            if ($wilayahTeks !== '') {
-                $wilayahId = $wilayahPerNama[$wilayahTeks] ?? $wilayahPerKode[$wilayahTeks] ?? null;
-
-                if ($wilayahId === null) {
-                    $dilewati[] = __('master.lewat_wilayah', ['nomor' => $nomor, 'wilayah' => $wilayahTeks]);
+                if ($nama === '' || $alamat === '') {
+                    $dilewati[] = __('master.lewat_kosong', ['nomor' => $nomor]);
 
                     continue;
                 }
-            }
 
-            $lat = $this->angkaAtauNull($data['latitude'] ?? $data['lat'] ?? null);
-            $lng = $this->angkaAtauNull($data['longitude'] ?? $data['lng'] ?? $data['lon'] ?? null);
+                // Wilayah boleh kosong — tokonya tetap dibuat/diperbarui, tinggal
+                // dilengkapi belakangan lewat upload susulan atau formulir edit.
+                // Baris hanya dilewati kalau wilayahnya DIISI tapi tidak dikenal,
+                // karena itu biasanya salah ketik yang perlu diperbaiki dulu.
+                $wilayahId = null;
 
-            // Kalau kolom latitude/longitude di Excel tidak berformat Teks,
-            // sebagian pengaturan lokal membaca titik desimalnya sebagai
-            // pemisah ribuan dan mengubah koordinat jadi angka raksasa di
-            // luar jangkauan bumi. Baris tetap diproses, koordinatnya saja
-            // yang diabaikan dan dicatat supaya kelihatan alasannya.
-            $koordinatTidakValid = ($lat !== null && ($lat < -90 || $lat > 90))
-                || ($lng !== null && ($lng < -180 || $lng > 180));
+                if ($wilayahTeks !== '') {
+                    $wilayahId = $wilayahPerNama[$wilayahTeks] ?? $wilayahPerKode[$wilayahTeks] ?? null;
 
-            if ($koordinatTidakValid) {
-                $lat = null;
-                $lng = null;
-            }
+                    if ($wilayahId === null) {
+                        $dilewati[] = __('master.lewat_wilayah', ['nomor' => $nomor, 'wilayah' => $wilayahTeks]);
 
-            $punyaTitik = $lat !== null && $lng !== null;
-
-            // Toko yang sama dikenali lewat nomor aset (paling andal, karena
-            // tercetak di badan freezer) atau kode toko, supaya baris yang
-            // mengacu ke toko lama memperbarui datanya, bukan menggandakan.
-            $tokoLama = $assetId !== null ? Toko::where('asset_id', $assetId)->first() : null;
-            $tokoLama ??= $kode !== '' ? Toko::where('kode', $kode)->first() : null;
-
-            $kodeAkhir = $tokoLama->kode ?? ($kode !== '' ? $kode : $this->kodeBerikutnya());
-            $adaSebelumnya = $tokoLama !== null;
-
-            // Toko yang masih punya pesanan berjalan tidak boleh diseret
-            // wilayah/nomor asetnya lewat impor massal — itu bisa mengacaukan
-            // routing atau pengenalan QR di tengah transaksi. Baris tetap
-            // diproses, hanya kolom kritisnya yang dikunci dan dicatat.
-            $pesananAktifAda = $adaSebelumnya && Pesanan::where('toko_id', $tokoLama->id)
-                ->whereIn('status', StatusPesanan::aktif())
-                ->exists();
-
-            $dataSimpan = [
-                'nama' => $nama,
-                'alamat' => $alamat,
-                'aktif' => true,
-            ];
-
-            // Kolom opsional (termasuk nomor aset dan wilayah) hanya ditimpa
-            // kalau berkasnya memang mengisi nilainya. Toko sering dilengkapi
-            // bertahap lewat beberapa kali upload — kolom yang masih kosong
-            // di berkas terbaru tidak boleh menghapus data yang sudah
-            // tersimpan dari upload atau input sebelumnya.
-            $kolomOpsional = [
-                'wilayah_id' => $wilayahId,
-                'asset_id' => $assetId,
-                'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
-                'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
-                'kota' => $this->teksAtauNull($data['kota'] ?? null),
-                'kode_pos' => $this->teksAtauNull($data['kode_pos'] ?? null),
-                'telepon' => $this->teksAtauNull($data['telepon'] ?? null),
-                'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
-                'nik_pemilik' => $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null),
-            ];
-
-            $kolomTerkunci = [];
-
-            if ($pesananAktifAda) {
-                foreach (['wilayah_id' => 'master.kolom_wilayah', 'asset_id' => 'master.kolom_asset_id'] as $kolom => $labelKey) {
-                    if ($kolomOpsional[$kolom] !== null) {
-                        $kolomTerkunci[] = __($labelKey);
-                        unset($kolomOpsional[$kolom]);
+                        continue;
                     }
                 }
-            }
 
-            foreach ($kolomOpsional as $kolom => $nilai) {
-                if ($nilai !== null) {
-                    $dataSimpan[$kolom] = $nilai;
+                $lat = $this->angkaAtauNull($data['latitude'] ?? $data['lat'] ?? null);
+                $lng = $this->angkaAtauNull($data['longitude'] ?? $data['lng'] ?? $data['lon'] ?? null);
+
+                // Kalau kolom latitude/longitude di Excel tidak berformat Teks,
+                // sebagian pengaturan lokal membaca titik desimalnya sebagai
+                // pemisah ribuan dan mengubah koordinat jadi angka raksasa di
+                // luar jangkauan bumi. Baris tetap diproses, koordinatnya saja
+                // yang diabaikan dan dicatat supaya kelihatan alasannya.
+                $koordinatTidakValid = ($lat !== null && ($lat < -90 || $lat > 90))
+                    || ($lng !== null && ($lng < -180 || $lng > 180));
+
+                if ($koordinatTidakValid) {
+                    $lat = null;
+                    $lng = null;
                 }
-            }
 
-            // Koordinat sama-sama diperlakukan begitu: hanya ditimpa saat
-            // baris punya lat/lng lengkap. Baris yang belum punya koordinat
-            // tidak menghapus titik yang sudah digeocode atau ditaruh manual.
-            if ($punyaTitik) {
-                if ($pesananAktifAda) {
-                    $kolomTerkunci[] = __('master.kolom_koordinat');
+                $punyaTitik = $lat !== null && $lng !== null;
+
+                // Toko yang sama dikenali lewat nomor aset (paling andal, karena
+                // tercetak di badan freezer) atau kode toko, supaya baris yang
+                // mengacu ke toko lama memperbarui datanya, bukan menggandakan.
+                // Dicocokkan dari peta yang sudah diambil di depan, bukan query
+                // per baris.
+                $tokoLama = $assetId !== null ? ($tokoPerAssetId[$assetId] ?? null) : null;
+                $tokoLama ??= $kode !== '' ? ($tokoPerKode[$kode] ?? null) : null;
+
+                if ($tokoLama !== null) {
+                    $kodeAkhir = $tokoLama->kode;
+                } elseif ($kode !== '') {
+                    $kodeAkhir = $kode;
                 } else {
-                    $dataSimpan['latitude'] = $lat;
-                    $dataSimpan['longitude'] = $lng;
-                    $dataSimpan['sumber_koordinat'] = 'manual';
-                    $dataSimpan['geocoded_at'] = now();
+                    $kodeTerakhirAngka++;
+                    $kodeAkhir = sprintf('TK-%04d', $kodeTerakhirAngka);
                 }
+
+                $adaSebelumnya = $tokoLama !== null;
+
+                // Toko yang masih punya pesanan berjalan tidak boleh diseret
+                // wilayah/nomor asetnya lewat impor massal — itu bisa mengacaukan
+                // routing atau pengenalan QR di tengah transaksi. Baris tetap
+                // diproses, hanya kolom kritisnya yang dikunci dan dicatat.
+                $pesananAktifAda = $adaSebelumnya && isset($tokoIdPesananAktif[$tokoLama->id]);
+
+                $dataSimpan = [
+                    'nama' => $nama,
+                    'alamat' => $alamat,
+                    'aktif' => true,
+                ];
+
+                // Kolom opsional (termasuk nomor aset dan wilayah) hanya ditimpa
+                // kalau berkasnya memang mengisi nilainya. Toko sering dilengkapi
+                // bertahap lewat beberapa kali upload — kolom yang masih kosong
+                // di berkas terbaru tidak boleh menghapus data yang sudah
+                // tersimpan dari upload atau input sebelumnya.
+                $kolomOpsional = [
+                    'wilayah_id' => $wilayahId,
+                    'asset_id' => $assetId,
+                    'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
+                    'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
+                    'kota' => $this->teksAtauNull($data['kota'] ?? null),
+                    'kode_pos' => $this->teksAtauNull($data['kode_pos'] ?? null),
+                    'telepon' => $this->teksAtauNull($data['telepon'] ?? null),
+                    'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
+                    'nik_pemilik' => $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null),
+                ];
+
+                $kolomTerkunci = [];
+
+                if ($pesananAktifAda) {
+                    foreach (['wilayah_id' => 'master.kolom_wilayah', 'asset_id' => 'master.kolom_asset_id'] as $kolom => $labelKey) {
+                        if ($kolomOpsional[$kolom] !== null) {
+                            $kolomTerkunci[] = __($labelKey);
+                            unset($kolomOpsional[$kolom]);
+                        }
+                    }
+                }
+
+                foreach ($kolomOpsional as $kolom => $nilai) {
+                    if ($nilai !== null) {
+                        $dataSimpan[$kolom] = $nilai;
+                    }
+                }
+
+                // Koordinat sama-sama diperlakukan begitu: hanya ditimpa saat
+                // baris punya lat/lng lengkap. Baris yang belum punya koordinat
+                // tidak menghapus titik yang sudah digeocode atau ditaruh manual.
+                if ($punyaTitik) {
+                    if ($pesananAktifAda) {
+                        $kolomTerkunci[] = __('master.kolom_koordinat');
+                    } else {
+                        $dataSimpan['latitude'] = $lat;
+                        $dataSimpan['longitude'] = $lng;
+                        $dataSimpan['sumber_koordinat'] = 'manual';
+                        $dataSimpan['geocoded_at'] = now();
+                    }
+                }
+
+                // updateOrCreate() diam-diam melakukan query pengecekan sendiri;
+                // di sini toko lama sudah diketahui dari peta, jadi langsung
+                // create/save supaya tidak ada query tersembunyi per baris.
+                if ($tokoLama !== null) {
+                    $tokoLama->fill($dataSimpan);
+                    $tokoLama->save();
+                    $tokoTersimpan = $tokoLama;
+                } else {
+                    $dataSimpan['kode'] = $kodeAkhir;
+                    $tokoTersimpan = Toko::create($dataSimpan);
+                }
+
+                $tokoPerKode[$tokoTersimpan->kode] = $tokoTersimpan;
+
+                if ($tokoTersimpan->asset_id !== null) {
+                    $tokoPerAssetId[$tokoTersimpan->asset_id] = $tokoTersimpan;
+                }
+
+                if ($kolomTerkunci !== []) {
+                    $catatan[] = __('master.catatan_kolom_terkunci', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                        'kolom' => implode(', ', $kolomTerkunci),
+                    ]);
+                }
+
+                if ($koordinatTidakValid) {
+                    $catatan[] = __('master.catatan_koordinat_tidak_valid', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                    ]);
+                }
+
+                $adaSebelumnya ? $diperbarui++ : $baru++;
             }
+        });
 
-            Toko::updateOrCreate(['kode' => $kodeAkhir], $dataSimpan);
+        $this->imporBaru += $baru;
+        $this->imporDiperbarui += $diperbarui;
+        $this->imporDilewati = [...$this->imporDilewati, ...$dilewati];
+        $this->imporCatatan = [...$this->imporCatatan, ...$catatan];
+        $this->imporOffset += count($batch);
 
-            if ($kolomTerkunci !== []) {
-                $catatan[] = __('master.catatan_kolom_terkunci', [
-                    'nomor' => $nomor,
-                    'kode' => $kodeAkhir,
-                    'kolom' => implode(', ', $kolomTerkunci),
-                ]);
-            }
+        if ($this->imporOffset >= $this->imporTotal) {
+            $this->selesaikanImporCsv();
+        }
+    }
 
-            if ($koordinatTidakValid) {
-                $catatan[] = __('master.catatan_koordinat_tidak_valid', [
-                    'nomor' => $nomor,
-                    'kode' => $kodeAkhir,
-                ]);
-            }
-
-            $adaSebelumnya ? $diperbarui++ : $baru++;
+    private function selesaikanImporCsv(): void
+    {
+        if ($this->imporToken !== null) {
+            Storage::disk('local')->delete("impor-toko/{$this->imporToken}.json");
         }
 
         $this->hasilImpor = [
-            'baru' => $baru,
-            'diperbarui' => $diperbarui,
-            'dilewati' => $dilewati,
-            'catatan' => $catatan,
+            'baru' => $this->imporBaru,
+            'diperbarui' => $this->imporDiperbarui,
+            'dilewati' => $this->imporDilewati,
+            'catatan' => $this->imporCatatan,
         ];
 
-        $this->berkasCsv = null;
+        $this->imporBerjalan = false;
+        $this->imporToken = null;
         unset($this->tokos, $this->jumlahTanpaKoordinat, $this->jumlahTanpaWilayah);
+    }
+
+    /** Membatalkan impor yang sedang berjalan, misalnya kalau admin menutup modal di tengah jalan. */
+    public function batalkanImporCsv(): void
+    {
+        if ($this->imporToken !== null) {
+            Storage::disk('local')->delete("impor-toko/{$this->imporToken}.json");
+        }
+
+        $this->reset(['imporBerjalan', 'imporToken', 'imporOffset', 'imporTotal', 'imporBaru', 'imporDiperbarui', 'imporDilewati', 'imporCatatan']);
     }
 
     /** @return array<int, array<int, mixed>> */

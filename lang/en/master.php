@@ -76,6 +76,7 @@ return [
     'kolom_koordinat' => 'coordinates',
     'catatan_koordinat_tidak_valid' => 'Row :nomor (:kode): coordinates ignored because the value is out of a sane range — likely a number format issue in Excel. Make sure the latitude/longitude columns are formatted as Text, then retype using a period as the decimal point (e.g. -6.1751).',
     'proses_impor' => 'Run Import',
+    'impor_berjalan' => 'Processing… please keep this page open.',
     'judul_produk' => 'Products',
     'ket_produk' => 'Available stock = physical stock minus what open orders have reserved.',
     'produk_baru' => '+ New Product',

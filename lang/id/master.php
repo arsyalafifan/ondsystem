@@ -76,6 +76,7 @@ return [
     'kolom_koordinat' => 'koordinat',
     'catatan_koordinat_tidak_valid' => 'Baris :nomor (:kode): koordinat diabaikan karena nilainya di luar jangkauan yang wajar — kemungkinan format angka berubah saat disimpan di Excel. Pastikan kolom latitude/longitude berformat Teks, lalu ketik ulang memakai titik sebagai desimal (contoh: -6.1751).',
     'proses_impor' => 'Proses Impor',
+    'impor_berjalan' => 'Sedang memproses… jangan tutup halaman ini.',
     'judul_produk' => 'Master Produk',
     'ket_produk' => 'Stok tersedia = stok fisik dikurangi yang sudah dikunci pesanan berjalan.',
     'produk_baru' => '+ Produk Baru',
