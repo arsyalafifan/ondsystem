@@ -65,6 +65,7 @@ return [
     'pilih_csv_dulu' => '请先选择 CSV/Excel 文件。',
     'harus_csv' => '文件必须为 CSV、XLS 或 XLSX 格式。',
     'berkas_kosong' => '文件为空。',
+    'berkas_gagal_dibaca' => '文件在处理过程中失败。已导入的行仍会保留——请重新上传剩余部分。',
     'hasil_impor' => '新增 :baru 家，更新 :diperbarui 家。',
     'baris_dilewati' => '已跳过 :jumlah 行：',
     'lewat_kosong' => '第 :nomor 行：名称或地址为空。',

@@ -493,7 +493,7 @@ class DaftarToko extends Component
         // Nama kolom dinormalkan supaya "Kode Toko", "kode_toko" dan
         // "KODE TOKO" sama-sama dikenali.
         $judul = array_map(
-            fn ($k) => str_replace(' ', '_', mb_strtolower(trim((string) $k))),
+            fn ($k) => str_replace(' ', '_', mb_strtolower(trim($this->keUtf8((string) $k)))),
             $judul,
         );
 
@@ -510,11 +510,23 @@ class DaftarToko extends Component
             return;
         }
 
-        $token = (string) Str::uuid();
-        Storage::disk('local')->put(
-            "impor-toko/{$token}.json",
-            json_encode(['judul' => $judul, 'baris' => $barisNormal]),
+        // JSON_INVALID_UTF8_SUBSTITUTE adalah jaring pengaman kedua: kalaupun
+        // masih ada byte yang tidak terkonversi bersih oleh keUtf8(), ganti
+        // dengan karakter pengganti alih-alih membuat json_encode() gagal
+        // total dan menjatuhkan seluruh proses impor.
+        $isiJson = json_encode(
+            ['judul' => $judul, 'baris' => $barisNormal],
+            JSON_INVALID_UTF8_SUBSTITUTE,
         );
+
+        if ($isiJson === false) {
+            $this->addError('berkasCsv', __('master.berkas_gagal_dibaca'));
+
+            return;
+        }
+
+        $token = (string) Str::uuid();
+        Storage::disk('local')->put("impor-toko/{$token}.json", $isiJson);
 
         $this->imporToken = $token;
         $this->imporOffset = 0;
@@ -549,7 +561,19 @@ class DaftarToko extends Component
             return;
         }
 
-        $tersimpan = json_decode(Storage::disk('local')->get($jalurBerkas), true);
+        $tersimpan = json_decode((string) Storage::disk('local')->get($jalurBerkas), true);
+
+        // Berjaga-jaga dari berkas sementara yang hilang/rusak di tengah
+        // jalan (misalnya dua tahap tumpang tindih karena koneksi lambat) —
+        // impor dihentikan dengan pesan yang jelas, bukan galat 500 mentah.
+        // Baris yang sudah tersimpan di batch-batch sebelumnya tetap aman.
+        if (! is_array($tersimpan) || ! isset($tersimpan['judul'], $tersimpan['baris'])) {
+            $this->addError('berkasCsv', __('master.berkas_gagal_dibaca'));
+            $this->selesaikanImporCsv();
+
+            return;
+        }
+
         $judul = $tersimpan['judul'];
         $batch = array_slice($tersimpan['baris'], $this->imporOffset, $this->ukuranBatchImpor);
 
@@ -840,8 +864,25 @@ class DaftarToko extends Component
                 return number_format($nilai, 0, '', '');
             }
 
-            return trim((string) $nilai);
+            return $this->keUtf8(trim((string) $nilai));
         }, $baris);
+    }
+
+    /**
+     * Berkas CSV yang disimpan lewat "Save As > CSV" di Excel versi Windows
+     * biasanya memakai encoding Windows-1252, bukan UTF-8 — begitu ada
+     * karakter seperti tanda kutip pintar atau strip panjang, teksnya jadi
+     * urutan byte yang tidak valid sebagai UTF-8. Tanpa dirapikan di sini,
+     * itu akan membuat json_encode() di tahap impor bertahap gagal total
+     * (mengembalikan false) dan menjatuhkan seluruh proses impor.
+     */
+    private function keUtf8(string $nilai): string
+    {
+        if ($nilai === '' || mb_check_encoding($nilai, 'UTF-8')) {
+            return $nilai;
+        }
+
+        return mb_convert_encoding($nilai, 'UTF-8', 'Windows-1252');
     }
 
     public function unduhContohCsv()
