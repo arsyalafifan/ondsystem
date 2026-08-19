@@ -65,6 +65,7 @@ return [
     'pilih_csv_dulu' => 'Choose a CSV/Excel file first.',
     'harus_csv' => 'The file must be CSV, XLS, or XLSX.',
     'berkas_kosong' => 'The file is empty.',
+    'berkas_gagal_dibaca' => 'The file failed partway through processing. Rows already imported are still saved — try uploading the rest again.',
     'hasil_impor' => ':baru new stores, :diperbarui updated.',
     'baris_dilewati' => ':jumlah rows skipped:',
     'lewat_kosong' => 'Row :nomor: name or address is empty.',

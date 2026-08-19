@@ -65,6 +65,7 @@ return [
     'pilih_csv_dulu' => 'Pilih berkas CSV/Excel dulu.',
     'harus_csv' => 'Berkas harus berformat CSV, XLS, atau XLSX.',
     'berkas_kosong' => 'Berkas kosong.',
+    'berkas_gagal_dibaca' => 'Berkas gagal diproses di tengah jalan. Baris yang sudah sempat masuk tetap tersimpan — coba upload ulang sisanya.',
     'hasil_impor' => ':baru toko baru, :diperbarui diperbarui.',
     'baris_dilewati' => ':jumlah baris dilewati:',
     'lewat_kosong' => 'Baris :nomor: nama atau alamat kosong.',
