@@ -148,7 +148,7 @@ class DaftarToko extends Component
                 ->orWhere('kode', 'like', "%{$this->cari}%")
                 ->orWhere('asset_id', 'like', "%{$this->cari}%")
                 ->orWhere('alamat', 'like', "%{$this->cari}%")))
-            ->orderBy('nama')
+            ->orderBy('kode')
             ->paginate(20);
     }
 
