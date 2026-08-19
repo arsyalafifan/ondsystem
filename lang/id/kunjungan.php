@@ -147,4 +147,6 @@ return [
     'qr_sulit_terbaca' => 'QR sulit terbaca? Dekatkan sampai kode memenuhi kotak, lalu sentuh layar untuk memfokuskan. Kalau tetap buram, coba ganti lensa.',
     'sentuh_untuk_mulai' => 'Sentuh gambar untuk memulai kamera.',
     'sentuh_untuk_mulai_ket' => 'Safari di iPhone kadang menahan kamera sampai layar disentuh sekali lagi.',
+    'cari_toko_judul' => 'Cari toko',
+    'ket_cari_toko' => 'Untuk toko yang belum punya stiker QR di freezer. Hasil pencarian hanya menampilkan toko yang ditugaskan ke Anda dan belum dikunjungi minggu ini.',
 ];

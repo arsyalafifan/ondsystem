@@ -147,4 +147,6 @@ return [
     'qr_sulit_terbaca' => '难以识别？靠近至二维码填满方框，然后点击对焦。若仍模糊，请尝试切换镜头。',
     'sentuh_untuk_mulai' => '点击画面以启动摄像头。',
     'sentuh_untuk_mulai_ket' => 'iPhone 上的 Safari 有时需要再点击一次才会启动摄像头。',
+    'cari_toko_judul' => '搜索店铺',
+    'ket_cari_toko' => '适用于冰柜上还没有二维码贴纸的店铺。搜索结果只显示分配给您、本周尚未拜访的店铺。',
 ];

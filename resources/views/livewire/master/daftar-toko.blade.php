@@ -431,6 +431,14 @@
 
         // Peta pemilih hanya ada ketika formulir terbuka, jadi pemasangannya
         // ditunda sampai elemennya benar-benar muncul di halaman.
+        //
+        // Blok skrip Livewire ini cuma dikirim SEKALI seumur komponen (saat
+        // mount pertama, waktu latitude/longitude masih kosong) — nilai yang
+        // dibekukan lewat direktif JS milik Blade di sini tidak pernah
+        // diperbarui lagi oleh render berikutnya. Makanya lat/lng-nya diambil
+        // langsung dari $wire tiap pasang() jalan (data hidup), bukan dari
+        // versi beku milik konfigPeta; sisanya (tileUrl, attribution, depot)
+        // aman dibekukan karena memang tidak pernah berubah per toko.
         const pasang = () => {
             const wadah = document.getElementById('peta-pemilih');
 
@@ -438,7 +446,11 @@
                 return;
             }
 
-            pemilih = window.pasangPemilihTitik('peta-pemilih', @js($this->konfigPeta));
+            pemilih = window.pasangPemilihTitik('peta-pemilih', {
+                ...@js($this->konfigPeta),
+                lat: $wire.latitude,
+                lng: $wire.longitude,
+            });
         };
 
         const lepas = () => { pemilih = null; };

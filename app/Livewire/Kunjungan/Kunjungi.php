@@ -5,10 +5,12 @@ namespace App\Livewire\Kunjungan;
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\StatusKunjungan;
 use App\Models\Kunjungan;
+use App\Models\Toko;
 use App\Services\Kunjungan\GambarContoh;
 use App\Services\Kunjungan\KunjunganService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
 use App\Support\ModeUji;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use RuntimeException;
@@ -16,14 +18,23 @@ use RuntimeException;
 /**
  * Layar kerja sales di lapangan.
  *
- * Kunjungan hanya bisa dimulai dengan memindai QR code pada freezer. Tidak ada
- * jalan memilih toko dari daftar, karena QR itulah bukti bahwa sales benar-benar
- * berdiri di depan freezer yang bersangkutan.
+ * Kunjungan biasanya dimulai dengan memindai QR code pada freezer — itulah
+ * bukti bahwa sales benar-benar berdiri di depan freezer yang bersangkutan,
+ * jadi pindai tetap jadi cara bawaan. Tapi tidak semua toko sudah punya
+ * stiker QR/nomor aset, jadi disediakan juga pencarian ketik sebagai jalan
+ * cadangan — dibatasi hanya pada toko yang sudah ditugaskan admin ke sales
+ * ini, memakai aturan yang sama persis dengan hasil pindai (lihat
+ * KunjunganService::mulai()).
  */
 class Kunjungi extends Component
 {
     /** 'pindai' saat menunggu QR, 'kunjungan' saat mengambil foto. */
     public string $tahap = 'pindai';
+
+    /** 'pindai' atau 'ketik', hanya dipakai selagi tahap 'pindai'. */
+    public string $caraPilihToko = 'pindai';
+
+    public string $cariToko = '';
 
     public ?int $kunjunganId = null;
 
@@ -152,6 +163,68 @@ class Kunjungi extends Component
         $this->akurasi = $akurasi;
     }
 
+    public function gantiCaraPilih(string $cara): void
+    {
+        $this->caraPilihToko = in_array($cara, ['ketik', 'pindai'], true) ? $cara : 'pindai';
+        $this->cariToko = '';
+    }
+
+    /**
+     * Toko tanggungan yang cocok dengan ketikan, untuk sales yang tokonya
+     * belum punya stiker QR/nomor aset.
+     *
+     * Sengaja dibatasi pada `tanggungan()` (daftar yang sama dipakai
+     * `KunjunganService::ditugaskan()`), bukan seluruh toko aktif — supaya
+     * hasil pencarian tidak pernah menawarkan toko yang bukan tanggungan
+     * sales ini, sekalipun `mulai()` akan menolaknya juga.
+     */
+    #[Computed]
+    public function hasilCariToko(): Collection
+    {
+        $kata = trim($this->cariToko);
+
+        if (mb_strlen($kata) < 2) {
+            return collect();
+        }
+
+        $periode = app(PeriodeKunjunganService::class)->periodeBerjalan();
+        $kataAtas = mb_strtoupper($kata);
+        $aset = mb_strtoupper(preg_replace('/\s+/', '', $kata) ?? '');
+
+        return app(KunjunganService::class)
+            ->tanggungan(auth()->user(), $periode)
+            // Toko yang sudah punya kunjungan periode ini (selesai, berjalan,
+            // atau menunggu persetujuan tutup) tidak perlu ditawarkan lagi;
+            // mulai() akan menolaknya dengan pesan yang sama persis.
+            ->filter(fn (Toko $t) => $t->kunjungans->isEmpty())
+            ->filter(fn (Toko $t) => str_contains(mb_strtoupper($t->nama), $kataAtas)
+                || str_contains(mb_strtoupper($t->kode), $kataAtas)
+                || str_contains(mb_strtoupper((string) $t->alamat), $kataAtas)
+                || ($t->asset_id !== null && str_contains(mb_strtoupper($t->asset_id), $aset)))
+            ->take(12)
+            ->values();
+    }
+
+    public function pilihToko(int $tokoId, KunjunganService $service): void
+    {
+        $toko = Toko::find($tokoId);
+
+        if ($toko === null) {
+            return;
+        }
+
+        try {
+            $kunjungan = $service->mulai($toko, auth()->user());
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
+        $this->cariToko = '';
+        $this->mulaiKunjungan($kunjungan);
+    }
+
     public function prosesQr(string $isi, KunjunganService $service): void
     {
         try {
@@ -163,6 +236,11 @@ class Kunjungi extends Component
             return;
         }
 
+        $this->mulaiKunjungan($kunjungan);
+    }
+
+    private function mulaiKunjungan(Kunjungan $kunjungan): void
+    {
         $this->kunjunganId = $kunjungan->id;
         $this->tahap = 'kunjungan';
         $this->catatan = '';

@@ -147,4 +147,6 @@ return [
     'qr_sulit_terbaca' => '難以辨識？靠近至 QR code 填滿方框，然後點擊對焦。若仍模糊，請嘗試切換鏡頭。',
     'sentuh_untuk_mulai' => '點擊畫面以啟動鏡頭。',
     'sentuh_untuk_mulai_ket' => 'iPhone 上的 Safari 有時需要再點擊一次才會啟動鏡頭。',
+    'cari_toko_judul' => '搜尋店鋪',
+    'ket_cari_toko' => '適用於冰櫃上還沒有二維碼貼紙的店鋪。搜尋結果只顯示分配給您、本週尚未拜訪的店鋪。',
 ];
