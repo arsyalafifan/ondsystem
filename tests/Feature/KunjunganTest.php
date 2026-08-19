@@ -3,6 +3,7 @@
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusKunjungan;
+use App\Livewire\Kunjungan\Kunjungi;
 use App\Models\Kunjungan;
 use App\Models\PenugasanSales;
 use App\Models\PeriodeKunjungan;
@@ -15,6 +16,7 @@ use App\Services\Kunjungan\PenugasanService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 
 beforeEach(function () {
     Storage::fake('public');
@@ -509,5 +511,85 @@ describe('halaman kunjungan', function () {
             ->get(route('kunjungan.tugas'))
             ->assertOk()
             ->assertSee('Toko Tanggungan');
+    });
+});
+
+// =====================================================================
+describe('memilih toko lewat ketik, untuk toko tanpa stiker QR', function () {
+    /**
+     * Beberapa toko belum ditempeli stiker QR/nomor aset. Di bawah aturan
+     * pindai-saja, toko semacam itu tidak akan pernah bisa dikunjungi sama
+     * sekali — jadi pencarian ketik memakai jalur `KunjunganService::mulai()`
+     * yang sama persis dengan hasil pindai, hanya langkah kameranya yang
+     * digantikan.
+     */
+    it('memulai kunjungan pada toko tanpa asset_id', function () {
+        $toko = Toko::create([
+            'kode' => 'TK-9001',
+            'asset_id' => null,
+            'nama' => 'Toko Belum Berstiker',
+            'wilayah_id' => $this->wilayah->id,
+            'alamat' => 'Jl. Tanpa Stiker No. 1',
+            'latitude' => -6.18,
+            'longitude' => 106.83,
+            'sumber_koordinat' => 'manual',
+        ]);
+        tugaskan($toko, $this->sales);
+
+        Livewire::actingAs($this->sales)
+            ->test(Kunjungi::class)
+            ->call('gantiCaraPilih', 'ketik')
+            ->set('cariToko', 'Belum Berstiker')
+            ->call('pilihToko', $toko->id)
+            ->assertSet('tahap', 'kunjungan');
+
+        expect(Kunjungan::where('toko_id', $toko->id)->where('sales_id', $this->sales->id)->exists())->toBeTrue();
+    });
+
+    it('mencari lewat nama, kode, alamat, maupun nomor aset', function () {
+        $toko = buatToko('IDNAH202528009999', 'Toko Pencarian');
+        tugaskan($toko, $this->sales);
+
+        $component = Livewire::actingAs($this->sales)->test(Kunjungi::class)->call('gantiCaraPilih', 'ketik');
+
+        foreach (['Toko Pencarian', 'TK-9999', 'Jl. Uji', 'idnah 2025 2800 9999'] as $kata) {
+            $component->set('cariToko', $kata);
+            expect($component->get('hasilCariToko')->pluck('id')->all())->toBe([$toko->id]);
+        }
+    });
+
+    it('hanya menampilkan toko yang ditugaskan ke sales ini', function () {
+        $milikSaya = buatToko('IDNAH202528001111', 'Toko Saya');
+        $milikLain = buatToko('IDNAH202528002222', 'Toko Sales Lain');
+        tugaskan($milikSaya, $this->sales);
+        tugaskan($milikLain, $this->salesLain);
+
+        Livewire::actingAs($this->sales)
+            ->test(Kunjungi::class)
+            ->call('gantiCaraPilih', 'ketik')
+            ->set('cariToko', 'Toko')
+            ->assertSee('Toko Saya')
+            ->assertDontSee('Toko Sales Lain');
+    });
+
+    it('menyembunyikan toko yang sudah dikunjungi minggu ini dari hasil pencarian', function () {
+        $toko = buatToko('IDNAH202528003333', 'Toko Sudah Dikunjungi');
+        tugaskan($toko, $this->sales);
+        $this->service->mulai($toko, $this->sales);
+
+        Livewire::actingAs($this->salesLain)
+            ->test(Kunjungi::class)
+            ->call('gantiCaraPilih', 'ketik')
+            ->set('cariToko', 'Sudah Dikunjungi')
+            ->assertSee(__('pesanan.tidak_ada_toko'));
+    });
+
+    it('menolak toko yang bukan tanggungan sales ini, walau bisa ditemukan lewat pencarian global', function () {
+        // Kalau seandainya component tidak memfilter tanggungan dengan benar
+        // dan tokonya lolos sampai ke pilihToko(), mulai() tetap jadi
+        // penjaga terakhir yang menolaknya.
+        $toko = buatToko('IDNAH202528004444', 'Toko Bukan Tanggungan');
+
+        expect(fn () => $this->service->mulai($toko, $this->sales))->toThrow(RuntimeException::class);
     });
 });

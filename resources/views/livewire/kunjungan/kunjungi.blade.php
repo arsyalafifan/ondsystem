@@ -38,6 +38,51 @@
         <span x-show="!lokasi">{{ __('kunjungan.lokasi_belum') }}</span>
     </div>
 
+    {{-- ============ Cara memilih toko ============ --}}
+    @if ($tahap === 'pindai')
+        <div class="mb-3 inline-flex rounded-lg border border-gray-300 bg-white p-0.5">
+            @foreach ([['pindai', 'heroicon-o-camera', __('pesanan.cara_pindai')], ['ketik', 'heroicon-o-pencil-square', __('pesanan.cara_ketik')]] as [$cara, $ikon, $label])
+                <button type="button" wire:click="gantiCaraPilih('{{ $cara }}')"
+                        @class([
+                            'rounded-md px-3 py-1.5 text-sm font-medium transition',
+                            'bg-blue-600 text-white' => $caraPilihToko === $cara,
+                            'text-gray-600 hover:bg-gray-50' => $caraPilihToko !== $cara,
+                        ])>
+                    @svg($ikon, 'size-4 inline mr-1') {{ $label }}
+                </button>
+            @endforeach
+        </div>
+
+        @if ($caraPilihToko === 'ketik')
+            <x-kartu :judul="__('kunjungan.cari_toko_judul')">
+                <div class="p-4">
+                    <input type="search" wire:model.live.debounce.300ms="cariToko"
+                           placeholder="{{ __('pesanan.cari_toko') }}"
+                           class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1.5 text-xs text-gray-500">{{ __('kunjungan.ket_cari_toko') }}</p>
+
+                    @if (mb_strlen(trim($cariToko)) >= 2)
+                        <div class="mt-3 max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+                            @forelse ($this->hasilCariToko as $toko)
+                                <button type="button" wire:click="pilihToko({{ $toko->id }})"
+                                        class="flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50">
+                                    <span class="font-medium text-gray-900">{{ $toko->nama }}</span>
+                                    <span class="truncate text-xs text-gray-500">
+                                        {{ $toko->kode }}
+                                        @if ($toko->asset_id) · {{ $toko->asset_id }} @endif
+                                        · {{ $toko->wilayah?->nama ?? __('pesanan.toko_tanpa_wilayah') }}
+                                    </span>
+                                </button>
+                            @empty
+                                <p class="px-3 py-4 text-center text-sm text-gray-500">{{ __('pesanan.tidak_ada_toko') }}</p>
+                            @endforelse
+                        </div>
+                    @endif
+                </div>
+            </x-kartu>
+        @endif
+    @endif
+
     {{-- ============ Pemindai QR ============ --}}
     {{-- Wadah video selalu ada di DOM dan diabaikan Livewire; kalau ikut
          digambar ulang, aliran kameranya putus.
@@ -47,7 +92,7 @@
          class-nya. Kalau mengandalkan kelas dari server, pemindai tidak akan
          pernah muncul lagi setelah sales melanjutkan kunjungan yang tertunda. --}}
     <div wire:ignore id="pemindai-qr"
-         x-data="{ get aktif() { return $wire.tahap === 'pindai' } }"
+         x-data="{ get aktif() { return $wire.tahap === 'pindai' && $wire.caraPilihToko === 'pindai' } }"
          x-show="aktif"
          x-effect="aktif || window.hentikanPindaiKunjungan?.()"
          x-cloak>

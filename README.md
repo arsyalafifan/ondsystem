@@ -251,9 +251,9 @@ riwayat minggu-minggu sebelumnya tetap bisa dibuka.
 
 ### Pengenalan toko lewat QR code freezer
 
-Kunjungan hanya bisa dimulai dengan memindai QR yang tertempel pada freezer.
-Tidak ada jalan memilih toko dari daftar, karena QR itulah bukti bahwa sales
-benar-benar berdiri di depan freezer yang bersangkutan.
+Cara bawaan memulai kunjungan adalah memindai QR yang tertempel pada freezer —
+itulah bukti bahwa sales benar-benar berdiri di depan freezer yang
+bersangkutan, bukan sekadar menandai toko selesai dari mana pun.
 
 Isi QR berbentuk daftar berlabel bahasa Mandarin:
 
@@ -267,6 +267,14 @@ Yang dipakai adalah nomor aset (`资产编号`), yang dicocokkan dengan kolom
 `tokos.asset_id`. Perhatikan titik dua lebar `：` (U+FF1A) yang berbeda dari
 titik dua biasa — [`PenguraiQr`](app/Services/Kunjungan/PenguraiQr.php)
 menerima keduanya, juga QR yang hanya berisi nomor asetnya saja.
+
+Tidak semua toko sudah ditempeli stiker QR/nomor aset, jadi tersedia juga
+pencarian ketik sebagai jalan cadangan — nama, kode, alamat, atau nomor aset,
+persis seperti pencarian toko di Input Pesanan. Hasilnya sengaja dibatasi
+pada toko yang ditugaskan admin ke sales itu untuk periode berjalan dan
+belum dikunjungi, memakai `KunjunganService::mulai()` yang sama persis
+dengan jalur pindai — jadi seluruh penjagaan (satu toko satu kunjungan per
+minggu, hanya toko tanggungan sendiri) tetap berlaku tanpa QR.
 
 ### Enam foto bukti
 
@@ -468,7 +476,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-194 tes, mencakup:
+268 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -501,7 +509,10 @@ php artisan test
 - **[`tests/Feature/KunjunganTest.php`](tests/Feature/KunjunganTest.php)** —
   penguraian QR (termasuk titik dua lebar), periode Senin–Sabtu dan
   pergantiannya, penolakan kunjungan ganda dan toko di luar daftar,
-  kelengkapan enam foto, watermark, serta perhitungan target saat toko tutup.
+  kelengkapan enam foto, watermark, perhitungan target saat toko tutup, serta
+  pencarian ketik untuk toko tanpa stiker QR — termasuk pembatasannya hanya
+  pada tanggungan sales yang bersangkutan dan yang belum dikunjungi minggu
+  itu.
 - **[`tests/Feature/ModeUjiTest.php`](tests/Feature/ModeUjiTest.php)** —
   jalan pintas pengujian mati di luar lingkungan lokal dan mati bila
   penandanya tidak dinyalakan, serta tetap menerapkan seluruh aturan kunjungan

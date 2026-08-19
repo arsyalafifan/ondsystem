@@ -147,4 +147,6 @@ return [
     'qr_sulit_terbaca' => 'Hard to read? Move closer until the code fills the box, then tap to focus. If it stays blurry, try switching lens.',
     'sentuh_untuk_mulai' => 'Tap the preview to start the camera.',
     'sentuh_untuk_mulai_ket' => 'Safari on iPhone sometimes holds the camera until you tap once more.',
+    'cari_toko_judul' => 'Search store',
+    'ket_cari_toko' => 'For stores without a freezer QR sticker yet. Results only show stores assigned to you that have not been visited this week.',
 ];
