@@ -673,6 +673,18 @@ class DaftarToko extends Component
 
                 $punyaTitik = $lat !== null && $lng !== null;
 
+                // NIK divalidasi persis 16 digit — sama seperti aturan di
+                // formulir manual. Kolomnya di basis data cuma varchar(16),
+                // jadi nilai yang salah format/kepanjangan (mis. sisa notasi
+                // ilmiah dari Excel) WAJIB ditolak di sini, bukan dibiarkan
+                // menjatuhkan seluruh proses lewat galat basis data.
+                $nikMentah = $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null);
+                $nikTidakValid = $nikMentah !== null && ! preg_match('/^\d{16}$/', $nikMentah);
+
+                if ($nikTidakValid) {
+                    $nikMentah = null;
+                }
+
                 // Toko yang sama dikenali lewat nomor aset (paling andal, karena
                 // tercetak di badan freezer) atau kode toko, supaya baris yang
                 // mengacu ke toko lama memperbarui datanya, bukan menggandakan.
@@ -718,7 +730,7 @@ class DaftarToko extends Component
                     'kode_pos' => $this->teksAtauNull($data['kode_pos'] ?? null),
                     'telepon' => $this->teksAtauNull($data['telepon'] ?? null),
                     'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
-                    'nik_pemilik' => $this->teksAtauNull($data['nik_pemilik'] ?? $data['nik'] ?? null),
+                    'nik_pemilik' => $nikMentah,
                 ];
 
                 $kolomTerkunci = [];
@@ -785,6 +797,13 @@ class DaftarToko extends Component
                     ]);
                 }
 
+                if ($nikTidakValid) {
+                    $catatan[] = __('master.catatan_nik_tidak_valid', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                    ]);
+                }
+
                 $adaSebelumnya ? $diperbarui++ : $baru++;
             }
         });
@@ -846,7 +865,14 @@ class DaftarToko extends Component
     /** @return array<int, array<int, mixed>> */
     private function bacaBarisExcel(string $jalur): array
     {
-        return IOFactory::load($jalur)->getSheet(0)->toArray(null, true, true, false);
+        // formatData sengaja false: kalau true, sel angka besar yang TIDAK
+        // berformat Teks (misalnya NIK di berkas lama yang belum pakai
+        // template ini) dikembalikan sebagai teks notasi ilmiah ala Excel
+        // (mis. "3.27105100397E+15") — bukan angka mentah. String itu lolos
+        // dari penanganan float di normalisasiBaris() dan pernah membuat
+        // impor gagal total karena kepanjangan untuk kolom nik_pemilik.
+        // Dengan nilai mentah di sini, normalisasiBaris() yang menanganinya.
+        return IOFactory::load($jalur)->getSheet(0)->toArray(null, true, false, false);
     }
 
     /**

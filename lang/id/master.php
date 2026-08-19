@@ -76,6 +76,7 @@ return [
     'kolom_asset_id' => 'nomor aset',
     'kolom_koordinat' => 'koordinat',
     'catatan_koordinat_tidak_valid' => 'Baris :nomor (:kode): koordinat diabaikan karena nilainya di luar jangkauan yang wajar — kemungkinan format angka berubah saat disimpan di Excel. Pastikan kolom latitude/longitude berformat Teks, lalu ketik ulang memakai titik sebagai desimal (contoh: -6.1751).',
+    'catatan_nik_tidak_valid' => 'Baris :nomor (:kode): NIK diabaikan karena bukan 16 digit angka — kemungkinan format kolomnya bukan Teks di Excel. Pastikan kolom nik berformat Teks, lalu isi ulang 16 digit NIK-nya.',
     'proses_impor' => 'Proses Impor',
     'impor_berjalan' => 'Sedang memproses… jangan tutup halaman ini.',
     'judul_produk' => 'Master Produk',

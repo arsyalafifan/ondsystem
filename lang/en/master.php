@@ -76,6 +76,7 @@ return [
     'kolom_asset_id' => 'asset ID',
     'kolom_koordinat' => 'coordinates',
     'catatan_koordinat_tidak_valid' => 'Row :nomor (:kode): coordinates ignored because the value is out of a sane range — likely a number format issue in Excel. Make sure the latitude/longitude columns are formatted as Text, then retype using a period as the decimal point (e.g. -6.1751).',
+    'catatan_nik_tidak_valid' => 'Row :nomor (:kode): NIK ignored because it is not 16 digits — likely the column is not formatted as Text in Excel. Make sure the nik column is formatted as Text, then re-enter the 16-digit NIK.',
     'proses_impor' => 'Run Import',
     'impor_berjalan' => 'Processing… please keep this page open.',
     'judul_produk' => 'Products',

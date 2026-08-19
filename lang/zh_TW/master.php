@@ -76,6 +76,7 @@ return [
     'kolom_asset_id' => '資產編號',
     'kolom_koordinat' => '座標',
     'catatan_koordinat_tidak_valid' => '第 :nomor 列（:kode）：座標數值超出合理範圍，已忽略——可能是 Excel 數字格式問題。請將 latitude/longitude 欄位設為文字格式，再用小數點重新輸入（例如 -6.1751）。',
+    'catatan_nik_tidak_valid' => '第 :nomor 列（:kode）：身分證字號不是 16 位數字，已忽略——可能是 Excel 中該欄位未設為文字格式。請將 nik 欄位設為文字格式，再重新輸入 16 位身分證字號。',
     'proses_impor' => '開始匯入',
     'impor_berjalan' => '正在處理中…請勿關閉此頁面。',
     'judul_produk' => '產品主檔',
