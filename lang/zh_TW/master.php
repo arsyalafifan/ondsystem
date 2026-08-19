@@ -76,6 +76,7 @@ return [
     'kolom_koordinat' => '座標',
     'catatan_koordinat_tidak_valid' => '第 :nomor 列（:kode）：座標數值超出合理範圍，已忽略——可能是 Excel 數字格式問題。請將 latitude/longitude 欄位設為文字格式，再用小數點重新輸入（例如 -6.1751）。',
     'proses_impor' => '開始匯入',
+    'impor_berjalan' => '正在處理中…請勿關閉此頁面。',
     'judul_produk' => '產品主檔',
     'ket_produk' => '可用庫存 = 實體庫存 − 進行中訂單已鎖定的數量。',
     'produk_baru' => '+ 新增產品',

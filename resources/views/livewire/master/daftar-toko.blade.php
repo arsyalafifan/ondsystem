@@ -337,31 +337,47 @@
 
     {{-- Impor CSV --}}
     @if ($imporTerbuka)
-        <x-modal :judul="__('master.judul_impor')" lebar="max-w-2xl" tutup="$set('imporTerbuka', false)">
+        <x-modal :judul="__('master.judul_impor')" lebar="max-w-2xl" :tutup="$imporBerjalan ? null : '$set(\'imporTerbuka\', false)'">
             <div class="space-y-4 p-5">
-                <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
-                    <p class="font-medium">{{ __('master.kolom_dikenali') }}</p>
-                    <p class="mt-1 text-xs">
-                        <code>kode</code>, <code>nama</code>, <code>pemilik</code>, <code>alamat</code>, <code>nik</code>,
-                        <code>telepon</code>, <code>latitude</code>, <code>longitude</code>, <code>wilayah</code>, <code>asset_id</code>.
-                    </p>
-                    <p class="mt-1 text-xs text-gray-500">
-                        {{ __('master.kolom_tambahan') }}: <code>kelurahan</code>, <code>kecamatan</code>, <code>kota</code>, <code>kode_pos</code>.
-                    </p>
-                    <p class="mt-2 text-xs">
-                        {{ __('master.ket_impor', ['wajib' => 'nama, alamat, wilayah']) }}
-                    </p>
-                    <button type="button" wire:click="unduhContohCsv"
-                            class="mt-2 text-xs font-semibold text-blue-600 underline">{{ __('master.unduh_contoh') }}</button>
-                </div>
+                @if (! $imporBerjalan)
+                    <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                        <p class="font-medium">{{ __('master.kolom_dikenali') }}</p>
+                        <p class="mt-1 text-xs">
+                            <code>kode</code>, <code>nama</code>, <code>pemilik</code>, <code>alamat</code>, <code>nik</code>,
+                            <code>telepon</code>, <code>latitude</code>, <code>longitude</code>, <code>wilayah</code>, <code>asset_id</code>.
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500">
+                            {{ __('master.kolom_tambahan') }}: <code>kelurahan</code>, <code>kecamatan</code>, <code>kota</code>, <code>kode_pos</code>.
+                        </p>
+                        <p class="mt-2 text-xs">
+                            {{ __('master.ket_impor', ['wajib' => 'nama, alamat, wilayah']) }}
+                        </p>
+                        <button type="button" wire:click="unduhContohCsv"
+                                class="mt-2 text-xs font-semibold text-blue-600 underline">{{ __('master.unduh_contoh') }}</button>
+                    </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('master.berkas_csv') }}</label>
-                    <input type="file" wire:model="berkasCsv" accept=".csv,.xlsx,.xls,text/csv"
-                           class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
-                    @error('berkasCsv') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                    <div wire:loading wire:target="berkasCsv" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
-                </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('master.berkas_csv') }}</label>
+                        <input type="file" wire:model="berkasCsv" accept=".csv,.xlsx,.xls,text/csv"
+                               class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
+                        @error('berkasCsv') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <div wire:loading wire:target="berkasCsv" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
+                    </div>
+                @else
+                    {{-- Berkas besar diproses bertahap; elemen ini memicu tahap
+                         berikutnya tiap 300ms selama masih berjalan, dan otomatis
+                         berhenti begitu $imporBerjalan menjadi false. --}}
+                    <div wire:poll.300ms="lanjutkanImporCsv">
+                        <div class="flex items-center justify-between text-sm text-gray-700">
+                            <span>{{ __('master.impor_berjalan') }}</span>
+                            <span class="tabular-nums">{{ $imporOffset }} / {{ $imporTotal }}</span>
+                        </div>
+                        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div class="h-full rounded-full bg-blue-600 transition-all"
+                                 style="width: {{ $imporTotal > 0 ? min(100, round($imporOffset / $imporTotal * 100)) : 0 }}%"></div>
+                        </div>
+                    </div>
+                @endif
 
                 @if ($hasilImpor)
                     <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
@@ -393,13 +409,18 @@
             </div>
 
             <x-slot:aksi>
-                <button type="button" wire:click="$set('imporTerbuka', false)"
-                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.tutup') }}</button>
-                <button type="button" wire:click="imporCsv" wire:loading.attr="disabled" wire:target="imporCsv,berkasCsv"
-                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
-                    <span wire:loading.remove wire:target="imporCsv">{{ __('master.proses_impor') }}</span>
-                    <span wire:loading wire:target="imporCsv">{{ __('umum.memproses') }}</span>
-                </button>
+                @if ($imporBerjalan)
+                    <button type="button" wire:click="batalkanImporCsv"
+                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
+                @else
+                    <button type="button" wire:click="$set('imporTerbuka', false)"
+                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.tutup') }}</button>
+                    <button type="button" wire:click="mulaiImporCsv" wire:loading.attr="disabled" wire:target="mulaiImporCsv,berkasCsv"
+                            class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                        <span wire:loading.remove wire:target="mulaiImporCsv">{{ __('master.proses_impor') }}</span>
+                        <span wire:loading wire:target="mulaiImporCsv">{{ __('umum.memproses') }}</span>
+                    </button>
+                @endif
             </x-slot:aksi>
         </x-modal>
     @endif
