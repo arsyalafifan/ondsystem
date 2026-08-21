@@ -89,4 +89,5 @@ return [
     'notif_toko_dari_qr' => '已透過 QR code 選取門店：:nama（:aset）。',
     'toko_tanpa_aset' => '無資產編號',
     'toko_tanpa_wilayah' => '尚無區域',
+    'galat_hapus_sudah_dirutekan' => '訂單 :kode 已經進入配送路線，無法刪除。',
 ];

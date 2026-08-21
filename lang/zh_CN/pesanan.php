@@ -89,4 +89,5 @@ return [
     'notif_toko_dari_qr' => '已通过二维码选中门店：:nama（:aset）。',
     'toko_tanpa_aset' => '无资产编号',
     'toko_tanpa_wilayah' => '尚无区域',
+    'galat_hapus_sudah_dirutekan' => '订单 :kode 已经进入配送路线，无法删除。',
 ];

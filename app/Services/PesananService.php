@@ -338,7 +338,10 @@ class PesananService
     private function kodePesanan(): string
     {
         $prefix = 'PSN-'.now()->format('Ymd');
-        $urutan = Pesanan::whereDate('created_at', today())->count() + 1;
+        // withTrashed(): kode tidak boleh dipakai ulang meskipun pesanan
+        // sebelumnya di hari yang sama sudah di-soft-delete — kode punya
+        // batasan unik yang tetap menghitung baris yang di-soft-delete.
+        $urutan = Pesanan::withTrashed()->whereDate('created_at', today())->count() + 1;
 
         return sprintf('%s-%04d', $prefix, $urutan);
     }

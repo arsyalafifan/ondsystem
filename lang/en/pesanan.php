@@ -89,4 +89,5 @@ return [
     'notif_toko_dari_qr' => 'Store selected from QR: :nama (:aset).',
     'toko_tanpa_aset' => 'no asset ID',
     'toko_tanpa_wilayah' => 'no region yet',
+    'galat_hapus_sudah_dirutekan' => 'Order :kode has already entered a delivery route and cannot be deleted.',
 ];

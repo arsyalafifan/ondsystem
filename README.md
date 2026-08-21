@@ -451,6 +451,7 @@ tersembunyi dari kueri biasa lewat Eloquent, bisa dipulihkan:
 | `routing_batches`  | menghapus draf routing — batch-nya sendiri, sebagai jejak bahwa draf pernah dibuat |
 | `kendaraans`       | menghapus satu mobil kosong dari draf routing                |
 | `kendaraan_stops`  | admin membatalkan pesanan yang sudah masuk rute (sebelum terkirim) |
+| `pesanans`         | menghapus pesanan (mis. data dummy) — lewat `$pesanan->delete()` atau langsung mengedit kolom `deleted_at` di basis data |
 
 Wilayah yang terhapus muncul di bagian "Wilayah terhapus" pada halaman Master
 Wilayah, lengkap dengan tombol Pulihkan — satu-satunya penghapusan di atas
@@ -458,14 +459,26 @@ yang dipicu langsung lewat tombol admin. Catatan: kolom `kode` tetap unik
 terhadap baris yang di-soft-delete, jadi kode yang baru dihapus belum bisa
 dipakai wilayah lain sampai dipulihkan atau dihapus permanen.
 
-Dua pengecualian sengaja: draf routing yang dibuang (`hapusDraft`) meng-
+Pengecualian sengaja: draf routing yang dibuang (`hapusDraft`) meng-
 **forceDelete** kendaraan dan kunjungannya, bukan soft delete. Draf yang
 belum pernah disetujui tidak punya nilai audit, dan soft delete di situ
 justru berbahaya — begitu pesanannya dirutekan ulang dan mendapat kunjungan
 baru, `INSERT`-nya akan bentrok dengan batasan unik `kendaraan_stops.pesanan_id`
-milik baris lama yang masih "tertinggal". Nomor kendaraan dan kode batch juga
-sengaja dihitung dengan `withTrashed()` supaya tidak pernah dipakai ulang
-oleh baris yang sudah di-soft-delete.
+milik baris lama yang masih "tertinggal". Nomor kendaraan, kode batch, dan
+kode pesanan juga sengaja dihitung dengan `withTrashed()` supaya tidak
+pernah dipakai ulang oleh baris yang sudah di-soft-delete.
+
+**Menghapus pesanan** — `Pesanan` (`App\Models\Pesanan`) punya penjaga
+tambahan: menghapusnya lewat `->delete()` Eloquent **ditolak** kalau
+pesanan itu sudah pernah masuk rute (`$pesanan->stop()->exists()`). Alasannya:
+banyak layar driver (unggah nota, coret nota, dashboard) mengakses
+`$stop->pesanan->...` tanpa null-safe karena pesanan pada sebuah stop
+selama ini dijamin selalu ada — menghapus pesanan yang stop-nya masih
+menunjuk ke situ akan membuat layar-layar itu error. Penjaga ini **hanya
+berlaku lewat kode aplikasi**; mengedit kolom `deleted_at` langsung di
+basis data (mis. lewat phpMyAdmin/Adminer untuk membuang data dummy) tetap
+melewatinya sepenuhnya — jadi hanya aman dilakukan pada pesanan yang belum
+pernah dirutekan (masih ORDER/PROCESS, kolom `stop` kosong).
 
 **Kolom disiapkan, belum dipakai** — `deleted_at` ada di skema, tapi model
 belum memakai trait `SoftDeletes`; `->delete()` masih menghapus sungguhan
@@ -475,10 +488,9 @@ seperti sebelumnya:
 | ------------------ | ------------------------------------- |
 | `penugasan_sales`   | batasan unik (`toko_id`, `bulan`) dipakai sebagai mekanisme deteksi "toko sudah dipegang sales lain" — `PenugasanService::tetapkan()` menangkap `QueryException` dari situ. Baris yang di-soft-delete tetap menghuni batasan unik itu, jadi toko yang sudah dilepas dari satu sales bisa keliru dianggap masih dipegangnya saat ditugaskan ke sales lain. |
 | `kunjungan_fotos`   | foto lama dihapus dari disk begitu diulang (`KunjunganService::simpanFoto`), dan `jenis` per kunjungan dibatasi unik satu baris. Menjadikannya soft delete berarti keputusan produk dulu: apakah foto lama tetap disimpan sebagai riwayat, dan bagaimana alur "ambil ulang" bekerja terhadap baris yang di-soft-delete. |
-| `pesanans`          | tidak ada satu pun jalur kode yang menghapus baris Pesanan sama sekali — pembatalan selalu lewat `StatusPesanan::Cancel`, bukan `->delete()`, jadi riwayatnya sudah abadi tanpa soft delete. Kolomnya cuma jaga-jaga kalau kelak ada kebutuhan nyata membuang pesanan (mis. salah input), bukan sekadar membatalkannya. |
 
 Kolom itu memang belum dipakai, tapi sudah tersedia kalau kelak ada kebutuhan
-audit yang memaksa ketiganya diselesaikan.
+audit yang memaksa keduanya diselesaikan.
 
 ---
 
@@ -526,7 +538,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-272 tes, mencakup:
+275 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -572,9 +584,9 @@ php artisan test
   layar admin, draf routing yang dibuang membereskan kendaraan dan
   kunjungannya sehingga pesanannya kembali ke antrean, nomor kendaraan dan
   kode batch tidak pernah dipakai ulang oleh baris yang sudah di-soft-delete,
-  dan `penugasan_sales`/`kunjungan_fotos`/`pesanans` dipastikan masih
-  hard delete (atau, untuk pesanans, memang tidak pernah dihapus sama
-  sekali) seperti semula.
+  pesanan yang sudah masuk rute ditolak dihapus lewat Eloquent, dan
+  `penugasan_sales`/`kunjungan_fotos` dipastikan masih hard delete seperti
+  semula.
 - **[`tests/Feature/BahasaTest.php`](tests/Feature/BahasaTest.php)** —
   kelengkapan kunci di keempat bahasa, penyimpanan pilihan bahasa, dan setiap
   halaman tampil dalam keempat bahasa tanpa kunci mentah yang bocor.
