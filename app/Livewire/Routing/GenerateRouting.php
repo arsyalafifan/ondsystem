@@ -62,6 +62,26 @@ class GenerateRouting extends Component
         $this->peringatan = Session::pull('routing.peringatan', []);
     }
 
+    /**
+     * Input angka lewat wire:model.live mengirim string kosong sesaat ketika
+     * pengguna menghapus isinya sebelum mengetik angka baru (mis. select-all
+     * lalu ketik ulang). Livewire diam-diam gagal menaruh string kosong ke
+     * properti bertipe int tanpa nilai bawaan ini, membuatnya "uninitialized"
+     * — akses berikutnya ($this->maxToko di ringkasanMenunggu() saat render)
+     * melempar PropertyNotFoundException. Hook ini menormalkan nilainya
+     * langsung dari $value mentah, bukan dari $this->maxToko, supaya tidak
+     * ikut membaca properti yang mungkin sudah rusak itu.
+     */
+    public function updatedMaxToko(mixed $value): void
+    {
+        $this->maxToko = max(1, (int) $value);
+    }
+
+    public function updatedMaxDus(mixed $value): void
+    {
+        $this->maxDus = max(1, (int) $value);
+    }
+
     #[Computed]
     public function batch(): ?RoutingBatch
     {
