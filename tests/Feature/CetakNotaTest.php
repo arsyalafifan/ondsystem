@@ -64,6 +64,13 @@ it('menampilkan nota untuk pesanan berstatus PROCESS', function () {
 });
 
 it('menampilkan sales yang menginput pesanan, bukan yang sedang mencetak', function () {
+    // Nama pendek & pasti muat satu baris — ESC/P sengaja membungkus nama
+    // panjang ke baris baru (bukan memotongnya), jadi memeriksa potongan
+    // nama yang lebih panjang dari lebar kolom di sini hanya akan menguji
+    // perilaku pembungkusan itu, bukan atribusi sales yang sebenarnya diuji.
+    $this->sales->update(['name' => 'Sales Uji']);
+    $this->admin->update(['name' => 'Admin Uji']);
+
     $pesanan = buatPesananProcess();
 
     // Dicetak oleh admin, tapi nota harus tetap menampilkan nama sales yang
@@ -142,6 +149,23 @@ it('mengunduh nota sebagai perintah ESC/P mentah', function () {
         ->and($isi)->toContain($pesanan->kode)
         ->and($isi)->toContain($pesanan->toko->nama)
         ->and(str_ends_with($isi, "\x0C"))->toBeTrue(); // form feed di akhir
+});
+
+it('membungkus nama barang yang panjang ke baris baru, bukan memotongnya', function () {
+    $namaPanjang = 'Es Krim Cokelat Premium Kemasan Baru Ukuran Besar Sekali 900ml';
+    $produk = Produk::create(['kode' => 'PU-PJG', 'nama' => $namaPanjang, 'stok' => 1000, 'harga' => 50_000]);
+
+    $pesanan = $this->pesananService->buat($this->toko, [['produk_id' => $produk->id, 'jumlah_dus' => 5]], $this->sales);
+    $this->pesananService->setujui($pesanan, $this->admin);
+
+    $isi = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+
+    // Baris boleh berpindah (wrap) ke baris baru, tapi wordwrap tidak pernah
+    // memotong DI TENGAH kata — jadi tiap kata dari nama produk harus tetap
+    // utuh ada di suatu tempat pada hasilnya, walau sudah pindah baris.
+    foreach (explode(' ', $namaPanjang) as $kata) {
+        expect($isi)->toContain($kata);
+    }
 });
 
 it('menolak unduh ESC/P untuk pesanan berstatus ORDER', function () {
