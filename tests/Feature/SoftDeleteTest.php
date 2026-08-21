@@ -18,18 +18,40 @@ use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 /**
- * Empat tabel yang tadinya memakai ->delete() sungguhan (wilayahs,
- * routing_batches, kendaraans, kendaraan_stops) sekarang soft delete: baris
- * bertahan di basis data, tersembunyi dari kueri biasa. Tiga tabel lain
- * (penugasan_sales, kunjungan_fotos, pesanans) hanya dapat kolomnya lebih
- * dulu — trait SoftDeletes sengaja belum dipasang: dua yang pertama karena
- * batasan uniknya dipakai sebagai bagian dari logika aplikasi, dan pesanans
- * karena tidak ada satu pun jalur kode yang menghapus baris Pesanan sama
- * sekali (lihat komentar migrasinya masing-masing).
+ * Lima tabel yang tadinya memakai ->delete() sungguhan (wilayahs,
+ * routing_batches, kendaraans, kendaraan_stops, pesanans) sekarang soft
+ * delete: baris bertahan di basis data, tersembunyi dari kueri biasa. Dua
+ * tabel lain (penugasan_sales, kunjungan_fotos) hanya dapat kolomnya lebih
+ * dulu — trait SoftDeletes sengaja belum dipasang karena batasan uniknya
+ * dipakai sebagai bagian dari logika aplikasi (lihat komentar migrasinya).
  */
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
 });
+
+/** Satu pesanan berstatus ORDER, dengan toko baru tiap panggilan. */
+function buatPesananUji(): Pesanan
+{
+    static $n = 0;
+    $n++;
+
+    $wilayah = Wilayah::firstOrCreate(['kode' => 'W-PSN'], ['nama' => 'Wilayah Pesanan Uji']);
+    $produk = Produk::firstOrCreate(
+        ['kode' => 'P-PSN'],
+        ['nama' => 'Produk Uji Pesanan', 'stok' => 100_000, 'harga' => 10_000],
+    );
+    $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
+
+    $toko = Toko::create([
+        'kode' => "TK-PSN{$n}", 'nama' => "Toko Pesanan Uji {$n}", 'wilayah_id' => $wilayah->id,
+        'alamat' => 'Jl. Pesanan Uji', 'latitude' => -6.20 + $n * 0.001, 'longitude' => 106.80 + $n * 0.001,
+        'sumber_koordinat' => 'manual',
+    ]);
+
+    return app(PesananService::class)->buat(
+        $toko, [['produk_id' => $produk->id, 'jumlah_dus' => 10]], $sales,
+    );
+}
 
 describe('wilayah', function () {
     it('bertahan di basis data setelah dihapus, tapi hilang dari kueri biasa', function () {
@@ -193,27 +215,77 @@ describe('penomoran tidak dipakai ulang setelah dihapus', function () {
     });
 });
 
-describe('kolom disiapkan tapi belum dipakai sebagai soft delete', function () {
+describe('pesanan', function () {
     /**
-     * penugasan_sales, kunjungan_fotos, dan pesanans punya kolom deleted_at,
-     * tapi modelnya sengaja TIDAK memakai trait SoftDeletes: ketiganya masih
-     * hard-delete (atau, untuk pesanans, tidak pernah dihapus sama sekali —
-     * pembatalan lewat StatusPesanan::Cancel). Lihat komentar migrasi
-     * 2026_08_21_000100_add_soft_deletes_columns.php dan
-     * 2026_08_21_000200_add_deleted_at_to_pesanans_table.php untuk alasannya.
+     * Pesanan dulunya masuk kelompok "kolom disiapkan, belum dipakai" —
+     * tidak ada jalur kode yang menghapusnya. Sejak ada kebutuhan nyata
+     * membuang pesanan dummy tanpa kehilangan barisnya, trait SoftDeletes
+     * dipasang beserta dua penjagaan yang menyertainya.
      */
-    it('kolom deleted_at ada di skema penugasan_sales, kunjungan_fotos, dan pesanans', function () {
-        expect(Schema::hasColumn('penugasan_sales', 'deleted_at'))->toBeTrue()
-            ->and(Schema::hasColumn('kunjungan_fotos', 'deleted_at'))->toBeTrue()
-            ->and(Schema::hasColumn('pesanans', 'deleted_at'))->toBeTrue();
+    it('bertahan di basis data setelah dihapus, tapi hilang dari kueri biasa', function () {
+        $pesanan = buatPesananUji();
+
+        $pesanan->delete();
+
+        expect(Pesanan::find($pesanan->id))->toBeNull()
+            ->and(Pesanan::withTrashed()->find($pesanan->id))->not->toBeNull();
     });
 
-    it('pesanan tidak memakai trait SoftDeletes', function () {
-        expect(in_array(
-            SoftDeletes::class,
-            class_uses_recursive(Pesanan::class),
-            true,
-        ))->toBeFalse();
+    /**
+     * kodePesanan() memakai withTrashed() supaya kode tidak dipakai ulang
+     * — batasan unik pada `kode` tetap menghitung baris yang di-soft-delete,
+     * persis pola yang sama dengan Wilayah, RoutingBatch, dan Kendaraan.
+     */
+    it('tidak mengulang kode pesanan yang sudah dihapus di hari yang sama', function () {
+        $p1 = buatPesananUji();
+        $kode1 = $p1->kode;
+        $p1->delete();
+
+        $p2 = buatPesananUji();
+
+        expect($p2->kode)->not->toBe($kode1);
+    });
+
+    /**
+     * Banyak layar driver mengakses $stop->pesanan->... tanpa null-safe
+     * karena selama ini pesanan pada sebuah stop dijamin selalu ada.
+     * Menghapus pesanan yang sudah masuk rute akan mematahkan asumsi itu
+     * dan membuat layar-layar tersebut error, jadi ->delete() Eloquent
+     * menolaknya. Ini TIDAK melindungi dari mengedit kolom deleted_at
+     * langsung lewat basis data — hanya penghapusan lewat aplikasi.
+     */
+    it('menolak dihapus lewat Eloquent kalau sudah masuk rute pengiriman', function () {
+        $admin = User::factory()->create(['role' => PeranPengguna::Admin]);
+        $pesanan = buatPesananUji();
+        app(PesananService::class)->setujui($pesanan, $admin);
+        $batch = app(RoutingService::class)->generate($admin);
+
+        $pesanan->refresh();
+        expect($pesanan->stop)->not->toBeNull();
+
+        expect(fn () => $pesanan->delete())->toThrow(RuntimeException::class);
+        expect(Pesanan::find($pesanan->id))->not->toBeNull();
+    });
+
+    it('boleh dihapus kalau belum pernah masuk rute', function () {
+        $pesanan = buatPesananUji();
+
+        $pesanan->delete();
+
+        expect(Pesanan::find($pesanan->id))->toBeNull();
+    });
+});
+
+describe('kolom disiapkan tapi belum dipakai sebagai soft delete', function () {
+    /**
+     * penugasan_sales dan kunjungan_fotos punya kolom deleted_at, tapi
+     * modelnya sengaja TIDAK memakai trait SoftDeletes: keduanya masih
+     * hard-delete seperti semula. Lihat komentar migrasi
+     * 2026_08_21_000100_add_soft_deletes_columns.php untuk alasannya.
+     */
+    it('kolom deleted_at ada di skema penugasan_sales dan kunjungan_fotos', function () {
+        expect(Schema::hasColumn('penugasan_sales', 'deleted_at'))->toBeTrue()
+            ->and(Schema::hasColumn('kunjungan_fotos', 'deleted_at'))->toBeTrue();
     });
 
     it('penugasan_sales masih hard delete, bukan soft delete', function () {

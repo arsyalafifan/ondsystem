@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use RuntimeException;
 
 #[Fillable([
     'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'status', 'jenis',
@@ -24,7 +26,29 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 ])]
 class Pesanan extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    /**
+     * Menolak penghapusan pesanan yang sudah pernah masuk rute.
+     *
+     * Banyak layar driver (unggah nota, coret nota, dashboard) mengakses
+     * `$stop->pesanan->...` tanpa null-safe karena selama ini pesanan pada
+     * sebuah stop dijamin selalu ada. Begitu pesanan boleh soft delete,
+     * asumsi itu bisa pecah — stop yang masih menunjuk ke pesanan yang
+     * dihapus akan membuat layar-layar itu error. Penjaga ini hanya berlaku
+     * lewat ->delete() Eloquent (mis. tombol hapus di aplikasi); mengedit
+     * kolom deleted_at langsung lewat basis data tetap melewatinya, jadi
+     * hanya pesanan yang belum pernah dirutekan yang aman dihapus dengan
+     * cara itu.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Pesanan $pesanan): void {
+            if ($pesanan->stop()->exists()) {
+                throw new RuntimeException(__('pesanan.galat_hapus_sudah_dirutekan', ['kode' => $pesanan->kode]));
+            }
+        });
+    }
 
     protected function casts(): array
     {

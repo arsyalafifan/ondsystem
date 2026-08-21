@@ -89,4 +89,5 @@ return [
     'notif_toko_dari_qr' => 'Toko terpilih dari QR: :nama (:aset).',
     'toko_tanpa_aset' => 'tanpa nomor aset',
     'toko_tanpa_wilayah' => 'belum ada wilayah',
+    'galat_hapus_sudah_dirutekan' => 'Pesanan :kode sudah pernah masuk rute pengiriman, tidak bisa dihapus.',
 ];

@@ -7,15 +7,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Kolom disiapkan lebih dulu, sama seperti penugasan_sales dan
-     * kunjungan_fotos di 2026_08_21_000100_add_soft_deletes_columns.php.
-     *
-     * Pesanan sengaja belum memakai trait SoftDeletes: tidak ada satu pun
-     * jalur kode yang memanggil ->delete() padanya hari ini — pembatalan
-     * selalu lewat perubahan status (StatusPesanan::Cancel), bukan
-     * menghapus barisnya, jadi riwayatnya sudah abadi tanpa soft delete.
-     * Kolom ini cuma jaga-jaga kalau kelak ada kebutuhan nyata untuk
-     * membuang pesanan (mis. salah input, bukan sekadar dibatalkan).
+     * Awalnya kolom ini disiapkan tanpa trait SoftDeletes (tidak ada jalur
+     * kode yang menghapus Pesanan; pembatalan selalu lewat StatusPesanan::
+     * Cancel). Sejak App\Models\Pesanan memakai SoftDeletes, kolom ini
+     * sudah aktif dipakai — lihat komentar di model itu untuk penjagaan
+     * yang menyertainya (pesanan yang sudah masuk rute tidak boleh
+     * dihapus lewat ->delete() Eloquent) dan kodePesanan() di
+     * PesananService yang memakai withTrashed() agar kode tidak dipakai
+     * ulang oleh baris yang di-soft-delete.
      */
     public function up(): void
     {

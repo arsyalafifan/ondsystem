@@ -750,18 +750,18 @@ class DaftarToko extends Component
                     }
                 }
 
-                // Koordinat sama-sama diperlakukan begitu: hanya ditimpa saat
-                // baris punya lat/lng lengkap. Baris yang belum punya koordinat
-                // tidak menghapus titik yang sudah digeocode atau ditaruh manual.
+                // Koordinat TIDAK ikut dikunci saat pesanan aktif — beda dari
+                // wilayah/nomor aset. Koordinat yang salah justru paling
+                // penting segera diperbaiki (termasuk untuk toko yang sedang
+                // dipesan), supaya pengiriman berikutnya tidak salah rute.
+                // Sama seperti kolom lain: hanya ditimpa saat baris punya
+                // lat/lng lengkap, baris yang belum punya koordinat tidak
+                // menghapus titik yang sudah digeocode atau ditaruh manual.
                 if ($punyaTitik) {
-                    if ($pesananAktifAda) {
-                        $kolomTerkunci[] = __('master.kolom_koordinat');
-                    } else {
-                        $dataSimpan['latitude'] = $lat;
-                        $dataSimpan['longitude'] = $lng;
-                        $dataSimpan['sumber_koordinat'] = 'manual';
-                        $dataSimpan['geocoded_at'] = now();
-                    }
+                    $dataSimpan['latitude'] = $lat;
+                    $dataSimpan['longitude'] = $lng;
+                    $dataSimpan['sumber_koordinat'] = 'manual';
+                    $dataSimpan['geocoded_at'] = now();
                 }
 
                 // updateOrCreate() diam-diam melakukan query pengecekan sendiri;
