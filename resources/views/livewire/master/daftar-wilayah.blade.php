@@ -63,6 +63,38 @@
         </div>
     </x-kartu>
 
+    @if ($this->wilayahsTerhapus->isNotEmpty())
+        <x-kartu :judul="__('master.wilayah_terhapus')" class="mt-4">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                            <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
+                            <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
+                            <th class="px-4 py-2 font-medium">{{ __('master.dihapus_pada') }}</th>
+                            <th class="px-4 py-2 text-right font-medium">{{ __('umum.aksi') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($this->wilayahsTerhapus as $w)
+                            <tr class="text-gray-500">
+                                <td class="whitespace-nowrap px-4 py-2">{{ $w->kode }}</td>
+                                <td class="px-4 py-2">{{ $w->nama }}</td>
+                                <td class="whitespace-nowrap px-4 py-2">{{ $w->deleted_at->isoFormat('D MMM YYYY, HH:mm') }}</td>
+                                <td class="whitespace-nowrap px-4 py-2 text-right">
+                                    <button type="button" wire:click="pulihkan({{ $w->id }})"
+                                            class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                                        {{ __('umum.pulihkan') }}
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-kartu>
+    @endif
+
     @if ($formTerbuka)
         <x-modal :judul="$wilayahId ? __('master.judul_wilayah_sunting') : __('master.judul_wilayah_baru')" tutup="tutupForm">
             <div class="space-y-3 p-5">

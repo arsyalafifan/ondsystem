@@ -8,6 +8,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
+use Illuminate\Support\Facades\URL;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
@@ -145,7 +146,7 @@ it('halaman cetak menyertakan link ondprint:// untuk OND Print Helper', function
 it('OND Print Helper bisa mengambil ESC/P lewat link bertanda tangan tanpa sesi login', function () {
     $pesanan = buatPesananProcess(2);
 
-    $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+    $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->addMinutes(5),
         ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],
@@ -163,7 +164,7 @@ it('OND Print Helper bisa mengambil ESC/P lewat link bertanda tangan tanpa sesi 
 it('menolak link ondprint yang tanda tangannya sudah tidak sah', function () {
     $pesanan = buatPesananProcess(1);
 
-    $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+    $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->addMinutes(5),
         ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],
@@ -176,7 +177,7 @@ it('menolak link ondprint yang tanda tangannya sudah tidak sah', function () {
 it('menolak link ondprint yang sudah kedaluwarsa', function () {
     $pesanan = buatPesananProcess(1);
 
-    $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+    $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->subMinute(),
         ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],

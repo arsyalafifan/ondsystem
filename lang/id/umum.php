@@ -56,4 +56,5 @@ return [
     'gps_gagal' => 'Gagal mengambil lokasi. Pastikan izin lokasi diaktifkan.',
     'pilih_bahasa' => 'Pilih bahasa',
     'bahasa_diubah' => 'Bahasa diubah ke :bahasa.',
+    'pulihkan' => 'Pulihkan',
 ];

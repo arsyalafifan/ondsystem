@@ -3,6 +3,8 @@
 use App\Enums\PeranPengguna;
 use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
+use App\Livewire\Pembayaran\Pelunasan;
+use App\Livewire\Pembayaran\Pendapatan;
 use App\Models\Kendaraan;
 use App\Models\Pesanan;
 use App\Models\Produk;
@@ -13,6 +15,7 @@ use App\Services\PelunasanService;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Services\RoutingService;
+use App\Support\Bahasa;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -207,23 +210,23 @@ it('bisa lunas semua lalu muncul di pendapatan hari ini lewat layar sungguhan', 
     $kendaraan = kendaraanSelesai(3, dusPerToko: 10);
 
     Livewire::actingAs($this->admin)
-        ->test(\App\Livewire\Pembayaran\Pelunasan::class)
+        ->test(Pelunasan::class)
         ->call('konfirmasiLunasSemua', $kendaraan->id)
         ->call('proses');
 
     expect(Pesanan::where('status_bayar', StatusBayar::Lunas)->count())->toBe(3);
 
     Livewire::actingAs($this->admin)
-        ->test(\App\Livewire\Pembayaran\Pendapatan::class)
-        ->assertSee(\App\Support\Bahasa::rupiah(3 * 10 * 50_000));
+        ->test(Pendapatan::class)
+        ->assertSee(Bahasa::rupiah(3 * 10 * 50_000));
 });
 
 it('superadmin juga bisa memproses pelunasan, tidak ditolak oleh guard isAdmin', function () {
-    $superadmin = User::factory()->create(['role' => \App\Enums\PeranPengguna::Superadmin]);
+    $superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
     $kendaraan = kendaraanSelesai(2, dusPerToko: 10);
 
     Livewire::actingAs($superadmin)
-        ->test(\App\Livewire\Pembayaran\Pelunasan::class)
+        ->test(Pelunasan::class)
         ->call('konfirmasiLunasSemua', $kendaraan->id)
         ->call('proses')
         ->assertHasNoErrors();

@@ -136,4 +136,7 @@ return [
     'asset_id_ket' => 'Printed on the QR code on the freezer body. This is what reps scan during a visit.',
     'freezer_tipe' => 'Freezer model',
     'atr_asset_id' => 'asset ID',
+    'wilayah_terhapus' => 'Deleted regions',
+    'dihapus_pada' => 'Deleted at',
+    'wilayah_dipulihkan' => 'Region :nama restored.',
 ];

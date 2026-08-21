@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['id', 'kode', 'nama', 'keterangan', 'center_lat', 'center_lng', 'aktif'])]
 class Wilayah extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /** @var array<string, mixed> */
     protected $attributes = [

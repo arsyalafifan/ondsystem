@@ -432,6 +432,56 @@ dilaporkan ke admin.
 
 ---
 
+## Penghapusan data
+
+Master data (Toko, Produk, Wilayah, User) tidak pernah benar-benar dihapus —
+sejak awal sudah memakai kolom `aktif` untuk disembunyikan dari pemilihan
+tanpa kehilangan riwayat pesanan/kunjungan yang mengarah ke sana. Pola ini
+tetap dipakai apa adanya.
+
+Yang sebelumnya memakai `->delete()` sungguhan dibagi dua, tergantung apakah
+amannya menyalakan soft delete begitu saja:
+
+**Soft delete** — baris bertahan di basis data (kolom `deleted_at`),
+tersembunyi dari kueri biasa lewat Eloquent, bisa dipulihkan:
+
+| Tabel             | Dipicu oleh                                                  |
+| ----------------- | ------------------------------------------------------------- |
+| `wilayahs`         | admin menghapus wilayah lewat Master Data (hanya bila sudah tidak dipakai toko) |
+| `routing_batches`  | menghapus draf routing — batch-nya sendiri, sebagai jejak bahwa draf pernah dibuat |
+| `kendaraans`       | menghapus satu mobil kosong dari draf routing                |
+| `kendaraan_stops`  | admin membatalkan pesanan yang sudah masuk rute (sebelum terkirim) |
+
+Wilayah yang terhapus muncul di bagian "Wilayah terhapus" pada halaman Master
+Wilayah, lengkap dengan tombol Pulihkan — satu-satunya penghapusan di atas
+yang dipicu langsung lewat tombol admin. Catatan: kolom `kode` tetap unik
+terhadap baris yang di-soft-delete, jadi kode yang baru dihapus belum bisa
+dipakai wilayah lain sampai dipulihkan atau dihapus permanen.
+
+Dua pengecualian sengaja: draf routing yang dibuang (`hapusDraft`) meng-
+**forceDelete** kendaraan dan kunjungannya, bukan soft delete. Draf yang
+belum pernah disetujui tidak punya nilai audit, dan soft delete di situ
+justru berbahaya — begitu pesanannya dirutekan ulang dan mendapat kunjungan
+baru, `INSERT`-nya akan bentrok dengan batasan unik `kendaraan_stops.pesanan_id`
+milik baris lama yang masih "tertinggal". Nomor kendaraan dan kode batch juga
+sengaja dihitung dengan `withTrashed()` supaya tidak pernah dipakai ulang
+oleh baris yang sudah di-soft-delete.
+
+**Kolom disiapkan, belum dipakai** — `deleted_at` ada di skema, tapi model
+belum memakai trait `SoftDeletes`; `->delete()` masih menghapus sungguhan
+seperti sebelumnya:
+
+| Tabel              | Kenapa belum aman langsung disalakan |
+| ------------------ | ------------------------------------- |
+| `penugasan_sales`   | batasan unik (`toko_id`, `bulan`) dipakai sebagai mekanisme deteksi "toko sudah dipegang sales lain" — `PenugasanService::tetapkan()` menangkap `QueryException` dari situ. Baris yang di-soft-delete tetap menghuni batasan unik itu, jadi toko yang sudah dilepas dari satu sales bisa keliru dianggap masih dipegangnya saat ditugaskan ke sales lain. |
+| `kunjungan_fotos`   | foto lama dihapus dari disk begitu diulang (`KunjunganService::simpanFoto`), dan `jenis` per kunjungan dibatasi unik satu baris. Menjadikannya soft delete berarti keputusan produk dulu: apakah foto lama tetap disimpan sebagai riwayat, dan bagaimana alur "ambil ulang" bekerja terhadap baris yang di-soft-delete. |
+| `pesanans`          | tidak ada satu pun jalur kode yang menghapus baris Pesanan sama sekali — pembatalan selalu lewat `StatusPesanan::Cancel`, bukan `->delete()`, jadi riwayatnya sudah abadi tanpa soft delete. Kolomnya cuma jaga-jaga kalau kelak ada kebutuhan nyata membuang pesanan (mis. salah input), bukan sekadar membatalkannya. |
+
+Kolom itu memang belum dipakai, tapi sudah tersedia kalau kelak ada kebutuhan
+audit yang memaksa ketiganya diselesaikan.
+
+---
+
 ## Pengaturan
 
 Semua di `.env`, dibaca lewat [`config/ond.php`](config/ond.php):
@@ -476,7 +526,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-268 tes, mencakup:
+272 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -517,6 +567,14 @@ php artisan test
   jalan pintas pengujian mati di luar lingkungan lokal dan mati bila
   penandanya tidak dinyalakan, serta tetap menerapkan seluruh aturan kunjungan
   saat menyala.
+- **[`tests/Feature/SoftDeleteTest.php`](tests/Feature/SoftDeleteTest.php)** —
+  wilayah yang dihapus bertahan di basis data dan bisa dipulihkan lewat
+  layar admin, draf routing yang dibuang membereskan kendaraan dan
+  kunjungannya sehingga pesanannya kembali ke antrean, nomor kendaraan dan
+  kode batch tidak pernah dipakai ulang oleh baris yang sudah di-soft-delete,
+  dan `penugasan_sales`/`kunjungan_fotos`/`pesanans` dipastikan masih
+  hard delete (atau, untuk pesanans, memang tidak pernah dihapus sama
+  sekali) seperti semula.
 - **[`tests/Feature/BahasaTest.php`](tests/Feature/BahasaTest.php)** —
   kelengkapan kunci di keempat bahasa, penyimpanan pilihan bahasa, dan setiap
   halaman tampil dalam keempat bahasa tanpa kunci mentah yang bocor.

@@ -236,7 +236,23 @@ class RoutingService
             throw new RuntimeException(__('routing.galat_hanya_draft'));
         }
 
-        $batch->delete();
+        DB::transaction(function () use ($batch): void {
+            // forceDelete, bukan soft delete, khusus untuk kendaraan dan
+            // kunjungan draft ini: draf yang dibuang di sini belum pernah
+            // disetujui atau dijalankan, jadi tidak ada riwayat nyata yang
+            // hilang. Soft delete di sini justru berbahaya — begitu
+            // pesanannya dirutekan ulang dan mendapat kunjungan baru,
+            // INSERT-nya akan bentrok dengan batasan unik
+            // kendaraan_stops.pesanan_id milik baris lama yang masih
+            // "tertinggal" (soft-deleted tetap menghitung untuk batasan
+            // unik). Batch-nya sendiri tetap soft delete seperti biasa —
+            // itu cuma catatan bahwa sebuah draf pernah dibuat lalu dibuang.
+            $kendaraanIds = $batch->kendaraans()->pluck('id');
+
+            KendaraanStop::whereIn('kendaraan_id', $kendaraanIds)->forceDelete();
+            Kendaraan::whereIn('id', $kendaraanIds)->forceDelete();
+            $batch->delete();
+        });
     }
 
     /**
@@ -426,7 +442,10 @@ class RoutingService
     /** Menambah satu kendaraan kosong pada batch draft. */
     public function tambahKendaraan(RoutingBatch $batch): Kendaraan
     {
-        $nomor = ((int) $batch->kendaraans()->max('nomor')) + 1;
+        // withTrashed(): nomor tidak boleh dipakai ulang meskipun kendaraan
+        // kosong sebelumnya sudah dihapus — batasan unik (routing_batch_id,
+        // nomor) tetap menghitung baris yang di-soft-delete.
+        $nomor = ((int) $batch->kendaraans()->withTrashed()->max('nomor')) + 1;
         $warna = config('ond.warna_kendaraan');
 
         return $batch->kendaraans()->create([
@@ -449,7 +468,10 @@ class RoutingService
     private function kodeBatch(): string
     {
         $prefix = 'RTG-'.now()->format('Ymd');
-        $urutan = RoutingBatch::whereDate('created_at', today())->count() + 1;
+        // withTrashed(): kode tidak boleh dipakai ulang meskipun draft
+        // sebelumnya di hari yang sama sudah dibuang — kode punya batasan
+        // unik yang tetap menghitung baris yang di-soft-delete.
+        $urutan = RoutingBatch::withTrashed()->whereDate('created_at', today())->count() + 1;
 
         return sprintf('%s-%02d', $prefix, $urutan);
     }
