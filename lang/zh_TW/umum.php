@@ -56,4 +56,5 @@ return [
     'gps_gagal' => '無法取得位置，請確認已開啟位置權限。',
     'pilih_bahasa' => '選擇語言',
     'bahasa_diubah' => '語言已切換為 :bahasa。',
+    'pulihkan' => '恢復',
 ];

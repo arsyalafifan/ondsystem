@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'kode', 'tanggal', 'status', 'total_kendaraan', 'total_toko', 'total_dus',
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 ])]
 class RoutingBatch extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

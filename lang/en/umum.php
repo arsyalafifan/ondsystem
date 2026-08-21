@@ -56,4 +56,5 @@ return [
     'gps_gagal' => 'Could not get your location. Make sure location permission is enabled.',
     'pilih_bahasa' => 'Choose language',
     'bahasa_diubah' => 'Language changed to :bahasa.',
+    'pulihkan' => 'Restore',
 ];

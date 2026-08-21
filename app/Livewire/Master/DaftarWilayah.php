@@ -32,6 +32,16 @@ class DaftarWilayah extends Component
             ->get();
     }
 
+    /** Wilayah yang baru dihapus, untuk jaga-jaga kalau terhapus keliru. */
+    #[Computed]
+    public function wilayahsTerhapus()
+    {
+        return Wilayah::onlyTrashed()
+            ->orderByDesc('deleted_at')
+            ->limit(20)
+            ->get();
+    }
+
     public function buatBaru(): void
     {
         $this->resetForm();
@@ -108,9 +118,19 @@ class DaftarWilayah extends Component
 
         $wilayah->delete();
         $this->konfirmasiHapus = null;
-        unset($this->wilayahs);
+        unset($this->wilayahs, $this->wilayahsTerhapus);
 
         $this->dispatch('notifikasi', pesan: __('master.wilayah_dihapus'));
+    }
+
+    public function pulihkan(int $id): void
+    {
+        $wilayah = Wilayah::onlyTrashed()->findOrFail($id);
+        $wilayah->restore();
+
+        unset($this->wilayahs, $this->wilayahsTerhapus);
+
+        $this->dispatch('notifikasi', pesan: __('master.wilayah_dipulihkan', ['nama' => $wilayah->nama]));
     }
 
     public function render()

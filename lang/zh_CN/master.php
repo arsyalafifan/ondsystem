@@ -136,4 +136,7 @@ return [
     'asset_id_ket' => '印在冰柜机身的二维码上，销售拜访时扫描的就是它。',
     'freezer_tipe' => '冰柜型号',
     'atr_asset_id' => '资产编号',
+    'wilayah_terhapus' => '已删除的区域',
+    'dihapus_pada' => '删除时间',
+    'wilayah_dipulihkan' => '区域 :nama 已恢复。',
 ];

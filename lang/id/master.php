@@ -136,4 +136,7 @@ return [
     'asset_id_ket' => 'Tercetak pada QR code di badan freezer. Inilah yang dipindai sales saat berkunjung.',
     'freezer_tipe' => 'Tipe freezer',
     'atr_asset_id' => 'nomor aset',
+    'wilayah_terhapus' => 'Wilayah terhapus',
+    'dihapus_pada' => 'Dihapus pada',
+    'wilayah_dipulihkan' => 'Wilayah :nama dipulihkan.',
 ];

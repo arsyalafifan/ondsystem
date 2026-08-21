@@ -136,4 +136,7 @@ return [
     'asset_id_ket' => '印在冰櫃機身的 QR code 上，銷售拜訪時掃描的就是它。',
     'freezer_tipe' => '冰櫃型號',
     'atr_asset_id' => '資產編號',
+    'wilayah_terhapus' => '已刪除的區域',
+    'dihapus_pada' => '刪除時間',
+    'wilayah_dipulihkan' => '區域 :nama 已恢復。',
 ];
