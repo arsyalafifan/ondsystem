@@ -269,8 +269,8 @@
             <table>
                 <tr><td>No. Faktur</td><td>: {{ $pesanan->kode }}</td></tr>
                 <tr><td>Tanggal</td><td>: {{ $pesanan->tanggal->format('d/m/Y') }}</td></tr>
-                <tr><td>Sales</td><td>: {{ $pencetak->name }}</td></tr>
-                <tr><td>No. HP Sales</td><td>: {{ $pencetak->no_hp ?? '—' }}</td></tr>
+                <tr><td>Sales</td><td>: {{ $pesanan->pembuat->name }}</td></tr>
+                <tr><td>No. HP Sales</td><td>: {{ $pesanan->pembuat->no_hp ?? '—' }}</td></tr>
             </table>
         </div>
     </div>
@@ -385,7 +385,7 @@
             $urlEscpUntukAgen = \Illuminate\Support\Facades\URL::temporarySignedRoute(
                 'pesanan.nota.escp.signed',
                 now()->addMinutes(5),
-                ['pesanan' => $pesanan->id, 'pencetak' => $pencetak->id],
+                ['pesanan' => $pesanan->id],
             );
             // Nama printer TIDAK dikirim dari sini — OND Print Helper memakai
             // pilihan yang sudah disimpan lokal di komputer masing-masing
