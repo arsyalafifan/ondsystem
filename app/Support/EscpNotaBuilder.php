@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Pesanan;
-use App\Models\User;
 
 /**
  * Membentuk nota sebagai perintah ESC/P mentah (teks asli + kode kontrol
@@ -33,22 +32,23 @@ final class EscpNotaBuilder
     private const FORM_FEED = "\x0C";
 
     // Margin kiri kecil (bukan 0) supaya teks tidak menempel persis di tepi
-    // kertas. LEBAR sengaja dikembalikan ke 80 (bukan dilebarkan lagi) —
-    // percobaan melebarkan ke 100 terbukti melewati lebar cetak sungguhan
-    // printer ini, membuat baris auto-wrap di tengah kata dan merusak
-    // perataan vertikal seluruh nota. 80 kolom sudah terbukti pas di
-    // printer ini tanpa wrap sama sekali.
+    // kertas. Soal LEBAR: 80 kolom terbukti aman tapi menyisakan spasi
+    // kosong besar di kanan; 100 kolom terbukti KELEBARAN (auto-wrap di
+    // tengah kata). 92 dipilih sebagai titik tengah yang lebih dekat
+    // memenuhi kertas tanpa mengulang overflow — sesuaikan lagi nilai ini
+    // (naik kalau kanan masih kosong, turun kalau mulai wrap lagi) begitu
+    // ada hasil cetak fisik terbaru untuk dibandingkan.
     private const MARGIN_KIRI = 3;
 
-    private const LEBAR = 80;
+    private const LEBAR = 92;
 
-    public static function build(Pesanan $pesanan, User $pencetak): string
+    public static function build(Pesanan $pesanan): string
     {
         $b = self::INIT.self::NLQ_ON.self::ELITE_ON;
         $b .= self::ESC.'l'.chr(self::MARGIN_KIRI);
         $b .= self::ESC.'Q'.chr(self::MARGIN_KIRI + self::LEBAR);
 
-        $b .= self::header($pesanan, $pencetak);
+        $b .= self::header($pesanan);
         $b .= self::garis().self::crlf();
         $b .= self::baris(self::pusat($pesanan->toko->asset_id ?? '-', self::LEBAR)).self::crlf().self::crlf();
         $b .= self::tabelItem($pesanan);
@@ -68,7 +68,7 @@ final class EscpNotaBuilder
         return iconv('UTF-8', 'CP437//TRANSLIT//IGNORE', $b) ?: $b;
     }
 
-    private static function header(Pesanan $pesanan, User $pencetak): string
+    private static function header(Pesanan $pesanan): string
     {
         $perusahaan = [
             self::BOLD_ON.config('perusahaan.nama').self::BOLD_OFF,
@@ -78,7 +78,7 @@ final class EscpNotaBuilder
             (string) config('perusahaan.bank'),
         ];
 
-        $lebarKepada = 20;
+        $lebarKepada = 24;
 
         $kepada = [
             'Kepada: '.$pesanan->toko->nama,
@@ -90,19 +90,19 @@ final class EscpNotaBuilder
             self::BOLD_ON.'FAKTUR PENJUALAN'.self::BOLD_OFF,
             'No. Faktur : '.$pesanan->kode,
             'Tanggal    : '.$pesanan->tanggal->format('d/m/Y'),
-            'Sales      : '.$pencetak->name,
-            'No. HP     : '.($pencetak->no_hp ?? '-'),
+            'Sales      : '.$pesanan->pembuat->name,
+            'No. HP     : '.($pesanan->pembuat->no_hp ?? '-'),
         ];
 
         // Kolom faktur sengaja dilebihkan (bukan cuma cukup pas) — kode nota
         // TIDAK BOLEH terpotong, beda dengan label lain yang aman kalau
         // kepanjangan dan sedikit terpotong.
-        return self::gabungKolom([$perusahaan, $kepada, $faktur], [24, $lebarKepada, 34]);
+        return self::gabungKolom([$perusahaan, $kepada, $faktur], [26, $lebarKepada, 36]);
     }
 
     private static function tabelItem(Pesanan $pesanan): string
     {
-        $lebar = ['no' => 3, 'nama' => 30, 'qty' => 5, 'satuan' => 6, 'harga' => 12, 'disc' => 5, 'total' => 13];
+        $lebar = ['no' => 3, 'nama' => 42, 'qty' => 5, 'satuan' => 6, 'harga' => 12, 'disc' => 5, 'total' => 13];
 
         $b = self::BOLD_ON;
         $b .= self::gabung([

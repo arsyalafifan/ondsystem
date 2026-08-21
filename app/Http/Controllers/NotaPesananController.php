@@ -3,13 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pesanan;
-use App\Models\User;
 use App\Support\EscpNotaBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 
 final class NotaPesananController extends Controller
 {
@@ -17,11 +14,10 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat']);
 
         return view('cetak.nota-pesanan', [
             'pesanan' => $pesanan,
-            'pencetak' => Auth::user(),
             'untukPdf' => false,
         ]);
     }
@@ -36,11 +32,10 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat']);
 
         $pdf = Pdf::loadView('cetak.nota-pesanan', [
             'pesanan' => $pesanan,
-            'pencetak' => Auth::user(),
             'untukPdf' => true,
         ]);
 
@@ -60,9 +55,9 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat']);
 
-        $isi = EscpNotaBuilder::build($pesanan, Auth::user());
+        $isi = EscpNotaBuilder::build($pesanan);
 
         return response($isi, 200, [
             'Content-Type' => 'application/octet-stream',
@@ -73,21 +68,18 @@ final class NotaPesananController extends Controller
     /**
      * Sumber data untuk OND Print Helper (.exe Windows) — dipanggil lewat
      * link "ondprint://" yang diklik dari tombol "Cetak Langsung ke Printer",
-     * bukan dari sesi browser biasa, jadi tidak ada Auth::user(). Identitas
-     * pencetak dan hak akses sepenuhnya ditentukan saat link ditandatangani
-     * di NotaPesananController::cetak() (lihat nota-pesanan.blade.php),
-     * bukan di sini — middleware `signed` di rute yang menolak permintaan
-     * dengan tanda tangan tidak valid atau sudah kedaluwarsa.
+     * bukan dari sesi browser biasa. Hak akses sepenuhnya ditentukan oleh
+     * middleware `signed` di rute (menolak tanda tangan tidak valid atau
+     * kedaluwarsa) — bukan siapa yang sedang login, karena memang tidak ada
+     * sesi login sama sekali di jalur ini.
      */
-    public function escpUntukAgenCetak(Request $request, Pesanan $pesanan): Response
+    public function escpUntukAgenCetak(Pesanan $pesanan): Response
     {
         abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pencetak = User::findOrFail($request->query('pencetak'));
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat']);
 
-        $pesanan->load(['items.produk:id,nama', 'toko']);
-
-        return response(EscpNotaBuilder::build($pesanan, $pencetak), 200, [
+        return response(EscpNotaBuilder::build($pesanan), 200, [
             'Content-Type' => 'application/octet-stream',
         ]);
     }

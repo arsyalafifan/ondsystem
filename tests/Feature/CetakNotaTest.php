@@ -63,6 +63,21 @@ it('menampilkan nota untuk pesanan berstatus PROCESS', function () {
     $this->actingAs($this->sales)->get(route('pesanan.nota', $pesanan))->assertOk();
 });
 
+it('menampilkan sales yang menginput pesanan, bukan yang sedang mencetak', function () {
+    $pesanan = buatPesananProcess();
+
+    // Dicetak oleh admin, tapi nota harus tetap menampilkan nama sales yang
+    // menginput pesanannya ($this->sales), bukan $this->admin yang mencetak.
+    $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
+        ->assertOk()
+        ->assertSee($this->sales->name)
+        ->assertDontSee($this->admin->name);
+
+    $isiEscp = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+    expect($isiEscp)->toContain($this->sales->name)
+        ->and($isiEscp)->not->toContain($this->admin->name);
+});
+
 it('menolak nota untuk pesanan berstatus ORDER', function () {
     $pesanan = $this->pesananService->buat($this->toko, buatItemUji(1), $this->sales);
 
@@ -149,7 +164,7 @@ it('OND Print Helper bisa mengambil ESC/P lewat link bertanda tangan tanpa sesi 
     $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->addMinutes(5),
-        ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],
+        ['pesanan' => $pesanan->id],
     );
 
     // Sengaja TANPA actingAs — inilah inti pengujiannya: OND Print Helper
@@ -167,7 +182,7 @@ it('menolak link ondprint yang tanda tangannya sudah tidak sah', function () {
     $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->addMinutes(5),
-        ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],
+        ['pesanan' => $pesanan->id],
     );
 
     // Mengganggu satu parameter membatalkan tanda tangannya.
@@ -180,7 +195,7 @@ it('menolak link ondprint yang sudah kedaluwarsa', function () {
     $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->subMinute(),
-        ['pesanan' => $pesanan->id, 'pencetak' => $this->admin->id],
+        ['pesanan' => $pesanan->id],
     );
 
     $this->get($url)->assertForbidden();
