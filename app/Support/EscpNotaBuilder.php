@@ -68,20 +68,33 @@ final class EscpNotaBuilder
         return iconv('UTF-8', 'CP437//TRANSLIT//IGNORE', $b) ?: $b;
     }
 
+    /**
+     * Semua baris di sini SENGAJA dibungkus lewat pecahBaris() (turun ke
+     * baris baru), bukan dibiarkan terpotong diam-diam oleh kiri()/kanan()
+     * saat isinya lebih panjang dari lebar kolom — nama toko, alamat, nama
+     * sales, dan info perusahaan semuanya bisa lebih panjang dari yang
+     * diperkirakan, dan kehilangan huruf di nota adalah kesalahan data,
+     * bukan cuma masalah tampilan. Baris berkode kontrol (nama perusahaan
+     * yang di-bold, judul FAKTUR PENJUALAN) sengaja TIDAK dibungkus karena
+     * pendek dan pasti muat, dan wordwrap tidak tahu cara menghitung
+     * panjang teks yang mengandung byte kontrol tak kasatmata.
+     */
     private static function header(Pesanan $pesanan): string
     {
+        $lebarPerusahaan = 26;
+        $lebarKepada = 24;
+        $lebarFaktur = 36;
+
         $perusahaan = [
             self::BOLD_ON.config('perusahaan.nama').self::BOLD_OFF,
-            (string) config('perusahaan.tagline'),
-            (string) config('perusahaan.alamat'),
-            'HP: '.config('perusahaan.telepon').' - '.config('perusahaan.email'),
-            (string) config('perusahaan.bank'),
+            ...self::pecahBaris((string) config('perusahaan.tagline'), $lebarPerusahaan),
+            ...self::pecahBaris((string) config('perusahaan.alamat'), $lebarPerusahaan),
+            ...self::pecahBaris('HP: '.config('perusahaan.telepon').' - '.config('perusahaan.email'), $lebarPerusahaan),
+            ...self::pecahBaris((string) config('perusahaan.bank'), $lebarPerusahaan),
         ];
 
-        $lebarKepada = 24;
-
         $kepada = [
-            'Kepada: '.$pesanan->toko->nama,
+            ...self::pecahBaris('Kepada: '.$pesanan->toko->nama, $lebarKepada),
             $pesanan->toko->telepon ?? '-',
             ...self::pecahBaris($pesanan->toko->alamatLengkap ?: '-', $lebarKepada),
         ];
@@ -90,14 +103,11 @@ final class EscpNotaBuilder
             self::BOLD_ON.'FAKTUR PENJUALAN'.self::BOLD_OFF,
             'No. Faktur : '.$pesanan->kode,
             'Tanggal    : '.$pesanan->tanggal->format('d/m/Y'),
-            'Sales      : '.$pesanan->pembuat->name,
-            'No. HP     : '.($pesanan->pembuat->no_hp ?? '-'),
+            ...self::pecahBaris('Sales      : '.$pesanan->pembuat->name, $lebarFaktur),
+            ...self::pecahBaris('No. HP     : '.($pesanan->pembuat->no_hp ?? '-'), $lebarFaktur),
         ];
 
-        // Kolom faktur sengaja dilebihkan (bukan cuma cukup pas) — kode nota
-        // TIDAK BOLEH terpotong, beda dengan label lain yang aman kalau
-        // kepanjangan dan sedikit terpotong.
-        return self::gabungKolom([$perusahaan, $kepada, $faktur], [26, $lebarKepada, 36]);
+        return self::gabungKolom([$perusahaan, $kepada, $faktur], [$lebarPerusahaan, $lebarKepada, $lebarFaktur]);
     }
 
     private static function tabelItem(Pesanan $pesanan): string
@@ -115,15 +125,31 @@ final class EscpNotaBuilder
         $b .= self::garis().self::crlf();
 
         foreach ($pesanan->items as $i => $item) {
+            // Nama barang panjang turun ke baris berikutnya, tidak dipotong
+            // hilang — kolom lain dikosongkan di baris lanjutannya.
+            $barisNama = self::pecahBaris($item->produk->nama, $lebar['nama']);
+
             $b .= self::gabung([
                 self::kiri((string) ($i + 1), $lebar['no']),
-                self::kiri(mb_substr($item->produk->nama, 0, $lebar['nama'] - 1), $lebar['nama']),
+                self::kiri($barisNama[0] ?? '', $lebar['nama']),
                 self::kanan(number_format($item->jumlah_dus, 0, ',', '.'), $lebar['qty']),
                 self::kiri('DUS', $lebar['satuan']),
                 self::kanan(number_format((float) $item->harga_satuan, 0, ',', '.'), $lebar['harga']),
                 self::kanan('0', $lebar['disc']),
                 self::kanan(number_format((float) $item->subtotal, 0, ',', '.'), $lebar['total']),
             ]).self::crlf();
+
+            foreach (array_slice($barisNama, 1) as $lanjutan) {
+                $b .= self::gabung([
+                    self::kiri('', $lebar['no']),
+                    self::kiri($lanjutan, $lebar['nama']),
+                    self::kanan('', $lebar['qty']),
+                    self::kiri('', $lebar['satuan']),
+                    self::kanan('', $lebar['harga']),
+                    self::kanan('', $lebar['disc']),
+                    self::kanan('', $lebar['total']),
+                ]).self::crlf();
+            }
         }
 
         $b .= self::garis().self::crlf();
