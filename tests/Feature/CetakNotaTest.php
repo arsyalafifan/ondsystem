@@ -8,6 +8,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
+use App\Support\TokenCetakSekaliPakai;
 use Illuminate\Support\Facades\URL;
 
 beforeEach(function () {
@@ -188,7 +189,7 @@ it('OND Print Helper bisa mengambil ESC/P lewat link bertanda tangan tanpa sesi 
     $url = URL::temporarySignedRoute(
         'pesanan.nota.escp.signed',
         now()->addMinutes(5),
-        ['pesanan' => $pesanan->id],
+        ['pesanan' => $pesanan->id, 'token' => TokenCetakSekaliPakai::buat()],
     );
 
     // Sengaja TANPA actingAs — inilah inti pengujiannya: OND Print Helper
@@ -198,6 +199,27 @@ it('OND Print Helper bisa mengambil ESC/P lewat link bertanda tangan tanpa sesi 
     $respons->assertOk();
     expect($respons->headers->get('content-type'))->toBe('application/octet-stream');
     expect($respons->getContent())->toContain($pesanan->kode);
+});
+
+/**
+ * Latar belakang: protokol kustom ondprint:// dikenal kadang terpicu dua
+ * kali oleh Windows/browser untuk satu klik yang sama, membuat isi yang
+ * sama terkirim dua kali ke printer fisik dan terlihat "tercetak dua kali"
+ * di kertas continuous form. Token sekali pakai menutup celah itu di sisi
+ * server: siapa pun/apa pun yang meminta URL yang sama untuk kedua kalinya
+ * ditolak, apa pun penyebab permintaan berulang itu.
+ */
+it('menolak link ondprint yang tokennya sudah dipakai', function () {
+    $pesanan = buatPesananProcess(1);
+
+    $url = URL::temporarySignedRoute(
+        'pesanan.nota.escp.signed',
+        now()->addMinutes(5),
+        ['pesanan' => $pesanan->id, 'token' => TokenCetakSekaliPakai::buat()],
+    );
+
+    $this->get($url)->assertOk();
+    $this->get($url)->assertStatus(410);
 });
 
 it('menolak link ondprint yang tanda tangannya sudah tidak sah', function () {

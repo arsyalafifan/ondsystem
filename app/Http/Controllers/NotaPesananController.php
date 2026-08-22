@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Pesanan;
 use App\Support\EscpNotaBuilder;
+use App\Support\TokenCetakSekaliPakai;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 final class NotaPesananController extends Controller
@@ -73,9 +75,18 @@ final class NotaPesananController extends Controller
      * kedaluwarsa) — bukan siapa yang sedang login, karena memang tidak ada
      * sesi login sama sekali di jalur ini.
      */
-    public function escpUntukAgenCetak(Pesanan $pesanan): Response
+    public function escpUntukAgenCetak(Pesanan $pesanan, Request $request): Response
     {
         abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
+
+        // Menutup celah "tercetak dua kali": token dari link ondprint://
+        // hanya boleh dipakai sekali, apa pun yang membuat URL ini diminta
+        // berulang — lihat komentar di TokenCetakSekaliPakai.
+        abort_unless(
+            TokenCetakSekaliPakai::pakai($request->query('token')),
+            410,
+            __('pesanan.galat_link_cetak_sudah_dipakai'),
+        );
 
         $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat']);
 

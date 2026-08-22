@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Kendaraan;
 use App\Support\EscpPackingListBuilder;
+use App\Support\TokenCetakSekaliPakai;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 final class PackingListController extends Controller
@@ -73,9 +75,18 @@ final class PackingListController extends Controller
      * kedaluwarsa) — bukan siapa yang sedang login, karena memang tidak ada
      * sesi login sama sekali di jalur ini.
      */
-    public function escpUntukAgenCetak(Kendaraan $kendaraan): Response
+    public function escpUntukAgenCetak(Kendaraan $kendaraan, Request $request): Response
     {
         abort_unless($kendaraan->batch->isDisetujui(), 403, __('routing.galat_tak_bisa_cetak_packing_list'));
+
+        // Menutup celah "tercetak dua kali": token dari link ondprint://
+        // hanya boleh dipakai sekali, apa pun yang membuat URL ini diminta
+        // berulang — lihat komentar di TokenCetakSekaliPakai.
+        abort_unless(
+            TokenCetakSekaliPakai::pakai($request->query('token')),
+            410,
+            __('routing.galat_link_cetak_sudah_dipakai'),
+        );
 
         $kendaraan->load(['batch', 'stops' => fn ($q) => $q->orderBy('urutan'), 'stops.toko', 'stops.pesanan.items.produk:id,nama']);
 

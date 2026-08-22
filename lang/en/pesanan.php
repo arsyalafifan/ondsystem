@@ -90,4 +90,5 @@ return [
     'toko_tanpa_aset' => 'no asset ID',
     'toko_tanpa_wilayah' => 'no region yet',
     'galat_hapus_sudah_dirutekan' => 'Order :kode has already entered a delivery route and cannot be deleted.',
+    'galat_link_cetak_sudah_dipakai' => 'This print link has already been used or has expired. Reload the page to print again.',
 ];

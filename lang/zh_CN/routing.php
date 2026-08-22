@@ -83,4 +83,5 @@ return [
     'jadwal_berangkat' => '出发日期 :tanggal',
     'cetak_packing_list' => '打印装箱单',
     'galat_tak_bisa_cetak_packing_list' => '路线获批准后才能打印装箱单。',
+    'galat_link_cetak_sudah_dipakai' => '此打印链接已被使用或已过期。请重新加载页面以再次打印。',
 ];

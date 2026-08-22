@@ -246,6 +246,21 @@ untuk alasan lengkap kenapa ESC/P mentah dipakai, bukan hasil rasterisasi):
 Identitas perusahaan pada kop kedua dokumen diambil dari `config/perusahaan.php`
 (`nama`, `alamat`, dll — overridable lewat `.env`, prefiks `PERUSAHAAN_*`).
 
+**Link Print Direct sekali pakai** — protokol kustom `ondprint://` dikenal
+kadang terpicu dua kali oleh Windows/browser untuk satu klik yang sama
+(atau OND Print Helper mengambil URL yang sama dua kali karena sebab lain
+di luar jangkauan kode ini), yang tanpa penjagaan berarti isi yang sama
+terkirim dua kali ke printer fisik — terlihat seperti "tercetak berkali-kali"
+di kertas continuous form. `App\Support\TokenCetakSekaliPakai` menutup celah
+ini: tiap kali link `ondprint://` dibentuk, sebuah token acak dibuat lewat
+cache (`CACHE_STORE`, bawaannya `database`) dan disertakan dalam tanda
+tangan URL-nya. Permintaan pertama ke URL itu memakai sekaligus menghapus
+tokennya (`Cache::pull`); permintaan kedua ke URL yang **persis sama**
+selalu ditolak (`410 Gone`), apa pun yang menyebabkan permintaan berulang
+itu. Reload halaman membentuk link baru dengan token baru — jadi mencetak
+ulang yang memang disengaja tetap mudah, cuma percobaan ganda yang tak
+disengaja yang dicegah.
+
 ---
 
 ## Bahasa
@@ -613,7 +628,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-306 tes, mencakup:
+308 tes, mencakup:
 
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
@@ -621,8 +636,11 @@ php artisan test
   keberangkatan yang benar, rekap dus per produk digabung dari toko-toko
   berbeda dalam satu mobil, toko tujuan kampas tidak ikut terhitung tapi
   toko yang dibatalkan di lapangan tetap tampil, unduh PDF sungguhan, unduh
-  ESC/P mentah, serta jalur `ondprint://` tanpa sesi login lewat tanda
-  tangan sementara (termasuk penolakan saat rusak/kedaluwarsa).
+  ESC/P mentah, jalur `ondprint://` tanpa sesi login lewat tanda tangan
+  sementara (termasuk penolakan saat rusak/kedaluwarsa), dan token sekali
+  pakainya menolak permintaan kedua ke URL yang sama persis.
+- **[`tests/Feature/CetakNotaTest.php`](tests/Feature/CetakNotaTest.php)** —
+  pola yang sama untuk nota pesanan, termasuk token sekali pakai yang sama.
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
   wilayah tidak tercampur, muatan terbagi sebanding, dan hasilnya tetap ada
