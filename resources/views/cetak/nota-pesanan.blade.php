@@ -382,10 +382,13 @@
             // Tanda tangan sementara (5 menit) supaya OND Print Helper bisa
             // mengambil isi ESC/P tanpa sesi login sama sekali — link ini
             // hanya berlaku sekali proses cetak, bukan link permanen.
+            // Token sekali pakai: percobaan kedua ke URL yang sama ditolak,
+            // apa pun penyebabnya (klik ganda, protokol ondprint:// yang
+            // terpicu dua kali) — lihat komentar di TokenCetakSekaliPakai.
             $urlEscpUntukAgen = \Illuminate\Support\Facades\URL::temporarySignedRoute(
                 'pesanan.nota.escp.signed',
                 now()->addMinutes(5),
-                ['pesanan' => $pesanan->id],
+                ['pesanan' => $pesanan->id, 'token' => \App\Support\TokenCetakSekaliPakai::buat()],
             );
             // Nama printer TIDAK dikirim dari sini — OND Print Helper memakai
             // pilihan yang sudah disimpan lokal di komputer masing-masing

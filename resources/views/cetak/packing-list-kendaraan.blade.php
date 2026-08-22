@@ -237,10 +237,13 @@
          @media print maupun window.print(). --}}
     @unless ($untukPdf)
         @php
+            // Token sekali pakai: percobaan kedua ke URL yang sama ditolak,
+            // apa pun penyebabnya (klik ganda, protokol ondprint:// yang
+            // terpicu dua kali) — lihat komentar di TokenCetakSekaliPakai.
             $urlEscpUntukAgen = \Illuminate\Support\Facades\URL::temporarySignedRoute(
                 'routing.packing-list.escp.signed',
                 now()->addMinutes(5),
-                ['kendaraan' => $kendaraan->id],
+                ['kendaraan' => $kendaraan->id, 'token' => \App\Support\TokenCetakSekaliPakai::buat()],
             );
             $linkOndPrint = 'ondprint://print?url='.urlencode($urlEscpUntukAgen);
         @endphp

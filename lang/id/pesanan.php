@@ -90,4 +90,5 @@ return [
     'toko_tanpa_aset' => 'tanpa nomor aset',
     'toko_tanpa_wilayah' => 'belum ada wilayah',
     'galat_hapus_sudah_dirutekan' => 'Pesanan :kode sudah pernah masuk rute pengiriman, tidak bisa dihapus.',
+    'galat_link_cetak_sudah_dipakai' => 'Link cetak ini sudah dipakai atau sudah kedaluwarsa. Muat ulang halaman untuk mencetak lagi.',
 ];

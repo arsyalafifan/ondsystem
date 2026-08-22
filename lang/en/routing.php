@@ -83,4 +83,5 @@ return [
     'jadwal_berangkat' => 'Departs :tanggal',
     'cetak_packing_list' => 'Print Packing List',
     'galat_tak_bisa_cetak_packing_list' => 'The packing list can only be printed after routing is approved.',
+    'galat_link_cetak_sudah_dipakai' => 'This print link has already been used or has expired. Reload the page to print again.',
 ];

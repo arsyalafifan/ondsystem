@@ -90,4 +90,5 @@ return [
     'toko_tanpa_aset' => '无资产编号',
     'toko_tanpa_wilayah' => '尚无区域',
     'galat_hapus_sudah_dirutekan' => '订单 :kode 已经进入配送路线，无法删除。',
+    'galat_link_cetak_sudah_dipakai' => '此打印链接已被使用或已过期。请重新加载页面以再次打印。',
 ];
