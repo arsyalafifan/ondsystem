@@ -284,6 +284,13 @@
                                                         @endforeach
                                                     </select>
                                                 @endif
+
+                                                <button type="button" wire:click="keluarkanDariRute({{ $stop->id }})"
+                                                        wire:confirm="{{ __('routing.konfirmasi_keluarkan', ['toko' => $stop->toko->nama]) }}"
+                                                        title="{{ __('routing.keluarkan_dari_rute') }}"
+                                                        class="ml-0.5 rounded px-1 text-gray-400 hover:bg-red-50 hover:text-red-600">
+                                                    <x-heroicon-o-x-mark class="size-3.5 inline" />
+                                                </button>
                                             </div>
                                         @endif
                                     </div>

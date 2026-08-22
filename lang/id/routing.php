@@ -75,4 +75,7 @@ return [
     'csv_nama_toko' => 'Nama Toko',
     'csv_jarak' => 'Jarak dari Sebelumnya (km)',
     'csv_eta' => 'Perkiraan Tiba',
+    'keluarkan_dari_rute' => 'Keluarkan dari rute',
+    'konfirmasi_keluarkan' => 'Keluarkan :toko dari rute? Pesanannya kembali ke antrean siap dirutekan.',
+    'notif_dikeluarkan' => ':toko dikeluarkan dari rute dan kembali ke antrean siap dirutekan.',
 ];

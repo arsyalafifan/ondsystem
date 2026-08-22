@@ -75,4 +75,7 @@ return [
     'csv_nama_toko' => '商店名稱',
     'csv_jarak' => '距上一站（公里）',
     'csv_eta' => '預計到達',
+    'keluarkan_dari_rute' => '從路線中移除',
+    'konfirmasi_keluarkan' => '將 :toko 從路線中移除？其訂單將返回待分配佇列。',
+    'notif_dikeluarkan' => ':toko 已從路線中移除，訂單已返回待分配佇列。',
 ];

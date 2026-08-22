@@ -3,6 +3,7 @@
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
+use App\Livewire\Routing\GenerateRouting;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -14,6 +15,7 @@ use App\Services\PesananService;
 use App\Services\RoutingService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
@@ -348,4 +350,108 @@ it('menolak pembatalan pesanan yang notanya sudah diunggah', function () {
 
     expect(fn () => $this->pesananService->batalkan($stop->pesanan()->first(), $this->admin, 'Terlambat'))
         ->toThrow(RuntimeException::class);
+});
+
+// =====================================================================
+describe('mengeluarkan toko dari rute', function () {
+    it('mengeluarkan toko dan pesanannya kembali ke antrean siap dirutekan', function () {
+        siapkanPesananSiapRouting(4, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $kendaraan = $batch->kendaraans->first();
+        $stop = $kendaraan->stops->first();
+        $pesananId = $stop->pesanan_id;
+
+        $this->routingService->keluarkanDariRute($stop);
+
+        expect(KendaraanStop::find($stop->id))->toBeNull()
+            ->and($this->routingService->pesananSiapRouting()->pluck('id'))->toContain($pesananId)
+            ->and($kendaraan->fresh()->total_toko)->toBe($kendaraan->stops->count() - 1);
+    });
+
+    it('merapikan nomor urut mobil asal setelah toko dikeluarkan', function () {
+        siapkanPesananSiapRouting(4, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $kendaraan = $batch->kendaraans->first();
+        $jumlahAwal = $kendaraan->stops->count();
+
+        // Keluarkan yang di tengah, bukan yang pertama/terakhir.
+        $stop = $kendaraan->stops->sortBy('urutan')->values()->get(intdiv($jumlahAwal, 2));
+
+        $this->routingService->keluarkanDariRute($stop);
+
+        $sisa = $kendaraan->fresh()->stops()->orderBy('urutan')->pluck('urutan')->all();
+
+        expect($sisa)->toBe(range(1, $jumlahAwal - 1));
+    });
+
+    /**
+     * Pesanan yang keluar dari rute harus benar-benar hilang (forceDelete),
+     * bukan soft delete -- kalau tidak, begitu pesanan yang sama dirutekan
+     * ulang dan mendapat stop baru, INSERT-nya akan bentrok dengan batasan
+     * unik kendaraan_stops.pesanan_id milik baris lama yang masih
+     * tertinggal. Ini persis kelas bug yang sama dengan hapusDraft().
+     */
+    it('memperbolehkan pesanan yang dikeluarkan dirutekan ulang tanpa bentrok', function () {
+        siapkanPesananSiapRouting(1, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $stop = $batch->kendaraans->first()->stops->first();
+        $pesananId = $stop->pesanan_id;
+
+        $this->routingService->keluarkanDariRute($stop);
+
+        expect(KendaraanStop::withTrashed()->where('pesanan_id', $pesananId)->count())->toBe(0);
+
+        $batchBaru = $this->routingService->generate($this->admin);
+
+        expect($batchBaru->kendaraans->first()->stops->pluck('pesanan_id'))->toContain($pesananId);
+    });
+
+    it('menghitung ulang jarak dan dus mobil asal setelah toko dikeluarkan', function () {
+        siapkanPesananSiapRouting(5, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $kendaraan = $batch->kendaraans->first();
+        $dusSebelum = $kendaraan->total_dus;
+        $stop = $kendaraan->stops->first();
+        $dusStop = $stop->total_dus;
+
+        $this->routingService->keluarkanDariRute($stop);
+
+        expect($kendaraan->fresh()->total_dus)->toBe($dusSebelum - $dusStop);
+    });
+});
+
+describe('mengeluarkan toko dari rute lewat layar admin', function () {
+    it('menolak setelah routing disetujui', function () {
+        siapkanPesananSiapRouting(2, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $stop = $batch->kendaraans->first()->stops->first();
+        $this->routingService->setujui($batch, $this->admin);
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class, ['batch' => $batch->fresh()])
+            ->call('keluarkanDariRute', $stop->id)
+            ->assertStatus(422);
+
+        expect(KendaraanStop::find($stop->id))->not->toBeNull();
+    });
+
+    it('menyegarkan panel pesanan menunggu setelah toko dikeluarkan', function () {
+        siapkanPesananSiapRouting(3, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+        $stop = $batch->kendaraans->first()->stops->first();
+        $pesananId = $stop->pesanan_id;
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class, ['batch' => $batch])
+            ->call('keluarkanDariRute', $stop->id)
+            ->assertDispatched('notifikasi');
+
+        expect(app(RoutingService::class)->pesananSiapRouting()->pluck('id'))->toContain($pesananId);
+    });
 });

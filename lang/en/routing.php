@@ -75,4 +75,7 @@ return [
     'csv_nama_toko' => 'Store Name',
     'csv_jarak' => 'Distance from Previous (km)',
     'csv_eta' => 'ETA',
+    'keluarkan_dari_rute' => 'Remove from route',
+    'konfirmasi_keluarkan' => 'Remove :toko from the route? Its order goes back to the routing queue.',
+    'notif_dikeluarkan' => ':toko removed from the route and returned to the routing queue.',
 ];
