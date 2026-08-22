@@ -65,6 +65,14 @@
 
                 <x-kartu :judul="__('routing.aturan')">
                     <div class="space-y-4 p-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600">{{ __('routing.tanggal_keberangkatan') }} <span class="text-red-500">*</span></label>
+                            <input type="date" required wire:model="tanggalKeberangkatan"
+                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            @error('tanggalKeberangkatan') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <p class="mt-1 text-xs text-gray-500">{{ __('routing.ket_tanggal_keberangkatan') }}</p>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">{{ __('routing.maks_toko') }}</label>
@@ -103,7 +111,7 @@
                         </label>
 
                         <button type="button" wire:click="generate" wire:loading.attr="disabled"
-                                @disabled($r['layak'] === 0)
+                                @disabled($r['layak'] === 0 || $tanggalKeberangkatan === '')
                                 class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300">
                             <span wire:loading.remove wire:target="generate">{{ __('routing.tombol_generate') }}</span>
                             <span wire:loading wire:target="generate">{{ __('routing.menyusun') }}</span>
@@ -142,6 +150,7 @@
                         <span class="ml-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('routing.disetujui') }}</span>
                     @endif
                 </div>
+                <span class="text-gray-600"><x-heroicon-o-calendar class="size-4 inline" /> {{ __('routing.jadwal_berangkat', ['tanggal' => $batch->tanggal->isoFormat('ll')]) }}</span>
                 <span class="text-gray-600"><x-heroicon-o-truck class="size-4 inline" /> {{ $batch->total_kendaraan }} {{ __('umum.mobil') }}</span>
                 <span class="text-gray-600"><x-heroicon-o-building-storefront class="size-4 inline" /> {{ $batch->total_toko }} {{ __('umum.toko') }}</span>
                 <span class="text-gray-600"><x-heroicon-o-cube class="size-4 inline" /> @angka($batch->total_dus) {{ __('umum.satuan_dus') }}</span>
@@ -209,6 +218,12 @@
                             <button type="button" onclick="window.sorotKendaraan({{ $kendaraan->id }})"
                                     title="{{ __('routing.lihat_di_peta') }}"
                                     class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"><x-heroicon-o-magnifying-glass class="size-4 inline" /></button>
+
+                            @if ($batch->isDisetujui())
+                                <a href="{{ route('routing.packing-list', $kendaraan) }}" target="_blank"
+                                   title="{{ __('routing.cetak_packing_list') }}"
+                                   class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"><x-heroicon-o-printer class="size-4 inline" /></a>
+                            @endif
 
                             <span class="text-gray-400">
                                 @if($dibuka)

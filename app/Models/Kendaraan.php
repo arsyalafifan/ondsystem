@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 #[Fillable([
     'routing_batch_id', 'wilayah_id', 'nomor', 'nama', 'warna', 'total_toko',
@@ -167,6 +168,35 @@ class Kendaraan extends Model
             return $menit >= 60
                 ? intdiv($menit, 60).' j '.($menit % 60).' m'
                 : $menit.' m';
+        });
+    }
+
+    /**
+     * Toko yang sungguh dimuat mobil ini saat berangkat, untuk packing list.
+     * Kampas sengaja tidak ikut — itu terjadi di lapangan setelah mobil
+     * berangkat, bukan bagian dari muatan yang dipacking di gudang.
+     */
+    protected function stopsPacking(): Attribute
+    {
+        return Attribute::get(fn () => $this->stops->reject(fn (KendaraanStop $s) => $s->isKampas())->values());
+    }
+
+    /**
+     * Total dus per produk dari seluruh toko yang dimuat mobil ini, untuk
+     * tabel "Nama Barang" pada packing list. Dipakai bersama oleh versi HTML
+     * dan ESC/P supaya keduanya tidak bisa diam-diam berbeda hasil.
+     *
+     * @return Collection<int, array{produk: string, qty: int}>
+     */
+    protected function ringkasanProdukPacking(): Attribute
+    {
+        return Attribute::get(function () {
+            return $this->stops_packing
+                ->flatMap(fn (KendaraanStop $s) => $s->pesanan?->items ?? collect())
+                ->groupBy(fn (PesananItem $item) => $item->produk->nama)
+                ->map(fn ($items, $nama) => ['produk' => $nama, 'qty' => (int) $items->sum('jumlah_dus')])
+                ->sortKeys()
+                ->values();
         });
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
@@ -453,5 +454,63 @@ describe('mengeluarkan toko dari rute lewat layar admin', function () {
             ->assertDispatched('notifikasi');
 
         expect(app(RoutingService::class)->pesananSiapRouting()->pluck('id'))->toContain($pesananId);
+    });
+});
+
+// =====================================================================
+describe('tanggal keberangkatan', function () {
+    /**
+     * Routing bisa dibuat hari ini untuk keberangkatan hari lain -- kolom
+     * ini yang jadi rujukan Dashboard (whereDate('tanggal', ...)) untuk
+     * memutuskan mobil mana yang "jalan hari ini", jadi harus bisa beda
+     * dari tanggal batch dibuat.
+     */
+    it('memakai tanggal yang diberikan, bukan tanggal batch dibuat', function () {
+        siapkanPesananSiapRouting(3, dusPerToko: 10);
+
+        $besok = today()->addDay();
+        $batch = $this->routingService->generate($this->admin, tanggalKeberangkatan: $besok);
+
+        expect($batch->tanggal->isSameDay($besok))->toBeTrue()
+            ->and($batch->created_at->isToday())->toBeTrue();
+    });
+
+    it('memakai hari ini sebagai bawaan kalau tidak ditentukan', function () {
+        siapkanPesananSiapRouting(3, dusPerToko: 10);
+
+        $batch = $this->routingService->generate($this->admin);
+
+        expect($batch->tanggal->isToday())->toBeTrue();
+    });
+
+    it('halaman generate routing menolak submit tanpa tanggal keberangkatan', function () {
+        siapkanPesananSiapRouting(3, dusPerToko: 10);
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class)
+            ->set('tanggalKeberangkatan', '')
+            ->call('generate')
+            ->assertHasErrors(['tanggalKeberangkatan' => 'required']);
+
+        expect(RoutingBatch::count())->toBe(0);
+    });
+
+    it('halaman generate routing memakai tanggal yang dipilih admin', function () {
+        siapkanPesananSiapRouting(3, dusPerToko: 10);
+
+        $tanggal = today()->addDays(3)->toDateString();
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class)
+            ->set('tanggalKeberangkatan', $tanggal)
+            ->call('generate');
+
+        expect(RoutingBatch::first()->tanggal->toDateString())->toBe($tanggal);
+    });
+
+    it('pra-isi tanggal keberangkatan dengan hari ini saat halaman dibuka', function () {
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class)
+            ->assertSet('tanggalKeberangkatan', today()->toDateString());
     });
 });

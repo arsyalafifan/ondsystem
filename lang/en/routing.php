@@ -78,4 +78,9 @@ return [
     'keluarkan_dari_rute' => 'Remove from route',
     'konfirmasi_keluarkan' => 'Remove :toko from the route? Its order goes back to the routing queue.',
     'notif_dikeluarkan' => ':toko removed from the route and returned to the routing queue.',
+    'tanggal_keberangkatan' => 'Departure date',
+    'ket_tanggal_keberangkatan' => 'When these vehicles are scheduled to depart — not necessarily today.',
+    'jadwal_berangkat' => 'Departs :tanggal',
+    'cetak_packing_list' => 'Print Packing List',
+    'galat_tak_bisa_cetak_packing_list' => 'The packing list can only be printed after routing is approved.',
 ];

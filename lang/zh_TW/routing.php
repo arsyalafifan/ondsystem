@@ -78,4 +78,9 @@ return [
     'keluarkan_dari_rute' => '從路線中移除',
     'konfirmasi_keluarkan' => '將 :toko 從路線中移除？其訂單將返回待分配佇列。',
     'notif_dikeluarkan' => ':toko 已從路線中移除，訂單已返回待分配佇列。',
+    'tanggal_keberangkatan' => '出發日期',
+    'ket_tanggal_keberangkatan' => '這批車輛計劃出發的日期——不一定是今天。',
+    'jadwal_berangkat' => '出發日期 :tanggal',
+    'cetak_packing_list' => '列印裝箱單',
+    'galat_tak_bisa_cetak_packing_list' => '路線獲批准後才能列印裝箱單。',
 ];
