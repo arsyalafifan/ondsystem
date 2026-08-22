@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\NotaPesananController;
+use App\Http\Controllers\PackingListController;
 use App\Livewire\Akun\GantiKataSandi;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
@@ -62,6 +63,10 @@ Route::get('/pesanan/{pesanan}/nota/escp/signed', [NotaPesananController::class,
     ->name('pesanan.nota.escp.signed')
     ->middleware('signed');
 
+Route::get('/routing/{kendaraan}/packing-list/escp/signed', [PackingListController::class, 'escpUntukAgenCetak'])
+    ->name('routing.packing-list.escp.signed')
+    ->middleware('signed');
+
 Route::middleware('auth')->group(function () {
 
     // --- Admin ---
@@ -71,6 +76,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/routing/generate', GenerateRouting::class)->name('routing.generate');
         Route::get('/routing/riwayat', RiwayatRouting::class)->name('routing.riwayat');
         Route::get('/routing/{batch}', GenerateRouting::class)->name('routing.lihat');
+
+        Route::get('/routing/{kendaraan}/packing-list', [PackingListController::class, 'cetak'])->name('routing.packing-list');
+        Route::get('/routing/{kendaraan}/packing-list/pdf', [PackingListController::class, 'unduhPdf'])->name('routing.packing-list.pdf');
+        Route::get('/routing/{kendaraan}/packing-list/escp', [PackingListController::class, 'unduhEscp'])->name('routing.packing-list.escp');
 
         Route::get('/kunjungan/periode', DaftarPeriode::class)->name('kunjungan.periode');
         Route::get('/kunjungan/periode/{periode}', DetailPeriode::class)->name('kunjungan.periode.lihat');

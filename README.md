@@ -174,6 +174,20 @@ pernah berhenti karena layanan luar mati.
 Tidak ada mobil yang melewati batas 25 toko maupun 220 dus. Dibanding urutan
 kunjungan yang disusun sembarangan, total waktu perjalanan turun sekitar 31%.
 
+### Tanggal keberangkatan berbeda dari tanggal dibuat
+
+Routing sering disiapkan lebih awal dari hari mobil sungguhan berangkat, jadi
+**Tanggal keberangkatan** adalah kolom wajib tersendiri di halaman Generate
+Routing — bukan otomatis hari ini. `RoutingBatch.tanggal` menyimpan tanggal
+ini, terpisah dari `created_at` (kapan batch-nya dibuat). Dashboard memakai
+kolom ini (`whereDate('tanggal', ...)`) untuk memutuskan mobil mana yang
+"jalan hari ini", jadi routing yang dibuat untuk minggu depan tidak akan
+nyasar muncul di dashboard hari ini.
+
+Bawaannya terisi hari ini (kasus paling umum), tapi admin bebas
+menggantinya. Panggilan terprogram (`RoutingService::generate()`) tetap
+memakai hari ini sebagai bawaan bila `tanggalKeberangkatan` tidak diisi.
+
 ### Menyunting draf routing
 
 Hasil otomatis jarang sempurna, jadi selama batch masih berstatus draft
@@ -200,6 +214,37 @@ pesanannya di-generate ulang dan mendapat kunjungan baru, `INSERT`-nya akan
 bentrok dengan batasan unik `kendaraan_stops.pesanan_id` milik baris lama
 yang masih tertinggal. Lihat [Penghapusan data](#penghapusan-data) untuk
 penjelasan lengkap pola ini.
+
+### Mencetak nota dan packing list
+
+Dua dokumen tercetak, keduanya lewat pola yang sama — tombol Cetak
+(`window.print()`), Unduh PDF (Dompdf, berkas PDF sungguhan dari server,
+bukan sekadar "print to PDF" browser), dan Print Direct (perintah ESC/P
+mentah dikirim ke printer dot-matrix lewat OND Print Helper, .exe Windows
+yang menerjemahkan link `ondprint://` menjadi kiriman byte apa adanya ke
+printer — lihat komentar di `NotaPesananController`/`PackingListController`
+untuk alasan lengkap kenapa ESC/P mentah dipakai, bukan hasil rasterisasi):
+
+- **Nota** — dari Daftar Pesanan, untuk pesanan berstatus PROCESS/DELIVERY.
+- **Packing list** — dari detail batch (Riwayat Routing → Lihat, atau layar
+  Generate Routing setelah disetujui), satu per kendaraan. Berisi kop
+  perusahaan, ringkasan (nama mobil, jumlah faktur/toko, jumlah dus, dan
+  **tanggal keberangkatan** — dari kolom yang sama dengan bagian
+  [Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)
+  di atas, bukan tanggal batch dibuat), lalu dua tabel: rekap dus per produk
+  digabung dari seluruh toko di mobil itu, dan rincian dus per toko. Tiap
+  tabel punya kolom Qty (dus yang dimuat) di samping **Dus Terjual** dan
+  **Dus Pulang** — keduanya sengaja dikosongkan, diisi tangan di kertas
+  untuk rekonsiliasi setelah mobil kembali (idealnya Terjual + Pulang = Qty).
+  Hanya bisa dicetak setelah routing **disetujui**
+  (bukan draft, karena isinya bisa masih berubah), dan kunjungan jenis
+  **kampas tidak ikut terhitung** — itu terjadi di lapangan setelah mobil
+  berangkat, bukan bagian dari muatan yang dipacking di gudang; toko yang
+  dibatalkan di lapangan tetap tampil apa adanya (dusnya memang sudah
+  dimuat sejak berangkat).
+
+Identitas perusahaan pada kop kedua dokumen diambil dari `config/perusahaan.php`
+(`nama`, `alamat`, dll — overridable lewat `.env`, prefiks `PERUSAHAAN_*`).
 
 ---
 
@@ -568,8 +613,16 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-286 tes, mencakup:
+306 tes, mencakup:
 
+- **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
+  hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
+  dan draft), kop menampilkan nama mobil/jumlah faktur/jumlah dus/tanggal
+  keberangkatan yang benar, rekap dus per produk digabung dari toko-toko
+  berbeda dalam satu mobil, toko tujuan kampas tidak ikut terhitung tapi
+  toko yang dibatalkan di lapangan tetap tampil, unduh PDF sungguhan, unduh
+  ESC/P mentah, serta jalur `ondprint://` tanpa sesi login lewat tanda
+  tangan sementara (termasuk penolakan saat rusak/kedaluwarsa).
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
   wilayah tidak tercampur, muatan terbagi sebanding, dan hasilnya tetap ada
@@ -589,8 +642,10 @@ php artisan test
   alur penuh dari PROCESS sampai SELESAI, pemindahan toko antar mobil,
   pembatalan pesanan yang sudah masuk rute, mengeluarkan toko dari rute
   (nomor urut yang rapi, dus/jarak terhitung ulang, dan pesanannya bisa
-  dirutekan ulang tanpa bentrok batasan unik), serta penolakan menyunting
-  draf yang sudah disetujui.
+  dirutekan ulang tanpa bentrok batasan unik), penolakan menyunting draf
+  yang sudah disetujui, serta tanggal keberangkatan yang terpisah dari
+  tanggal batch dibuat (wajib diisi di halaman, hari ini sebagai bawaan
+  bila dipanggil terprogram).
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
   ketiga tindakan driver dan pembukuan stoknya: pembatalan yang menuntaskan
   toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah

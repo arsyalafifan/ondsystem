@@ -58,7 +58,9 @@ class RoutingService
         ?int $maxToko = null,
         ?int $maxDus = null,
         bool $pisahPerWilayah = true,
+        ?CarbonImmutable $tanggalKeberangkatan = null,
     ): RoutingBatch {
+        $tanggalKeberangkatan ??= CarbonImmutable::today();
         $maxToko = $maxToko ?? config('ond.kendaraan.max_toko');
         $maxDus = $maxDus ?? config('ond.kendaraan.max_dus');
 
@@ -98,15 +100,15 @@ class RoutingService
             ]);
         }
 
-        return $this->simpan($hasil, $admin, $maxToko, $maxDus);
+        return $this->simpan($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan);
     }
 
-    private function simpan(HasilRouting $hasil, User $admin, int $maxToko, int $maxDus): RoutingBatch
+    private function simpan(HasilRouting $hasil, User $admin, int $maxToko, int $maxDus, CarbonImmutable $tanggalKeberangkatan): RoutingBatch
     {
-        return DB::transaction(function () use ($hasil, $admin, $maxToko, $maxDus): RoutingBatch {
+        return DB::transaction(function () use ($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan): RoutingBatch {
             $batch = RoutingBatch::create([
                 'kode' => $this->kodeBatch(),
-                'tanggal' => today(),
+                'tanggal' => $tanggalKeberangkatan,
                 'status' => 'draft',
                 'total_kendaraan' => count($hasil->rute),
                 'total_toko' => $hasil->totalToko(),

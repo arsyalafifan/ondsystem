@@ -8,6 +8,7 @@ use App\Models\Pesanan;
 use App\Models\RoutingBatch;
 use App\Models\Wilayah;
 use App\Services\RoutingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Computed;
@@ -36,6 +37,13 @@ class GenerateRouting extends Component
 
     public int $maxDus;
 
+    /**
+     * Kapan mobil-mobil hasil generate ini dijadwalkan berangkat — belum
+     * tentu hari yang sama dengan saat routing dibuat. Wajib diisi sebelum
+     * tombol Generate Routing bisa ditekan.
+     */
+    public string $tanggalKeberangkatan = '';
+
     public bool $pisahPerWilayah = true;
 
     /** @var array<int, string> */
@@ -52,6 +60,9 @@ class GenerateRouting extends Component
     {
         $this->maxToko = (int) config('ond.kendaraan.max_toko');
         $this->maxDus = (int) config('ond.kendaraan.max_dus');
+        // Bawaannya hari ini — kasus paling umum — tapi admin bebas
+        // menggantinya untuk menjadwalkan keberangkatan di hari lain.
+        $this->tanggalKeberangkatan = today()->toDateString();
 
         // Batch dari URL, atau draft terakhir yang belum disetujui supaya
         // pekerjaan admin tidak hilang saat halaman ditutup.
@@ -197,6 +208,10 @@ class GenerateRouting extends Component
 
     public function generate(RoutingService $service): void
     {
+        $data = $this->validate([
+            'tanggalKeberangkatan' => 'required|date',
+        ], [], ['tanggalKeberangkatan' => __('routing.tanggal_keberangkatan')]);
+
         try {
             $batch = $service->generate(
                 admin: auth()->user(),
@@ -204,6 +219,7 @@ class GenerateRouting extends Component
                 maxToko: $this->maxToko,
                 maxDus: $this->maxDus,
                 pisahPerWilayah: $this->pisahPerWilayah,
+                tanggalKeberangkatan: CarbonImmutable::parse($data['tanggalKeberangkatan']),
             );
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');

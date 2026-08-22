@@ -78,4 +78,9 @@ return [
     'keluarkan_dari_rute' => 'Keluarkan dari rute',
     'konfirmasi_keluarkan' => 'Keluarkan :toko dari rute? Pesanannya kembali ke antrean siap dirutekan.',
     'notif_dikeluarkan' => ':toko dikeluarkan dari rute dan kembali ke antrean siap dirutekan.',
+    'tanggal_keberangkatan' => 'Tanggal keberangkatan',
+    'ket_tanggal_keberangkatan' => 'Kapan mobil-mobil ini dijadwalkan berangkat — tidak harus hari ini.',
+    'jadwal_berangkat' => 'Berangkat :tanggal',
+    'cetak_packing_list' => 'Cetak Packing List',
+    'galat_tak_bisa_cetak_packing_list' => 'Packing list hanya bisa dicetak setelah routing disetujui.',
 ];
