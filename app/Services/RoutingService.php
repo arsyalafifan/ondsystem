@@ -293,6 +293,33 @@ class RoutingService
     }
 
     /**
+     * Mengeluarkan satu toko dari rute sepenuhnya — pesanannya kembali ke
+     * antrean "siap dirutekan" (pesananSiapRouting()), bukan berpindah ke
+     * kendaraan lain. Dipakai admin ketika satu toko memang tidak seharusnya
+     * ikut dikirim hari itu, tanpa harus memaksakannya masuk ke salah satu
+     * mobil yang ada.
+     *
+     * forceDelete, bukan soft delete: batch ini masih draft, jadi stop-nya
+     * belum pernah jadi kunjungan sungguhan — tidak ada riwayat nyata yang
+     * hilang. Soft delete di sini justru berbahaya, persis alasan yang sama
+     * dengan hapusDraft(): begitu pesanannya dirutekan ulang dan mendapat
+     * stop baru, INSERT-nya akan bentrok dengan batasan unik
+     * kendaraan_stops.pesanan_id milik baris lama yang masih "tertinggal".
+     */
+    public function keluarkanDariRute(KendaraanStop $stop): void
+    {
+        $stop->loadMissing('kendaraan');
+        $kendaraan = $stop->kendaraan;
+
+        DB::transaction(function () use ($stop, $kendaraan): void {
+            $stop->forceDelete();
+
+            $this->rapikanUrutan($kendaraan);
+            $this->hitungUlang($kendaraan->fresh());
+        });
+    }
+
+    /**
      * Mengubah urutan kunjungan sebuah kendaraan sesuai daftar yang diberikan.
      *
      * @param  array<int, int>  $stopIds  id stop sesuai urutan baru

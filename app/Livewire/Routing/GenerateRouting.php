@@ -278,6 +278,21 @@ class GenerateRouting extends Component
         ]), jenis: 'info');
     }
 
+    public function keluarkanDariRute(int $stopId, RoutingService $service): void
+    {
+        $stop = KendaraanStop::with(['kendaraan', 'toko'])->findOrFail($stopId);
+        $this->pastikanMasihDraft($stop->kendaraan->routing_batch_id);
+
+        $nama = $stop->toko->nama;
+
+        $service->keluarkanDariRute($stop);
+
+        $this->stopDipilih = null;
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('routing.notif_dikeluarkan', ['toko' => $nama]), jenis: 'info');
+    }
+
     public function geserUrutan(int $stopId, int $arah, RoutingService $service): void
     {
         $stop = KendaraanStop::with('kendaraan')->findOrFail($stopId);

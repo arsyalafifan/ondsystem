@@ -174,6 +174,33 @@ pernah berhenti karena layanan luar mati.
 Tidak ada mobil yang melewati batas 25 toko maupun 220 dus. Dibanding urutan
 kunjungan yang disusun sembarangan, total waktu perjalanan turun sekitar 31%.
 
+### Menyunting draf routing
+
+Hasil otomatis jarang sempurna, jadi selama batch masih berstatus draft
+(belum disetujui) admin bisa menyesuaikannya di halaman Generate Routing:
+
+- **Geser urutan** — naik/turunkan satu toko dalam rute mobil yang sama.
+- **Pindahkan ke mobil lain** — memindahkan toko ke kendaraan lain di batch
+  yang sama; kedua rute (asal dan tujuan) dihitung ulang jaraknya.
+- **Keluarkan dari rute** — toko tidak jadi masuk mobil mana pun.
+  Pesanannya kembali ke antrean "siap dirutekan", sama seperti sebelum
+  Generate Routing ditekan — bukan sekadar dipindah, tapi benar-benar
+  keluar dari batch ini. Dipakai ketika satu toko memang tidak seharusnya
+  ikut dikirim hari itu.
+- **Hitung ulang otomatis** — menyusun ulang urutan kunjungan satu mobil
+  dari awal (TSP), tanpa mengubah isinya.
+- **Hapus mobil kosong** — muncul begitu sebuah mobil tidak berisi toko
+  sama sekali (mis. setelah semua isinya dikeluarkan atau dipindah satu
+  per satu).
+
+Toko yang dikeluarkan atau mobil kosong yang dihapus di sini **benar-benar
+dibuang** (`forceDelete`), bukan soft delete — draf yang belum disetujui
+tidak punya nilai audit, dan soft delete di situ justru berbahaya: begitu
+pesanannya di-generate ulang dan mendapat kunjungan baru, `INSERT`-nya akan
+bentrok dengan batasan unik `kendaraan_stops.pesanan_id` milik baris lama
+yang masih tertinggal. Lihat [Penghapusan data](#penghapusan-data) untuk
+penjelasan lengkap pola ini.
+
 ---
 
 ## Bahasa
@@ -459,14 +486,17 @@ yang dipicu langsung lewat tombol admin. Catatan: kolom `kode` tetap unik
 terhadap baris yang di-soft-delete, jadi kode yang baru dihapus belum bisa
 dipakai wilayah lain sampai dipulihkan atau dihapus permanen.
 
-Pengecualian sengaja: draf routing yang dibuang (`hapusDraft`) meng-
-**forceDelete** kendaraan dan kunjungannya, bukan soft delete. Draf yang
-belum pernah disetujui tidak punya nilai audit, dan soft delete di situ
-justru berbahaya — begitu pesanannya dirutekan ulang dan mendapat kunjungan
-baru, `INSERT`-nya akan bentrok dengan batasan unik `kendaraan_stops.pesanan_id`
-milik baris lama yang masih "tertinggal". Nomor kendaraan, kode batch, dan
-kode pesanan juga sengaja dihitung dengan `withTrashed()` supaya tidak
-pernah dipakai ulang oleh baris yang sudah di-soft-delete.
+Pengecualian sengaja: tiga tindakan pada draf routing yang masih belum
+disetujui — membuang seluruh draf (`hapusDraft`), mengeluarkan satu toko
+dari rute (`keluarkanDariRute`), dan menghapus mobil kosong
+(`hapusKendaraanKosong`) — meng-**forceDelete** kendaraan/kunjungannya,
+bukan soft delete. Draf yang belum pernah disetujui tidak punya nilai
+audit, dan soft delete di situ justru berbahaya — begitu pesanannya
+dirutekan ulang dan mendapat kunjungan baru, `INSERT`-nya akan bentrok
+dengan batasan unik `kendaraan_stops.pesanan_id` milik baris lama yang
+masih "tertinggal". Nomor kendaraan, kode batch, dan kode pesanan juga
+sengaja dihitung dengan `withTrashed()` supaya tidak pernah dipakai ulang
+oleh baris yang sudah di-soft-delete.
 
 **Menghapus pesanan** — `Pesanan` (`App\Models\Pesanan`) punya penjaga
 tambahan: menghapusnya lewat `->delete()` Eloquent **ditolak** kalau
@@ -538,7 +568,7 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 php artisan test
 ```
 
-275 tes, mencakup:
+286 tes, mencakup:
 
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
@@ -556,8 +586,11 @@ php artisan test
   urutan kecocokan persis) dan pemilihan lewat pindai QR beserta seluruh
   penolakannya.
 - **[`tests/Feature/AlurRoutingTest.php`](tests/Feature/AlurRoutingTest.php)** —
-  alur penuh dari PROCESS sampai SELESAI, termasuk pemindahan toko antar mobil
-  dan pembatalan pesanan yang sudah masuk rute.
+  alur penuh dari PROCESS sampai SELESAI, pemindahan toko antar mobil,
+  pembatalan pesanan yang sudah masuk rute, mengeluarkan toko dari rute
+  (nomor urut yang rapi, dus/jarak terhitung ulang, dan pesanannya bisa
+  dirutekan ulang tanpa bentrok batasan unik), serta penolakan menyunting
+  draf yang sudah disetujui.
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
   ketiga tindakan driver dan pembukuan stoknya: pembatalan yang menuntaskan
   toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah
