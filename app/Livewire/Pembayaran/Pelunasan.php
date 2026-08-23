@@ -21,9 +21,14 @@ class Pelunasan extends Component
     /**
      * Keadaan modal konfirmasi ganda.
      *
-     * @var array{jenis: string, pesanan_id?: int, kendaraan_id?: int}|null
+     * @var array{jenis: string, pesanan_id?: int}|null
      */
     public ?array $konfirmasi = null;
+
+    /** Diisi manual oleh admin — tidak pernah ditebak atau dibagi otomatis. */
+    public string $nominalCash = '';
+
+    public string $nominalTransfer = '';
 
     public function mount(): void
     {
@@ -79,9 +84,34 @@ class Pelunasan extends Component
         });
     }
 
+    /** Pesanan yang sedang dikonfirmasi lunas, untuk ditampilkan di modal. */
+    #[Computed]
+    public function pesananKonfirmasi(): ?Pesanan
+    {
+        $id = $this->konfirmasi['pesanan_id'] ?? null;
+
+        return $id === null ? null : Pesanan::with('toko:id,nama')->find($id);
+    }
+
+    /**
+     * Selisih antara tagihan dan jumlah cash+transfer yang diisi. Nol berarti
+     * pas, dipakai untuk mengunci tombol Proses sebelum disimpan ke server.
+     */
+    #[Computed]
+    public function selisihNominal(): float
+    {
+        $tagihan = (float) ($this->pesananKonfirmasi?->tagihan ?? 0);
+        $terisi = (float) ($this->nominalCash ?: 0) + (float) ($this->nominalTransfer ?: 0);
+
+        return round($tagihan - $terisi, 2);
+    }
+
     public function konfirmasiLunas(int $pesananId): void
     {
         $this->konfirmasi = ['jenis' => 'lunas', 'pesanan_id' => $pesananId];
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
+        $this->resetValidation();
     }
 
     public function konfirmasiBelumLunas(int $pesananId): void
@@ -89,14 +119,11 @@ class Pelunasan extends Component
         $this->konfirmasi = ['jenis' => 'belum_lunas', 'pesanan_id' => $pesananId];
     }
 
-    public function konfirmasiLunasSemua(int $kendaraanId): void
-    {
-        $this->konfirmasi = ['jenis' => 'lunas_semua', 'kendaraan_id' => $kendaraanId];
-    }
-
     public function batalkanKonfirmasi(): void
     {
         $this->konfirmasi = null;
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
     }
 
     public function proses(PelunasanService $svc): void
@@ -109,21 +136,31 @@ class Pelunasan extends Component
             match ($this->konfirmasi['jenis'] ?? null) {
                 'lunas' => $this->prosesLunas($svc),
                 'belum_lunas' => $this->prosesBelumLunas($svc),
-                'lunas_semua' => $this->prosesLunasSemua($svc),
                 default => null,
             };
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
         }
 
         $this->konfirmasi = null;
-        unset($this->kendaraans, $this->ringkasan);
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
+        unset($this->kendaraans, $this->ringkasan, $this->pesananKonfirmasi);
     }
 
     private function prosesLunas(PelunasanService $svc): void
     {
         $pesanan = Pesanan::findOrFail($this->konfirmasi['pesanan_id']);
-        $svc->tandaiLunas($pesanan, auth()->user());
+
+        $svc->tandaiLunas(
+            $pesanan,
+            auth()->user(),
+            (float) ($this->nominalCash ?: 0),
+            (float) ($this->nominalTransfer ?: 0),
+        );
+
         $this->dispatch('notifikasi', pesan: __('pembayaran.notif_lunas', ['toko' => $pesanan->toko->nama]));
     }
 
@@ -132,13 +169,6 @@ class Pelunasan extends Component
         $pesanan = Pesanan::findOrFail($this->konfirmasi['pesanan_id']);
         $svc->tandaiBelumLunas($pesanan, auth()->user());
         $this->dispatch('notifikasi', pesan: __('pembayaran.notif_belum_lunas', ['toko' => $pesanan->toko->nama]));
-    }
-
-    private function prosesLunasSemua(PelunasanService $svc): void
-    {
-        $kendaraan = Kendaraan::findOrFail($this->konfirmasi['kendaraan_id']);
-        $jumlah = $svc->lunasiSisaKendaraan($kendaraan, auth()->user());
-        $this->dispatch('notifikasi', pesan: __('pembayaran.notif_lunas_semua', ['jumlah' => $jumlah]));
     }
 
     public function render()

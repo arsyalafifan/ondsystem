@@ -20,6 +20,11 @@ class BelumLunas extends Component
 
     public ?int $konfirmasiPesananId = null;
 
+    /** Diisi manual oleh admin — tidak pernah ditebak atau dibagi otomatis. */
+    public string $nominalCash = '';
+
+    public string $nominalTransfer = '';
+
     public function updatedCari(): void
     {
         $this->resetPage();
@@ -38,14 +43,40 @@ class BelumLunas extends Component
             ->paginate(20);
     }
 
+    /** Pesanan yang sedang dikonfirmasi lunas, untuk ditampilkan di modal. */
+    #[Computed]
+    public function pesananKonfirmasi(): ?Pesanan
+    {
+        return $this->konfirmasiPesananId === null
+            ? null
+            : Pesanan::with('toko:id,nama')->find($this->konfirmasiPesananId);
+    }
+
+    /**
+     * Selisih antara tagihan dan jumlah cash+transfer yang diisi. Nol berarti
+     * pas, dipakai untuk mengunci tombol Proses sebelum disimpan ke server.
+     */
+    #[Computed]
+    public function selisihNominal(): float
+    {
+        $tagihan = (float) ($this->pesananKonfirmasi?->tagihan ?? 0);
+        $terisi = (float) ($this->nominalCash ?: 0) + (float) ($this->nominalTransfer ?: 0);
+
+        return round($tagihan - $terisi, 2);
+    }
+
     public function konfirmasi(int $id): void
     {
         $this->konfirmasiPesananId = $id;
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
     }
 
     public function batalkanKonfirmasi(): void
     {
         $this->konfirmasiPesananId = null;
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
     }
 
     public function tandaiLunas(PelunasanService $svc): void
@@ -56,14 +87,25 @@ class BelumLunas extends Component
 
         try {
             $pesanan = Pesanan::findOrFail($this->konfirmasiPesananId);
-            $svc->tandaiLunas($pesanan, auth()->user());
+
+            $svc->tandaiLunas(
+                $pesanan,
+                auth()->user(),
+                (float) ($this->nominalCash ?: 0),
+                (float) ($this->nominalTransfer ?: 0),
+            );
+
             $this->dispatch('notifikasi', pesan: __('pembayaran.notif_lunas', ['toko' => $pesanan->toko->nama]));
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
         }
 
         $this->konfirmasiPesananId = null;
-        unset($this->pesanans);
+        $this->nominalCash = '';
+        $this->nominalTransfer = '';
+        unset($this->pesanans, $this->pesananKonfirmasi);
     }
 
     public function render()

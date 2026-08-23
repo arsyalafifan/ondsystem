@@ -20,6 +20,7 @@ use RuntimeException;
 #[Fillable([
     'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'status', 'jenis',
     'kurang_kirim', 'status_bayar', 'tanggal_lunas', 'dilunasi_oleh',
+    'nominal_cash', 'nominal_transfer',
     'tanggal', 'total_dus', 'total_nilai', 'catatan',
     'diproses_oleh', 'diproses_at', 'dikirim_at', 'selesai_at',
     'alasan_cancel', 'catatan_cancel', 'dibatalkan_oleh', 'dibatalkan_at',
@@ -61,6 +62,8 @@ class Pesanan extends Model
             'tanggal' => 'date',
             'total_dus' => 'integer',
             'total_nilai' => 'decimal:2',
+            'nominal_cash' => 'decimal:2',
+            'nominal_transfer' => 'decimal:2',
             'diproses_at' => 'datetime',
             'dikirim_at' => 'datetime',
             'selesai_at' => 'datetime',

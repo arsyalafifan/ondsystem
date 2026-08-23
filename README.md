@@ -700,13 +700,48 @@ kampas, dan seluruh riwayat yang menunjuk ke item itu tetap utuh.
 
 ---
 
+## Pelunasan: rincian cash vs transfer
+
+Menandai pesanan lunas (dari layar **Pelunasan** maupun **Belum Lunas**) tidak
+lagi sekadar konfirmasi ya/tidak. Admin wajib mengisi **berapa yang dilunasi
+cash dan berapa yang transfer** — kedua kolom diisi manual, tidak ada
+pembagian otomatis atau tebakan, dan boleh diisi salah satu saja asalkan
+jumlahnya. Tombol Proses **terkunci** sampai `cash + transfer` persis sama
+dengan tagihan (`Pesanan::tagihan()`, bukan `total_nilai` mentah — supaya
+pesanan yang `kurang_kirim` tetap ditagih sesuai yang benar-benar terkirim).
+
+Dicatat di kolom `pesanans.nominal_cash` / `nominal_transfer`
+(`PelunasanService::tandaiLunas()`), dan dikosongkan lagi kalau pesanan
+ditandai Belum Lunas. Layar **Pendapatan** menjumlahkan keduanya secara
+terpisah, jadi selain total pendapatan keseluruhan, sekarang juga terlihat
+berapa yang masuk lewat cash dan berapa lewat transfer.
+
+Tombol **"Lunasi Sisanya"** (pelunasan massal satu mobil sekaligus tanpa
+rincian per toko) sengaja **dihapus** — tidak konsisten dengan aturan
+"nominal harus diisi manual per pesanan". Setiap pelunasan sekarang selalu
+lewat satu toko satu isian.
+
+### Titik ribuan saat mengetik nominal
+
+Kedua kolom (Cash/Transfer) menampilkan titik pemisah ribuan sambil diketik
+(mis. `1.500.000`) lewat [`formatRibuan()`](resources/js/format-rupiah.js) —
+**murni tampilan**. Nilai yang benar-benar dikirim ke Livewire (lewat
+`$wire.set()` di setiap ketikan, bukan `wire:model.live`, supaya kolom bisa
+diformat sebelum disimpan) selalu angka bersih tanpa titik, jadi
+`PelunasanService::tandaiLunas()` dan kolom `nominal_cash`/`nominal_transfer`
+di basis data tidak berubah sama sekali. Karakter non-digit (termasuk minus)
+otomatis terbuang saat mengetik — nominal cash/transfer memang tidak pernah
+berupa desimal atau negatif.
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-332 tes, mencakup:
+343 tes, mencakup:
 
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
@@ -727,6 +762,12 @@ php artisan test
   diterima, menampilkan jumlah terkirim sebagian apa adanya, menampilkan
   total sesuai `tagihan()` setelah koreksi, dan menampilkan pesanan yang
   tidak dikoreksi persis seperti semula.
+- **[`tests/Feature/PelunasanTest.php`](tests/Feature/PelunasanTest.php)** —
+  rincian sumber pembayaran: seluruhnya cash, seluruhnya transfer, campuran
+  keduanya, penolakan jumlah yang kurang/lebih dari tagihan atau negatif,
+  pengosongan rincian saat ditandai Belum Lunas lagi, tombol Proses yang
+  terkunci sampai jumlahnya pas lewat layar Pelunasan maupun Belum Lunas,
+  dan rekap cash/transfer terpisah di layar Pendapatan.
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
   wilayah tidak tercampur, muatan terbagi sebanding, dan hasilnya tetap ada

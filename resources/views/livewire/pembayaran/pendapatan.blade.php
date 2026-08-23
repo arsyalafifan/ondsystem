@@ -42,10 +42,18 @@
             @endif
         </div>
 
-        <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-2">
+        <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
             <div class="rounded-xl border border-gray-200 bg-white p-4">
                 <p class="text-xs text-gray-500">{{ __('pembayaran.total_pendapatan') }}</p>
                 <p class="mt-1 text-2xl font-semibold tabular-nums text-gray-900">@rupiah($this->totalKeseluruhan)</p>
+            </div>
+            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                <p class="text-xs text-gray-500">{{ __('pembayaran.total_cash') }}</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums text-emerald-700">@rupiah($this->totalCash)</p>
+            </div>
+            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                <p class="text-xs text-gray-500">{{ __('pembayaran.total_transfer') }}</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums text-blue-700">@rupiah($this->totalTransfer)</p>
             </div>
             <div class="rounded-xl border border-gray-200 bg-white p-4">
                 <p class="text-xs text-gray-500">{{ __('pembayaran.total_transaksi') }}</p>
