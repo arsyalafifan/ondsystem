@@ -166,7 +166,12 @@
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">{{ __('umum.total') }}</p>
-                        <p class="font-medium">@angka($d->total_dus) {{ __('umum.satuan_dus') }} · @rupiah((float) $d->total_nilai)</p>
+                        @if ($d->kurang_kirim)
+                            <p class="font-medium">@angka($d->items->sum(fn ($i) => $i->terkirim)) {{ __('umum.satuan_dus') }} · @rupiah((float) $d->tagihan)</p>
+                            <p class="text-xs text-gray-400 line-through">@angka($d->total_dus) {{ __('umum.satuan_dus') }} · @rupiah((float) $d->total_nilai)</p>
+                        @else
+                            <p class="font-medium">@angka($d->total_dus) {{ __('umum.satuan_dus') }} · @rupiah((float) $d->total_nilai)</p>
+                        @endif
                     </div>
                     <div class="col-span-2 sm:col-span-3">
                         <p class="text-xs text-gray-500">{{ __('umum.toko') }}</p>
@@ -211,6 +216,12 @@
                     </div>
                 @endif
 
+                @if ($d->kurang_kirim)
+                    <div class="rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+                        {{ __('pesanan.ket_kurang_kirim') }}
+                    </div>
+                @endif
+
                 <div class="overflow-hidden rounded-lg border border-gray-200">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -222,15 +233,32 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            @foreach ($d->items as $item)
+                            {{-- Baris yang toko sama sekali tidak ambil (terkirim = 0) sengaja
+                                 tidak ditampilkan — item-nya tetap tersimpan apa adanya di
+                                 basis data, hanya disembunyikan dari tampilan supaya tidak
+                                 terlihat seperti ikut ditagihkan. --}}
+                            @foreach ($d->items->filter(fn ($i) => $i->terkirim > 0) as $item)
                                 <tr>
                                     <td class="px-3 py-2">{{ $item->produk->nama }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums">@angka($item->jumlah_dus)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">
+                                        @angka($item->terkirim)
+                                        @if ($item->terkirim < $item->jumlah_dus)
+                                            <span class="text-xs text-gray-400">/ @angka($item->jumlah_dus)</span>
+                                        @endif
+                                    </td>
                                     <td class="px-3 py-2 text-right tabular-nums">@rupiah((float) $item->harga_satuan)</td>
-                                    <td class="px-3 py-2 text-right tabular-nums">@rupiah((float) $item->subtotal)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@rupiah($item->terkirim * (float) $item->harga_satuan)</td>
                                 </tr>
                             @endforeach
                         </tbody>
+                        @if ($d->kurang_kirim)
+                            <tfoot>
+                                <tr class="border-t border-gray-200 bg-gray-50 font-medium">
+                                    <td class="px-3 py-2" colspan="3">{{ __('umum.total') }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@rupiah((float) $d->tagihan)</td>
+                                </tr>
+                            </tfoot>
+                        @endif
                     </table>
                 </div>
 

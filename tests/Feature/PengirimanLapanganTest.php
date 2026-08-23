@@ -9,12 +9,14 @@ use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Services\RoutingService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -427,14 +429,14 @@ describe('progres berbasis dus', function () {
 });
 
 // =====================================================================
-it('menampilkan halaman driver dengan ketiga aksi', function () {
+it('menampilkan halaman driver dengan aksi batalkan dan upload/konfirmasi', function () {
     $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
 
     $this->actingAs($this->driver)
         ->get(route('driver.kunjungan', $kendaraan))
         ->assertOk()
         ->assertSee(__('pengiriman.aksi_batalkan'))
-        ->assertSee(__('pengiriman.aksi_coret'));
+        ->assertSee(__('driver.upload_nota'));
 });
 
 it('menampilkan tombol kampas hanya setelah ada sisa muatan', function () {
@@ -543,5 +545,369 @@ describe('cegatan jatah di layar driver', function () {
             ->call('bukaKampas')
             ->assertSee(__('pengiriman.tersedia'))
             ->assertSeeInOrder([$this->air->nama, '5', $this->teh->nama, '7']);
+    });
+});
+
+// =====================================================================
+describe('koreksi item setelah pesanan terlanjur selesai', function () {
+    /**
+     * Kasus nyata: driver seharusnya coret nota (toko cuma ambil sebagian),
+     * tapi malah mengunggah nota lewat jalur pengiriman penuh. Pesanan
+     * langsung SELESAI dengan seluruh isinya dianggap terkirim, stoknya
+     * sudah terlanjur keluar penuh, dan jumlahnya ikut masuk ke Pelunasan.
+     * koreksiItemSetelahSelesai() adalah jalan perbaikannya belakangan.
+     */
+    it('mengembalikan stok dan menandai kurang_kirim, tanpa menyentuh stok_reserved', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        $stokAwal = $this->air->fresh()->stok;
+
+        // Driver salah pencet: upload nota penuh padahal toko cuma ambil 7.
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+        expect($item->fresh()->terkirim)->toBe(10)
+            ->and($this->air->fresh()->stok)->toBe($stokAwal - 10);
+
+        $this->service->koreksiItemSetelahSelesai($item->fresh(), 7, $this->admin);
+
+        $item->refresh();
+        $pesanan = $stop->pesanan()->first();
+        $air = $this->air->fresh();
+
+        expect($item->jumlah_dus_terkirim)->toBe(7)
+            ->and($item->sisa)->toBe(3)
+            ->and($pesanan->status)->toBe(StatusPesanan::Selesai)
+            ->and($pesanan->kurang_kirim)->toBeTrue()
+            // 3 dus yang tidak jadi diambil toko kembali ke stok fisik.
+            ->and($air->stok)->toBe($stokAwal - 7)
+            // Kuncian sudah nol sejak pesanan ditutup, tidak ikut berubah.
+            ->and($air->stok_reserved)->toBe(0);
+    });
+
+    it('mengurangi total_dus_terkirim pada stop, sehingga tagihan Pelunasan otomatis ikut terkoreksi', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+        $hargaSatuan = (float) $item->harga_satuan;
+
+        $this->service->koreksiItemSetelahSelesai($item->fresh(), 7, $this->admin);
+
+        $stop->refresh();
+        $pesanan = $stop->pesanan()->with('items')->first();
+
+        expect($stop->total_dus_terkirim)->toBe(7)
+            // Pesanan::tagihan() memakai jumlah terkirim kalau kurang_kirim,
+            // jadi menagih toko hanya sebesar 7 dus, bukan 10.
+            ->and((float) $pesanan->tagihan)->toBe(round($hargaSatuan * 7, 2));
+    });
+
+    it('mencatat jejak mutasi stok bertipe penyesuaian', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+        $this->service->koreksiItemSetelahSelesai($item->fresh(), 7, $this->admin, 'Toko konfirmasi cuma ambil 7');
+
+        $mutasi = StokMutasi::where('pesanan_id', $stop->pesanan_id)
+            ->where('tipe', 'penyesuaian')->first();
+
+        expect($mutasi)->not->toBeNull()
+            ->and($mutasi->jumlah)->toBe(3)
+            ->and($mutasi->keterangan)->toBe('Toko konfirmasi cuma ambil 7')
+            ->and($mutasi->user_id)->toBe($this->admin->id);
+    });
+
+    it('menolak kalau pesanannya belum berstatus Selesai', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        expect(fn () => $this->service->koreksiItemSetelahSelesai($item, 7, $this->admin))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('menolak jumlah yang melebihi pesanan semula', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+
+        expect(fn () => $this->service->koreksiItemSetelahSelesai($item->fresh(), 15, $this->admin))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('menolak kalau tidak ada perubahan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+
+        expect(fn () => $this->service->koreksiItemSetelahSelesai($item->fresh(), 10, $this->admin))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('menolak jumlah negatif', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $item = $stop->pesanan->items->first();
+
+        expect(fn () => $this->service->koreksiItemSetelahSelesai($item->fresh(), -1, $this->admin))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('bisa dijalankan lewat perintah artisan pesanan:koreksi-item', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $pesanan = $stop->pesanan()->first();
+        $stokAwal = $this->air->fresh()->stok;
+
+        $this->artisan('pesanan:koreksi-item', [
+            'kode_pesanan' => $pesanan->kode,
+            'kode_produk' => $this->air->kode,
+            'jumlah_diterima' => 7,
+            '--admin' => $this->admin->email,
+        ])->expectsConfirmation('Lanjutkan koreksi ini?', 'yes')
+            ->assertExitCode(0);
+
+        // $stokAwal diambil setelah pengiriman penuh (sudah dipotong 10),
+        // jadi koreksi ke 7 mengembalikan selisihnya (3), bukan memotong lagi.
+        expect($this->air->fresh()->stok)->toBe($stokAwal + 3)
+            ->and($stop->pesanan()->first()->kurang_kirim)->toBeTrue();
+    });
+
+    it('perintah artisan tidak mengubah apa pun kalau konfirmasi ditolak', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $this->pesananService->selesaikanPengiriman($stop, gambarNota(), $this->driver);
+
+        $pesanan = $stop->pesanan()->first();
+        $stokAwal = $this->air->fresh()->stok;
+
+        $this->artisan('pesanan:koreksi-item', [
+            'kode_pesanan' => $pesanan->kode,
+            'kode_produk' => $this->air->kode,
+            'jumlah_diterima' => 7,
+            '--admin' => $this->admin->email,
+        ])->expectsConfirmation('Lanjutkan koreksi ini?', 'no')
+            ->assertExitCode(0);
+
+        expect($this->air->fresh()->stok)->toBe($stokAwal)
+            ->and($stop->pesanan()->first()->kurang_kirim)->toBeFalse();
+    });
+});
+
+// =====================================================================
+describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', function () {
+    /**
+     * Ini persis kasus yang mau dicegah: dulu tombol "Upload Nota" langsung
+     * menuntaskan pesanan dengan asumsi semuanya diterima penuh, tanpa
+     * konfirmasi apa pun — persis lubang yang membuat toko yang cuma ambil
+     * sebagian tetap tercatat terjual penuh. Sekarang bukaKonfirmasi() +
+     * simpanKonfirmasi() adalah SATU-SATUNYA jalan menuntaskan pengiriman,
+     * dan selalu menampilkan checklist per produk lebih dulu.
+     */
+    it('mengisi checklist dengan jumlah pesanan penuh secara bawaan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->assertSet("jumlahKonfirmasi.{$item->id}", 10);
+    });
+
+    it('menuntaskan sebagai pengiriman penuh kalau checklist dibiarkan apa adanya', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+        $stokAwal = $this->air->fresh()->stok;
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKonfirmasi')
+            ->assertHasNoErrors()
+            ->assertDispatched('notifikasi');
+
+        $stop->refresh();
+        $pesanan = $stop->pesanan()->first();
+
+        expect($stop->status)->toBe(StatusStop::Selesai)
+            ->and($stop->total_dus_terkirim)->toBe(10)
+            ->and($pesanan->kurang_kirim)->toBeFalse()
+            ->and((float) $pesanan->tagihan)->toBe((float) $pesanan->total_nilai)
+            ->and($this->air->fresh()->stok)->toBe($stokAwal - 10);
+    });
+
+    it('menuntaskan sebagai kurang kirim begitu satu baris dikurangi, dan sisanya jadi jatah kampas', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+        $stokAwal = $this->air->fresh()->stok;
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("jumlahKonfirmasi.{$item->id}", 7)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKonfirmasi')
+            ->assertHasNoErrors();
+
+        $stop->refresh();
+        $pesanan = $stop->pesanan()->with('items')->first();
+
+        expect($stop->status)->toBe(StatusStop::Selesai)
+            ->and($stop->total_dus_terkirim)->toBe(7)
+            ->and($pesanan->kurang_kirim)->toBeTrue()
+            ->and($pesanan->items->first()->sisa)->toBe(3)
+            // Stok fisik cuma berkurang sebanyak yang benar-benar diambil.
+            ->and($this->air->fresh()->stok)->toBe($stokAwal - 7)
+            // 3 dus yang tidak diambil sekarang tersedia untuk dikampaskan.
+            ->and(app(PengirimanService::class)->jatahKampas($kendaraan->fresh())->firstWhere('produk.id', $this->air->id)['tersedia'])->toBe(3);
+    });
+
+    it('menolak isian yang melebihi jumlah pesanan dan tidak mengunggah apa pun', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("jumlahKonfirmasi.{$item->id}", 15)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKonfirmasi')
+            ->assertDispatched('notifikasi');
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+    });
+
+    it('mengarahkan ke pembatalan kalau seluruh isian di bawah batas minimal', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("jumlahKonfirmasi.{$item->id}", 2)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKonfirmasi')
+            ->assertDispatched('notifikasi');
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending);
+    });
+
+    it('menolak mengunggah tanpa foto nota', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->call('simpanKonfirmasi')
+            ->assertHasErrors(['fotoNota']);
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending);
+    });
+
+    /**
+     * Inti permintaannya: ceklis di sebelah kiri memaksa driver benar-benar
+     * melihat tiap baris produk, bukan sekadar mengandalkan angka bawaan
+     * yang sudah terisi penuh tanpa pernah dilihat.
+     */
+    describe('ceklis wajib sebelum bisa disimpan', function () {
+        it('membuka modal dengan seluruh ceklis kosong', function () {
+            $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+            $stop = stopUntuk($kendaraan, 'Toko 1');
+            $item = $stop->pesanan->items->first();
+
+            Livewire::actingAs($this->driver)
+                ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+                ->call('bukaKonfirmasi', $stop->id)
+                ->assertSet("dicekKonfirmasi.{$item->id}", false)
+                ->assertSet('semuaTercekKonfirmasi', false);
+        });
+
+        it('menolak simpan kalau ada baris yang belum dicentang, meski foto sudah diisi', function () {
+            $kendaraan = siapkanMobil([
+                [['produk' => $this->air, 'dus' => 6], ['produk' => $this->teh, 'dus' => 4]],
+            ]);
+            $stop = stopUntuk($kendaraan, 'Toko 1');
+            $itemAir = $stop->pesanan->items->firstWhere('produk_id', $this->air->id);
+
+            Livewire::actingAs($this->driver)
+                ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+                ->call('bukaKonfirmasi', $stop->id)
+                // Cuma baris air yang dicentang, baris teh belum.
+                ->set("dicekKonfirmasi.{$itemAir->id}", true)
+                ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+                ->call('simpanKonfirmasi')
+                ->assertDispatched('notifikasi');
+
+            expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+                ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+        });
+
+        it('mengizinkan simpan begitu semua baris sudah dicentang', function () {
+            $kendaraan = siapkanMobil([
+                [['produk' => $this->air, 'dus' => 6], ['produk' => $this->teh, 'dus' => 4]],
+            ]);
+            $stop = stopUntuk($kendaraan, 'Toko 1');
+
+            $component = Livewire::actingAs($this->driver)
+                ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+                ->call('bukaKonfirmasi', $stop->id);
+
+            foreach ($stop->pesanan->items as $item) {
+                $component->set("dicekKonfirmasi.{$item->id}", true);
+            }
+
+            $component->assertSet('semuaTercekKonfirmasi', true)
+                ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+                ->call('simpanKonfirmasi')
+                ->assertHasNoErrors();
+
+            expect($stop->fresh()->status)->toBe(StatusStop::Selesai);
+        });
+
+        it('mengosongkan ceklis lagi setiap kali modal dibuka untuk toko baru', function () {
+            $kendaraan = siapkanMobil([
+                [['produk' => $this->air, 'dus' => 10]],
+                [['produk' => $this->teh, 'dus' => 8]],
+            ]);
+            $stop1 = stopUntuk($kendaraan, 'Toko 1');
+            $stop2 = stopUntuk($kendaraan, 'Toko 2');
+            $item1 = $stop1->pesanan->items->first();
+            $item2 = $stop2->pesanan->items->first();
+
+            Livewire::actingAs($this->driver)
+                ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+                ->call('bukaKonfirmasi', $stop1->id)
+                ->set("dicekKonfirmasi.{$item1->id}", true)
+                ->call('tutupKonfirmasi')
+                ->call('bukaKonfirmasi', $stop2->id)
+                ->assertSet("dicekKonfirmasi.{$item2->id}", false);
+        });
     });
 });

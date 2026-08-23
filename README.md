@@ -58,28 +58,47 @@ nota belum diunggah.
 
 ### Tiga keputusan driver di lapangan
 
-Rencana di kantor jarang selamat bertemu kenyataan di jalan. Selain navigasi
-dan unggah nota, driver punya tiga tindakan pada setiap toko di daftarnya:
+Rencana di kantor jarang selamat bertemu kenyataan di jalan. Selain navigasi,
+driver punya tiga tindakan pada setiap toko di daftarnya:
 
-- **Cancel** — toko tidak bisa dikirimi (tutup, pindah, menolak). Alasannya
-  sama dengan daftar alasan pembatalan milik admin. Kewajiban driver atas toko
-  itu dianggap tuntas, tapi dusnya **tidak** terhitung terkirim — barangnya
-  masih di mobil.
-- **Coret nota** — pesanan 10 dus tapi toko hanya mau 5. Driver mencatat jumlah
-  yang benar-benar diterima per produk. Pesanan tetap SELESAI, ditandai
-  `kurang_kirim`, dan sisanya menjadi muatan yang boleh dikampaskan. Sisa yang
-  dicoret tetap harus memenuhi batas minimal pesanan; toko yang mau kurang dari
-  itu semestinya dibatalkan, bukan dicoret.
-- **Kampas** — menyalurkan sisa muatan ke toko lain di jalan. Tokonya dipilih
-  dengan cara yang sama seperti input pesanan (ketik atau pindai QR), tapi di
-  sini **semua toko boleh dipilih**, termasuk yang masih punya pesanan
-  berjalan. Tidak ada batas minimal 5 dus. Toko yang dipilih otomatis masuk ke
-  daftar kunjungan mobil itu.
+- **Konfirmasi & unggah nota** — mengunggah foto nota **tidak pernah**
+  langsung menuntaskan pesanan begitu saja. Sebelum foto tersimpan, driver
+  wajib melihat checklist tiap produk (bawaannya sudah terisi penuh sesuai
+  pesanan) dan mengoreksi baris yang tidak jadi diambil toko. Kalau seluruh
+  angka dibiarkan apa adanya, hasilnya pengiriman penuh biasa; begitu satu
+  baris saja dikurangi, otomatis jadi kurang-kirim — pesanan tetap SELESAI,
+  ditandai `kurang_kirim`, dan sisanya menjadi muatan yang boleh
+  dikampaskan. Ini yang mencegah kasus "toko cuma ambil sebagian tapi
+  driver lupa mengoreksi, jadi seluruhnya tercatat terjual" — dulu jalur
+  unggah biasa dan *coret nota* adalah dua tombol terpisah; sekarang
+  checklist ini satu-satunya jalan menuntaskan pengiriman. Tiap baris juga
+  punya kotak centang tersendiri di sebelah kiri, dan **tombol Simpan
+  terkunci sampai semua baris dicentang** — bukan sekadar validasi jumlah,
+  tapi memaksa driver benar-benar melihat satu per satu, bukan mempercayai
+  angka bawaan begitu saja tanpa dilihat. Ceklisnya kosong lagi setiap kali
+  modal dibuka untuk toko yang baru.
+- **Cancel** — toko tidak bisa dikirimi sama sekali (tutup, pindah,
+  menolak). Alasannya sama dengan daftar alasan pembatalan milik admin.
+  Kewajiban driver atas toko itu dianggap tuntas, tapi dusnya **tidak**
+  terhitung terkirim — barangnya masih di mobil.
+- **Kampas** — menyalurkan sisa muatan (dari checklist yang dikurangi atau
+  dari toko yang di-cancel) ke toko lain di jalan. Tokonya dipilih dengan
+  cara yang sama seperti input pesanan (ketik atau pindai QR), tapi di sini
+  **semua toko boleh dipilih**, termasuk yang masih punya pesanan berjalan.
+  Tidak ada batas minimal 5 dus. Toko yang dipilih otomatis masuk ke daftar
+  kunjungan mobil itu.
 
 Jatah kampas dihitung **per produk**, bukan sebagai satu angka gelondongan:
 2 toko batal berisi 5 dus air dan 5 dus teh memberi jatah 5 air + 5 teh, bukan
 10 dus bebas. Tanpa itu driver bisa menjanjikan barang yang tidak ada di
 mobilnya.
+
+Di baliknya, checklist ini memanggil salah satu dari dua service yang sudah
+ada — `PesananService::selesaikanPengiriman()` kalau tidak ada baris yang
+dikurangi, atau `PengirimanService::coretNota()` begitu ada. Keduanya tidak
+diubah sama sekali oleh penggabungan ini; yang berubah hanya
+`DaftarKunjungan::simpanKonfirmasi()` yang sekarang memutuskan mana yang
+dipanggil berdasarkan isian checklist.
 
 ### Progres pengiriman dihitung dari dus
 
@@ -622,13 +641,72 @@ lalu ubah `OSRM_URL=http://localhost:5000`. Tidak ada perubahan kode.
 
 ---
 
+## Mengoreksi pesanan yang terlanjur SELESAI
+
+Kasus lapangan: driver seharusnya *coret nota* karena toko cuma mengambil
+sebagian, tapi malah mengunggah nota lewat jalur pengiriman penuh. Pesanan
+langsung SELESAI dengan seluruh isinya dianggap terkirim — stok fisik sudah
+terlanjur keluar penuh dari gudang, dan jumlah yang salah itu ikut masuk ke
+Pelunasan.
+
+Jalan perbaikannya lewat SSH ke server, bukan lewat layar admin (belum ada
+tombolnya):
+
+```bash
+php artisan pesanan:koreksi-item PSN-20260821-0001 P1 7 --admin=admin@ondsystem.test
+```
+
+Perintah ini menampilkan ringkasan sebelum/sesudah dan meminta konfirmasi
+sebelum menyimpan apa pun. Yang terjadi di baliknya
+(`PengirimanService::koreksiItemSetelahSelesai()`):
+
+- `PesananItem.jumlah_dus_terkirim` diperbarui ke jumlah yang benar.
+- `Pesanan.kurang_kirim` ditandai `true`, supaya `Pesanan::tagihan()` — yang
+  dipakai layar Pelunasan — otomatis menagih sesuai yang benar-benar
+  diterima, bukan jumlah pesanan semula.
+- `KendaraanStop.total_dus_terkirim` dikurangi sebesar selisihnya.
+- Stok fisik (`Produk.stok`) dikembalikan sebesar selisihnya. `stok_reserved`
+  tidak disentuh — sudah bernilai nol sejak pesanannya ditutup.
+- Selisihnya dicatat di `stok_mutasis` dengan `tipe = 'penyesuaian'`, lengkap
+  dengan siapa yang melakukan koreksi.
+
+Hanya berlaku untuk pesanan yang statusnya sudah SELESAI (untuk yang masih
+DELIVERY, dorong driver memakai *coret nota* yang sudah ada di aplikasi) dan
+menolak jumlah yang melebihi pesanan semula atau yang tidak mengubah apa pun.
+
+### Tampilannya ikut disunting, bukan cuma tagihannya
+
+Mengoreksi data saja tidak cukup kalau layarnya masih menampilkan angka lama.
+Tiga tempat yang menampilkan rincian per produk sengaja disunting supaya
+konsisten dengan `Pesanan::tagihan()`:
+
+- **Modal "Rincian Pesanan"** (Input Pesanan → klik baris pesanan) — baris
+  produk yang `terkirim`-nya 0 dus **disembunyikan**, bukan dihapus dari
+  basis data; baris yang terkirim sebagian menampilkan jumlahnya
+  (`6 / 10`); dan totalnya mengikuti `tagihan()`, dengan angka semula
+  dicoret di atasnya untuk pembanding kalau pesanannya `kurang_kirim`.
+- **Nota cetak** (HTML/PDF lewat `NotaPesananController`, dan ESC/P lewat
+  `EscpNotaBuilder`) — rumus yang sama diterapkan, tapi jalur cetaknya
+  sendiri hanya mengizinkan status PROCESS/DELIVERY
+  (`StatusPesanan::bisaDicetak()`), sedangkan `kurang_kirim` baru pernah
+  bernilai `true` setelah pesanan SELESAI — jadi kombinasi keduanya
+  sebenarnya tidak pernah tercapai lewat rute cetak saat ini. Perbaikan ini
+  tetap dipasang supaya rumusnya sudah benar seandainya kelak ada fitur
+  cetak-ulang pasca-SELESAI.
+
+Baris `PesananItem` itu sendiri **tidak pernah dihapus** — disembunyikan
+di lapisan tampilan saja. Ini yang membuatnya aman: `stok_mutasis`, jatah
+kampas, dan seluruh riwayat yang menunjuk ke item itu tetap utuh.
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-308 tes, mencakup:
+332 tes, mencakup:
 
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
@@ -640,7 +718,15 @@ php artisan test
   sementara (termasuk penolakan saat rusak/kedaluwarsa), dan token sekali
   pakainya menolak permintaan kedua ke URL yang sama persis.
 - **[`tests/Feature/CetakNotaTest.php`](tests/Feature/CetakNotaTest.php)** —
-  pola yang sama untuk nota pesanan, termasuk token sekali pakai yang sama.
+  pola yang sama untuk nota pesanan, termasuk token sekali pakai yang sama,
+  dan rendering `EscpNotaBuilder` untuk pesanan `kurang_kirim` (dites
+  langsung lepas dari gerbang rute, karena kombinasi statusnya saat ini
+  tidak pernah tercapai lewat rute cetak).
+- **[`tests/Feature/RincianPesananTest.php`](tests/Feature/RincianPesananTest.php)** —
+  modal "Rincian Pesanan" menyembunyikan produk yang dikoreksi jadi 0 dus
+  diterima, menampilkan jumlah terkirim sebagian apa adanya, menampilkan
+  total sesuai `tagihan()` setelah koreksi, dan menampilkan pesanan yang
+  tidak dikoreksi persis seperti semula.
 - **[`tests/Unit/MesinRoutingTest.php`](tests/Unit/MesinRoutingTest.php)** —
   batas muatan tidak pernah dilanggar, tidak ada pesanan hilang atau ganda,
   wilayah tidak tercampur, muatan terbagi sebanding, dan hasilnya tetap ada
@@ -671,7 +757,21 @@ php artisan test
   produk itu meski total jatahnya cukup, dan pemeriksaan bahwa dus yang tidak
   sampai ke mana pun tidak memotong stok gudang. Termasuk cegatan di layar:
   isian yang melebihi jatah dipotong dan diberitahukan sejak diketik, bukan
-  baru setelah nota terunggah.
+  baru setelah nota terunggah. Serta koreksi pesanan yang terlanjur SELESAI
+  lewat unggah nota penuh yang keliru: stok fisik kembali sebesar selisihnya
+  tanpa menyentuh kuncian, `kurang_kirim` ditandai sehingga tagihan Pelunasan
+  ikut terkoreksi, jejak mutasi stok tercatat, dan perintah artisan
+  `pesanan:koreksi-item` yang membungkusnya (termasuk saat konfirmasinya
+  ditolak). Serta alur konfirmasi terpadu lewat komponen Livewire-nya
+  langsung: checklist terisi penuh secara bawaan, dibiarkan apa adanya
+  menghasilkan pengiriman penuh, satu baris dikurangi menghasilkan
+  kurang-kirim dengan sisanya langsung tersedia sebagai jatah kampas, dan
+  penolakan (jumlah melebihi pesanan, di bawah batas minimal, foto nota
+  kosong) tidak menyimpan atau mengunggah apa pun. Serta ceklis wajibnya:
+  modal terbuka dengan seluruh ceklis kosong, satu baris saja belum
+  dicentang sudah cukup menolak simpan meski foto sudah diisi, mengizinkan
+  simpan begitu semua tercentang, dan ceklis kosong lagi tiap kali modal
+  dibuka untuk toko baru.
 - **[`tests/Feature/HalamanTest.php`](tests/Feature/HalamanTest.php)** —
   setiap halaman tampil dan setiap peran hanya bisa membuka haknya.
 - **[`tests/Feature/KunjunganTest.php`](tests/Feature/KunjunganTest.php)** —

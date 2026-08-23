@@ -91,4 +91,5 @@ return [
     'toko_tanpa_wilayah' => 'belum ada wilayah',
     'galat_hapus_sudah_dirutekan' => 'Pesanan :kode sudah pernah masuk rute pengiriman, tidak bisa dihapus.',
     'galat_link_cetak_sudah_dipakai' => 'Link cetak ini sudah dipakai atau sudah kedaluwarsa. Muat ulang halaman untuk mencetak lagi.',
+    'ket_kurang_kirim' => 'Sebagian barang pada pesanan ini tidak diambil toko. Daftar dan total di bawah sudah disesuaikan dengan yang benar-benar diterima.',
 ];

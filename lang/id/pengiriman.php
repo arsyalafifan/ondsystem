@@ -44,4 +44,8 @@ return [
     'galat_kampas_melebihi' => 'Sisa :produk hanya :tersedia dus, tidak cukup untuk :diminta dus.',
     'lewat_jatah' => 'Maksimal :jumlah dus untuk :produk.',
     'ada_lewat_jatah' => 'Ada isian yang melebihi jatah. Perbaiki dulu sebelum menyimpan.',
+    'galat_koreksi_bukan_selesai' => 'Pesanan :kode belum berstatus Selesai, koreksi ini hanya untuk pesanan yang sudah tuntas.',
+    'galat_koreksi_melebihi' => 'Jumlah untuk :produk tidak boleh melebihi pesanan semula (maks :maks dus).',
+    'galat_koreksi_tanpa_perubahan' => 'Jumlah yang dimasukkan sama dengan yang sudah tercatat, tidak ada yang dikoreksi.',
+    'mutasi_koreksi' => 'Koreksi jumlah diterima pada pesanan :kode',
 ];
