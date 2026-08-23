@@ -32,10 +32,9 @@
                                     {{ __('pembayaran.sudah_tuntas') }}
                                 </span>
                             @else
-                                <button type="button" wire:click="konfirmasiLunasSemua({{ $k->id }})"
-                                        class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
-                                    {{ __('pembayaran.tombol_lunas_semua') }} ({{ $r['pending'] }})
-                                </button>
+                                <span class="text-xs text-gray-500">
+                                    {{ __('pembayaran.menunggu_keputusan') }} ({{ $r['pending'] }})
+                                </span>
                             @endif
                         </div>
                     </div>
@@ -84,26 +83,81 @@
         </div>
     @endif
 
-    {{-- Konfirmasi ganda --}}
-    @if ($konfirmasi)
-        <x-modal
-            :judul="match ($konfirmasi['jenis']) {
-                'lunas' => __('pembayaran.konfirmasi_lunas_judul'),
-                'belum_lunas' => __('pembayaran.konfirmasi_belum_lunas_judul'),
-                'lunas_semua' => __('pembayaran.konfirmasi_lunas_semua_judul'),
-            }"
-            tutup="batalkanKonfirmasi">
-            <div class="p-5 text-sm text-gray-600">
-                @if ($konfirmasi['jenis'] === 'lunas')
-                    @php $p = \App\Models\Pesanan::find($konfirmasi['pesanan_id']); @endphp
-                    <p>{{ __('pembayaran.konfirmasi_lunas_teks', ['toko' => $p?->toko?->nama, 'nilai' => \App\Support\Bahasa::rupiah($p?->tagihan)]) }}</p>
-                @elseif ($konfirmasi['jenis'] === 'belum_lunas')
-                    @php $p = \App\Models\Pesanan::find($konfirmasi['pesanan_id']); @endphp
-                    <p>{{ __('pembayaran.konfirmasi_belum_lunas_teks', ['toko' => $p?->toko?->nama]) }}</p>
-                @elseif ($konfirmasi['jenis'] === 'lunas_semua')
-                    @php $k = \App\Models\Kendaraan::find($konfirmasi['kendaraan_id']); @endphp
-                    <p>{{ __('pembayaran.konfirmasi_lunas_semua_teks', ['mobil' => $k?->nama]) }}</p>
+    {{-- Konfirmasi lunas: rincian sumber pembayaran --}}
+    @if ($konfirmasi && $konfirmasi['jenis'] === 'lunas')
+        @php $p = $this->pesananKonfirmasi; @endphp
+        <x-modal :judul="__('pembayaran.konfirmasi_lunas_judul')" tutup="batalkanKonfirmasi">
+            <div class="space-y-4 p-5">
+                <p class="text-sm text-gray-600">
+                    {{ __('pembayaran.konfirmasi_lunas_teks', ['toko' => $p?->toko?->nama, 'nilai' => \App\Support\Bahasa::rupiah($p?->tagihan ?? 0)]) }}
+                </p>
+
+                {{-- Titik ribuan cuma tampilan (mis. 1.500.000) — nilai yang
+                     dikirim ke Livewire tetap angka bersih tanpa titik. --}}
+                <div class="grid grid-cols-2 gap-3"
+                     x-data="{
+                        cash: formatRibuan(@js($nominalCash)),
+                        transfer: formatRibuan(@js($nominalTransfer)),
+                        perbaruiCash(e) {
+                            const angka = e.target.value.replace(/\D/g, '');
+                            this.cash = formatRibuan(angka);
+                            $wire.set('nominalCash', angka);
+                        },
+                        perbaruiTransfer(e) {
+                            const angka = e.target.value.replace(/\D/g, '');
+                            this.transfer = formatRibuan(angka);
+                            $wire.set('nominalTransfer', angka);
+                        },
+                     }">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_cash') }}</label>
+                        <input type="text" inputmode="numeric" x-model="cash" @input="perbaruiCash($event)"
+                               placeholder="0"
+                               class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_transfer') }}</label>
+                        <input type="text" inputmode="numeric" x-model="transfer" @input="perbaruiTransfer($event)"
+                               placeholder="0"
+                               class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                @if ($this->selisihNominal === 0.0)
+                    <p class="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800">
+                        {{ __('pembayaran.nominal_pas') }}
+                    </p>
+                @elseif ($this->selisihNominal > 0)
+                    <p class="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
+                        {{ __('pembayaran.nominal_kurang', ['sisa' => \App\Support\Bahasa::rupiah($this->selisihNominal)]) }}
+                    </p>
+                @else
+                    <p class="rounded-lg bg-red-50 p-2.5 text-xs text-red-800">
+                        {{ __('pembayaran.nominal_lebih', ['lebih' => \App\Support\Bahasa::rupiah(abs($this->selisihNominal))]) }}
+                    </p>
                 @endif
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="batalkanKonfirmasi"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.kembali') }}
+                </button>
+                <button type="button" wire:click="proses" wire:loading.attr="disabled"
+                        @disabled($this->selisihNominal !== 0.0)
+                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+                    {{ __('umum.proses') }}
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- Konfirmasi belum lunas: yes/no biasa --}}
+    @if ($konfirmasi && $konfirmasi['jenis'] === 'belum_lunas')
+        @php $p = \App\Models\Pesanan::find($konfirmasi['pesanan_id']); @endphp
+        <x-modal :judul="__('pembayaran.konfirmasi_belum_lunas_judul')" tutup="batalkanKonfirmasi">
+            <div class="p-5 text-sm text-gray-600">
+                <p>{{ __('pembayaran.konfirmasi_belum_lunas_teks', ['toko' => $p?->toko?->nama]) }}</p>
             </div>
 
             <x-slot:aksi>

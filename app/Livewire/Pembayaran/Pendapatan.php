@@ -38,7 +38,10 @@ class Pendapatan extends Component
     public function updated(string $kolom): void
     {
         if (in_array($kolom, ['mode', 'tanggal', 'bulan', 'dariTanggal', 'sampaiTanggal'], true)) {
-            unset($this->pesanans, $this->ringkasanHarian, $this->dataChart, $this->totalKeseluruhan);
+            unset(
+                $this->pesanans, $this->ringkasanHarian, $this->dataChart,
+                $this->totalKeseluruhan, $this->totalCash, $this->totalTransfer,
+            );
             $this->dispatch('pendapatan-diperbarui', data: $this->dataChart);
         }
     }
@@ -71,6 +74,24 @@ class Pendapatan extends Component
     public function totalKeseluruhan(): float
     {
         return $this->ringkasanHarian->sum();
+    }
+
+    /**
+     * Pendapatan menurut sumbernya. `nominal_cash`/`nominal_transfer`
+     * dicatat manual saat admin menandai lunas (lihat PelunasanService),
+     * jadi keduanya selalu berjumlah persis sama dengan tagihan — total
+     * keduanya harus sama dengan totalKeseluruhan().
+     */
+    #[Computed]
+    public function totalCash(): float
+    {
+        return (float) $this->pesanans->sum(fn (Pesanan $p) => (float) $p->nominal_cash);
+    }
+
+    #[Computed]
+    public function totalTransfer(): float
+    {
+        return (float) $this->pesanans->sum(fn (Pesanan $p) => (float) $p->nominal_transfer);
     }
 
     #[Computed]

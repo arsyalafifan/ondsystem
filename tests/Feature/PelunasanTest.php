@@ -3,6 +3,7 @@
 use App\Enums\PeranPengguna;
 use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
+use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
 use App\Models\Kendaraan;
@@ -95,6 +96,12 @@ function kendaraanSelesai(int $jumlah, int $dusPerToko = 20): Kendaraan
     return $kendaraan->fresh();
 }
 
+/** Melunasi satu pesanan penuh sebagai cash, jalan pintas dipakai oleh tes lain yang tidak menguji split-nya sendiri. */
+function lunasiCashPenuh(Pesanan $pesanan, User $admin): void
+{
+    test()->pelunasanService->tandaiLunas($pesanan->fresh(), $admin, (float) $pesanan->fresh()->tagihan, 0);
+}
+
 it('menolak menandai lunas atau belum lunas selain pesanan SELESAI', function () {
     $pesanan = $this->pesananService->buat(
         Toko::create([
@@ -107,41 +114,95 @@ it('menolak menandai lunas atau belum lunas selain pesanan SELESAI', function ()
 
     expect($pesanan->status)->toBe(StatusPesanan::Order);
 
-    expect(fn () => $this->pelunasanService->tandaiLunas($pesanan, $this->admin))
+    expect(fn () => $this->pelunasanService->tandaiLunas($pesanan, $this->admin, 500_000, 0))
         ->toThrow(RuntimeException::class)
         ->and(fn () => $this->pelunasanService->tandaiBelumLunas($pesanan, $this->admin))
         ->toThrow(RuntimeException::class);
 
     $this->pesananService->setujui($pesanan, $this->admin);
-    expect(fn () => $this->pelunasanService->tandaiLunas($pesanan->fresh(), $this->admin))
+    expect(fn () => $this->pelunasanService->tandaiLunas($pesanan->fresh(), $this->admin, 500_000, 0))
         ->toThrow(RuntimeException::class);
 });
 
-it('lunasi sisa kendaraan tidak menimpa toko yang sudah ditandai belum lunas', function () {
-    $kendaraan = kendaraanSelesai(10, dusPerToko: 10);
+describe('rincian sumber pembayaran', function () {
+    it('menerima seluruhnya cash', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
 
-    $pesanans = $kendaraan->stops->map(fn ($s) => $s->pesanan()->first());
-    $dipilihBelumLunas = $pesanans->first();
+        $this->pelunasanService->tandaiLunas($pesanan, $this->admin, $tagihan, 0);
 
-    $this->pelunasanService->tandaiBelumLunas($dipilihBelumLunas, $this->admin);
+        $segar = $pesanan->fresh();
+        expect($segar->status_bayar)->toBe(StatusBayar::Lunas)
+            ->and((float) $segar->nominal_cash)->toBe($tagihan)
+            ->and((float) $segar->nominal_transfer)->toBe(0.0);
+    });
 
-    $jumlah = $this->pelunasanService->lunasiSisaKendaraan($kendaraan, $this->admin);
+    it('menerima seluruhnya transfer', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
 
-    expect($jumlah)->toBe(9)
-        ->and($dipilihBelumLunas->fresh()->status_bayar)->toBe(StatusBayar::BelumLunas);
+        $this->pelunasanService->tandaiLunas($pesanan, $this->admin, 0, $tagihan);
 
-    $sisanya = $pesanans->skip(1);
-    expect($sisanya->every(fn (Pesanan $p) => $p->fresh()->status_bayar === StatusBayar::Lunas))->toBeTrue();
-});
+        $segar = $pesanan->fresh();
+        expect((float) $segar->nominal_cash)->toBe(0.0)
+            ->and((float) $segar->nominal_transfer)->toBe($tagihan);
+    });
 
-it('lunasiSisaKendaraan pada kendaraan tanpa pesanan yang layak mengembalikan nol', function () {
-    $kendaraan = kendaraanSelesai(2, dusPerToko: 10);
+    it('menerima campuran cash dan transfer asalkan jumlahnya pas', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
 
-    foreach ($kendaraan->stops as $stop) {
-        $this->pelunasanService->tandaiLunas($stop->pesanan()->first(), $this->admin);
-    }
+        $this->pelunasanService->tandaiLunas($pesanan, $this->admin, $tagihan - 50_000, 50_000);
 
-    expect($this->pelunasanService->lunasiSisaKendaraan($kendaraan, $this->admin))->toBe(0);
+        $segar = $pesanan->fresh();
+        expect((float) $segar->nominal_cash)->toBe($tagihan - 50_000)
+            ->and((float) $segar->nominal_transfer)->toBe(50_000.0);
+    });
+
+    it('menolak jumlah yang kurang dari tagihan', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
+
+        expect(fn () => $this->pelunasanService->tandaiLunas($pesanan, $this->admin, $tagihan - 50_000, 0))
+            ->toThrow(RuntimeException::class);
+
+        expect($pesanan->fresh()->status_bayar)->toBe(StatusBayar::Pending);
+    });
+
+    it('menolak jumlah yang melebihi tagihan', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
+
+        expect(fn () => $this->pelunasanService->tandaiLunas($pesanan, $this->admin, $tagihan + 10_000, 0))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('menolak nominal negatif', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
+
+        expect(fn () => $this->pelunasanService->tandaiLunas($pesanan, $this->admin, $tagihan + 10_000, -10_000))
+            ->toThrow(RuntimeException::class);
+    });
+
+    it('mengosongkan rincian sumber saat ditandai belum lunas lagi', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+
+        lunasiCashPenuh($pesanan, $this->admin);
+        $this->pelunasanService->tandaiBelumLunas($pesanan->fresh(), $this->admin);
+
+        $segar = $pesanan->fresh();
+        expect($segar->status_bayar)->toBe(StatusBayar::BelumLunas)
+            ->and($segar->nominal_cash)->toBeNull()
+            ->and($segar->nominal_transfer)->toBeNull();
+    });
 });
 
 it('pendapatan mengikuti tanggal pelunasan, bukan tanggal pengiriman', function () {
@@ -154,7 +215,7 @@ it('pendapatan mengikuti tanggal pelunasan, bukan tanggal pengiriman', function 
 
     $this->travelTo(now()->addWeek());
 
-    $this->pelunasanService->tandaiLunas($pesanan->fresh(), $this->admin);
+    lunasiCashPenuh($pesanan, $this->admin);
 
     $segar = $pesanan->fresh();
 
@@ -206,30 +267,138 @@ it('menolak sales dan driver mengakses menu pembayaran', function () {
     $this->actingAs($this->driver)->get(route('pembayaran.pelunasan'))->assertForbidden();
 });
 
-it('bisa lunas semua lalu muncul di pendapatan hari ini lewat layar sungguhan', function () {
-    $kendaraan = kendaraanSelesai(3, dusPerToko: 10);
+describe('layar Pelunasan', function () {
+    it('mengunci tombol Proses selama cash+transfer belum pas dengan tagihan', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
 
-    Livewire::actingAs($this->admin)
-        ->test(Pelunasan::class)
-        ->call('konfirmasiLunasSemua', $kendaraan->id)
-        ->call('proses');
+        Livewire::actingAs($this->admin)
+            ->test(Pelunasan::class)
+            ->call('konfirmasiLunas', $pesanan->id)
+            ->assertSet('selisihNominal', $tagihan)
+            ->set('nominalCash', $tagihan - 10_000)
+            ->assertSet('selisihNominal', 10_000.0)
+            ->set('nominalTransfer', 10_000)
+            ->assertSet('selisihNominal', 0.0);
+    });
 
-    expect(Pesanan::where('status_bayar', StatusBayar::Lunas)->count())->toBe(3);
+    it('menyimpan pelunasan dengan rincian cash dan transfer lewat layar sungguhan', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
 
-    Livewire::actingAs($this->admin)
-        ->test(Pendapatan::class)
-        ->assertSee(Bahasa::rupiah(3 * 10 * 50_000));
+        Livewire::actingAs($this->admin)
+            ->test(Pelunasan::class)
+            ->call('konfirmasiLunas', $pesanan->id)
+            ->set('nominalCash', $tagihan - 20_000)
+            ->set('nominalTransfer', 20_000)
+            ->call('proses')
+            ->assertHasNoErrors();
+
+        $segar = $pesanan->fresh();
+        expect($segar->status_bayar)->toBe(StatusBayar::Lunas)
+            ->and((float) $segar->nominal_cash)->toBe($tagihan - 20_000)
+            ->and((float) $segar->nominal_transfer)->toBe(20_000.0);
+    });
+
+    it('menolak proses lewat layar kalau jumlahnya belum pas, tanpa mengubah status', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
+
+        Livewire::actingAs($this->admin)
+            ->test(Pelunasan::class)
+            ->call('konfirmasiLunas', $pesanan->id)
+            ->set('nominalCash', $tagihan - 10_000)
+            ->call('proses')
+            ->assertDispatched('notifikasi');
+
+        expect($pesanan->fresh()->status_bayar)->toBe(StatusBayar::Pending);
+    });
+
+    it('mengosongkan isian setiap kali modal lunas dibuka ulang', function () {
+        $kendaraan = kendaraanSelesai(2, dusPerToko: 10);
+        $pesanan1 = $kendaraan->stops[0]->pesanan()->first();
+        $pesanan2 = $kendaraan->stops[1]->pesanan()->first();
+
+        Livewire::actingAs($this->admin)
+            ->test(Pelunasan::class)
+            ->call('konfirmasiLunas', $pesanan1->id)
+            ->set('nominalCash', 12_345)
+            ->call('konfirmasiLunas', $pesanan2->id)
+            ->assertSet('nominalCash', '')
+            ->assertSet('nominalTransfer', '');
+    });
+
+    it('superadmin juga bisa memproses pelunasan, tidak ditolak oleh guard isAdmin', function () {
+        $superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $tagihan = (float) $pesanan->tagihan;
+
+        Livewire::actingAs($superadmin)
+            ->test(Pelunasan::class)
+            ->call('konfirmasiLunas', $pesanan->id)
+            ->set('nominalCash', $tagihan)
+            ->call('proses')
+            ->assertHasNoErrors();
+
+        expect($pesanan->fresh()->status_bayar)->toBe(StatusBayar::Lunas);
+    });
 });
 
-it('superadmin juga bisa memproses pelunasan, tidak ditolak oleh guard isAdmin', function () {
-    $superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
-    $kendaraan = kendaraanSelesai(2, dusPerToko: 10);
+describe('layar Belum Lunas', function () {
+    it('menyimpan pelunasan dengan rincian cash dan transfer', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $this->pelunasanService->tandaiBelumLunas($pesanan, $this->admin);
+        $tagihan = (float) $pesanan->fresh()->tagihan;
 
-    Livewire::actingAs($superadmin)
-        ->test(Pelunasan::class)
-        ->call('konfirmasiLunasSemua', $kendaraan->id)
-        ->call('proses')
-        ->assertHasNoErrors();
+        Livewire::actingAs($this->admin)
+            ->test(BelumLunas::class)
+            ->call('konfirmasi', $pesanan->id)
+            ->set('nominalCash', $tagihan)
+            ->call('tandaiLunas')
+            ->assertHasNoErrors();
 
-    expect(Pesanan::where('status_bayar', StatusBayar::Lunas)->count())->toBe(2);
+        $segar = $pesanan->fresh();
+        expect($segar->status_bayar)->toBe(StatusBayar::Lunas)
+            ->and((float) $segar->nominal_cash)->toBe($tagihan);
+    });
+
+    it('menolak tandaiLunas kalau jumlahnya belum pas', function () {
+        $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
+        $pesanan = $kendaraan->stops->first()->pesanan()->first();
+        $this->pelunasanService->tandaiBelumLunas($pesanan, $this->admin);
+
+        Livewire::actingAs($this->admin)
+            ->test(BelumLunas::class)
+            ->call('konfirmasi', $pesanan->id)
+            ->set('nominalCash', 1_000)
+            ->call('tandaiLunas')
+            ->assertDispatched('notifikasi');
+
+        expect($pesanan->fresh()->status_bayar)->toBe(StatusBayar::BelumLunas);
+    });
+});
+
+describe('rekap cash/transfer di layar Pendapatan', function () {
+    it('menjumlahkan pendapatan menurut sumbernya', function () {
+        $kendaraan = kendaraanSelesai(2, dusPerToko: 10);
+        $pesanan1 = $kendaraan->stops[0]->pesanan()->first();
+        $pesanan2 = $kendaraan->stops[1]->pesanan()->first();
+        $tagihan1 = (float) $pesanan1->tagihan;
+        $tagihan2 = (float) $pesanan2->tagihan;
+
+        $this->pelunasanService->tandaiLunas($pesanan1, $this->admin, $tagihan1, 0);
+        $this->pelunasanService->tandaiLunas($pesanan2, $this->admin, 0, $tagihan2);
+
+        Livewire::actingAs($this->admin)
+            ->test(Pendapatan::class)
+            ->assertSet('totalCash', $tagihan1)
+            ->assertSet('totalTransfer', $tagihan2)
+            ->assertSee(Bahasa::rupiah($tagihan1))
+            ->assertSee(Bahasa::rupiah($tagihan2));
+    });
 });
