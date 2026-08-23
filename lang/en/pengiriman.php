@@ -44,4 +44,8 @@ return [
     'galat_kampas_melebihi' => 'Only :tersedia boxes of :produk remain, not enough for :diminta.',
     'lewat_jatah' => 'Max :jumlah boxes for :produk.',
     'ada_lewat_jatah' => 'Some entries exceed the available quota. Fix them before saving.',
+    'galat_koreksi_bukan_selesai' => 'Order :kode is not yet Completed — this correction only applies to finished orders.',
+    'galat_koreksi_melebihi' => 'The amount for :produk cannot exceed the original order (max :maks boxes).',
+    'galat_koreksi_tanpa_perubahan' => 'The entered amount matches what is already recorded — nothing to correct.',
+    'mutasi_koreksi' => 'Correction of received amount on order :kode',
 ];

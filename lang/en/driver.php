@@ -25,8 +25,8 @@ return [
     'lihat_foto_nota' => 'View delivery note',
     'rincian_barang' => 'Item details',
     'selesai_pukul' => 'Done at :waktu',
-    'judul_unggah' => 'Upload Delivery Note — :toko',
-    'ket_unggah' => 'Take a photo of the delivery note as proof the store received the goods. Once saved, the order becomes COMPLETED and can no longer be cancelled.',
+    'judul_konfirmasi' => 'Confirm Receipt — :toko',
+    'ket_konfirmasi' => 'Before uploading the delivery note, confirm the actual quantity of each product the store received — it starts filled with the full ordered amount, just reduce whatever was not taken. Once saved, the order becomes COMPLETED and can no longer be cancelled.',
     'label_foto' => 'Delivery note photo',
     'catatan_contoh' => 'For example: received by Mr Budi',
     'simpan_selesaikan' => 'Save & Complete',
@@ -34,4 +34,7 @@ return [
     'foto_harus_gambar' => 'The file must be an image.',
     'foto_maks' => 'The photo may be at most 5 MB.',
     'notif_selesai' => 'Delivery to :toko complete. Order :kode is now COMPLETED.',
+    'ket_sisa_kampas' => ':dus boxes not taken will become kampas quota for another store.',
+    'galat_belum_tercek' => 'Check every product row first to confirm it has been reviewed.',
+    'kolom_cek' => 'Check',
 ];

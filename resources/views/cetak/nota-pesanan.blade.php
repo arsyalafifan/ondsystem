@@ -298,16 +298,26 @@
                 <th class="num">Total Harga</th>
             </tr>
         </thead>
+        @php
+            // Baris yang toko sama sekali tidak ambil (terkirim = 0) tidak
+            // dicetak — item-nya tetap tersimpan apa adanya di basis data,
+            // hanya tidak muncul di faktur supaya tidak terlihat seperti
+            // ikut ditagihkan. Kalau pesanannya kurang_kirim, qty dan total
+            // memakai jumlah yang benar-benar diterima, bukan pesanan semula.
+            $itemDicetak = $pesanan->items->filter(fn ($i) => $i->terkirim > 0)->values();
+            $totalDusDicetak = $itemDicetak->sum(fn ($i) => $i->terkirim);
+            $totalNilaiDicetak = (float) $pesanan->tagihan;
+        @endphp
         <tbody>
-            @foreach ($pesanan->items as $i => $item)
+            @foreach ($itemDicetak as $i => $item)
                 <tr>
                     <td>{{ $i + 1 }}</td>
                     <td>{{ $item->produk->nama }}</td>
-                    <td class="num">{{ number_format($item->jumlah_dus, 0, ',', '.') }}</td>
+                    <td class="num">{{ number_format($item->terkirim, 0, ',', '.') }}</td>
                     <td>DUS</td>
                     <td class="num">{{ number_format((float) $item->harga_satuan, 0, ',', '.') }}</td>
                     <td class="num">0</td>
-                    <td class="num">{{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
+                    <td class="num">{{ number_format($item->terkirim * (float) $item->harga_satuan, 0, ',', '.') }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -315,11 +325,11 @@
             {{-- Satu-satunya garis di footer, memisahkan barang dari ringkasan. --}}
             <tr class="garis"><td colspan="7"></td></tr>
             <tr class="terbilang">
-                <td colspan="2">Terbilang <em>{{ \App\Support\Terbilang::rupiah((float) $pesanan->total_nilai) }}</em></td>
-                <td class="num"><strong>{{ number_format($pesanan->total_dus, 0, ',', '.') }}</strong></td>
+                <td colspan="2">Terbilang <em>{{ \App\Support\Terbilang::rupiah($totalNilaiDicetak) }}</em></td>
+                <td class="num"><strong>{{ number_format($totalDusDicetak, 0, ',', '.') }}</strong></td>
                 <td></td>
                 <td colspan="2" class="label-kanan">Sub Total</td>
-                <td class="num">: {{ number_format((float) $pesanan->total_nilai, 0, ',', '.') }}</td>
+                <td class="num">: {{ number_format($totalNilaiDicetak, 0, ',', '.') }}</td>
             </tr>
             <tr>
                 <td colspan="2">Keterangan{{ $pesanan->catatan ? ": {$pesanan->catatan}" : '' }}</td>
@@ -333,7 +343,7 @@
                 <td></td>
                 <td></td>
                 <td colspan="2" class="label-kanan"><strong>Total Invoice</strong></td>
-                <td class="num"><strong>: {{ number_format((float) $pesanan->total_nilai, 0, ',', '.') }}</strong></td>
+                <td class="num"><strong>: {{ number_format($totalNilaiDicetak, 0, ',', '.') }}</strong></td>
             </tr>
             <tr>
                 <td colspan="4"></td>

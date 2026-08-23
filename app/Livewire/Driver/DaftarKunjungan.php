@@ -21,17 +21,19 @@ use RuntimeException;
  * Layar kerja driver di lapangan: daftar toko sesuai urutan kunjungan,
  * tombol navigasi ke peta ponsel, dan pengunggahan foto nota.
  *
- * Foto nota adalah bukti serah terima. Begitu terunggah, pesanan otomatis
- * berubah menjadi SELESAI dan stok gudang dipotong.
+ * Foto nota adalah bukti serah terima, tapi mengunggahnya tidak pernah
+ * langsung menuntaskan pesanan begitu saja: driver wajib mencentang/mengisi
+ * dulu jumlah dus yang BENAR-BENAR diambil toko untuk tiap produk (bawaannya
+ * jumlah pesanan penuh, tinggal dikurangi kalau ada yang tidak diambil).
+ * Ini yang mencegah kasus "toko cuma ambil sebagian tapi driver lupa
+ * mengoreksi, jadi seluruhnya tercatat terjual" — sisa yang tidak diambil
+ * otomatis jadi jatah kampas, bukan hilang begitu saja dari catatan.
  */
 class DaftarKunjungan extends Component
 {
     use WithFileUploads;
 
     public Kendaraan $kendaraan;
-
-    /** Kunjungan yang sedang diunggah notanya. */
-    public ?int $stopAktif = null;
 
     public $fotoNota;
 
@@ -44,11 +46,21 @@ class DaftarKunjungan extends Component
 
     public string $catatanBatal = '';
 
-    // --- Coret nota ---
-    public ?int $stopDicoret = null;
+    // --- Konfirmasi penerimaan & unggah nota ---
+    public ?int $stopKonfirmasi = null;
 
-    /** @var array<int, int|string> jumlah diterima, dikunci pada id item pesanan */
-    public array $jumlahCoret = [];
+    /** @var array<int, int|string> jumlah yang BENAR-BENAR diambil toko, dikunci pada id item pesanan */
+    public array $jumlahKonfirmasi = [];
+
+    /**
+     * Ceklis "sudah saya periksa" per baris produk, dikunci pada id item
+     * pesanan. Ini penjaga di sisi tampilan saja — memaksa driver benar-benar
+     * melihat tiap baris satu per satu, bukan sekadar membiarkan angka
+     * bawaan lewat begitu saja tanpa dilihat.
+     *
+     * @var array<int, bool>
+     */
+    public array $dicekKonfirmasi = [];
 
     // --- Kampas ---
     public bool $kampasTerbuka = false;
@@ -122,11 +134,11 @@ class DaftarKunjungan extends Component
     }
 
     #[Computed]
-    public function stopDicoretModel(): ?KendaraanStop
+    public function stopKonfirmasiModel(): ?KendaraanStop
     {
-        return $this->stopDicoret === null
+        return $this->stopKonfirmasi === null
             ? null
-            : KendaraanStop::with('pesanan.items.produk:id,nama', 'toko:id,nama')->find($this->stopDicoret);
+            : KendaraanStop::with('pesanan.items.produk:id,nama', 'toko:id,nama')->find($this->stopKonfirmasi);
     }
 
     #[Computed]
@@ -199,58 +211,6 @@ class DaftarKunjungan extends Component
         ];
     }
 
-    public function bukaUnggah(int $stopId): void
-    {
-        $this->stopAktif = $stopId;
-        $this->fotoNota = null;
-        $this->catatanDriver = '';
-        $this->resetValidation();
-    }
-
-    public function tutupUnggah(): void
-    {
-        $this->reset(['stopAktif', 'fotoNota', 'catatanDriver']);
-    }
-
-    public function kirimNota(PesananService $service): void
-    {
-        $this->validate([
-            'fotoNota' => 'required|image|max:5120',
-        ], [
-            'fotoNota.required' => __('driver.foto_wajib'),
-            'fotoNota.image' => __('driver.foto_harus_gambar'),
-            'fotoNota.max' => __('driver.foto_maks'),
-        ]);
-
-        $stop = KendaraanStop::with('pesanan', 'toko')->findOrFail($this->stopAktif);
-
-        if ($stop->kendaraan_id !== $this->kendaraan->id) {
-            abort(403);
-        }
-
-        $path = $this->fotoNota->store("nota/{$this->kendaraan->batch->tanggal->format('Y-m-d')}", 'public');
-
-        try {
-            $service->selesaikanPengiriman($stop, $path, auth()->user(), $this->catatanDriver ?: null);
-        } catch (RuntimeException $e) {
-            // Foto yang terlanjur tersimpan dibuang agar tidak menumpuk.
-            Storage::disk('public')->delete($path);
-
-            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
-
-            return;
-        }
-
-        $this->tutupUnggah();
-        $this->kendaraan->refresh();
-        unset($this->stops, $this->progres, $this->berikutnya);
-
-        $this->dispatch('notifikasi', pesan: __('driver.notif_selesai', [
-            'toko' => $stop->toko->nama,
-            'kode' => $stop->pesanan->kode,
-        ]));
-    }
-
     // ------------------------------------------------------------------
     // Membatalkan toko
     // ------------------------------------------------------------------
@@ -290,40 +250,72 @@ class DaftarKunjungan extends Component
     }
 
     // ------------------------------------------------------------------
-    // Coret nota
+    // Konfirmasi penerimaan & unggah nota
     // ------------------------------------------------------------------
 
-    public function bukaCoret(int $stopId): void
+    public function bukaKonfirmasi(int $stopId): void
     {
         $stop = $this->stopMilikMobil($stopId);
         $stop->loadMissing('pesanan.items');
 
-        $this->stopDicoret = $stopId;
+        $this->stopKonfirmasi = $stopId;
         $this->fotoNota = null;
         $this->catatanDriver = '';
 
         // Diisi jumlah pesanan semula, jadi driver tinggal mengurangi baris
-        // yang memang tidak jadi diterima toko.
-        $this->jumlahCoret = $stop->pesanan->items
+        // yang memang tidak jadi diambil toko. Kalau semuanya dibiarkan apa
+        // adanya, hasilnya sama dengan pengiriman penuh — tidak ada langkah
+        // terpisah lagi untuk itu.
+        $this->jumlahKonfirmasi = $stop->pesanan->items
             ->mapWithKeys(fn ($item) => [$item->id => $item->jumlah_dus])
+            ->all();
+
+        // Ceklisnya selalu kosong setiap kali modal dibuka — supaya driver
+        // wajib melihat ulang tiap baris, bukan sekadar mewarisi ceklis dari
+        // toko sebelumnya.
+        $this->dicekKonfirmasi = $stop->pesanan->items
+            ->mapWithKeys(fn ($item) => [$item->id => false])
             ->all();
 
         $this->resetValidation();
     }
 
-    public function tutupCoret(): void
+    public function tutupKonfirmasi(): void
     {
-        $this->reset(['stopDicoret', 'jumlahCoret', 'fotoNota', 'catatanDriver']);
+        $this->reset(['stopKonfirmasi', 'jumlahKonfirmasi', 'dicekKonfirmasi', 'fotoNota', 'catatanDriver']);
     }
 
     #[Computed]
-    public function totalCoret(): int
+    public function totalKonfirmasi(): int
     {
-        return (int) array_sum(array_map('intval', $this->jumlahCoret));
+        return (int) array_sum(array_map('intval', $this->jumlahKonfirmasi));
     }
 
-    public function simpanCoret(PengirimanService $service): void
+    /** Benar hanya kalau setiap baris produk sudah dicentang driver. */
+    #[Computed]
+    public function semuaTercekKonfirmasi(): bool
     {
+        return $this->dicekKonfirmasi !== []
+            && ! in_array(false, $this->dicekKonfirmasi, true);
+    }
+
+    /**
+     * Menyimpan konfirmasi penerimaan sekaligus mengunggah nota.
+     *
+     * Kalau seluruh jumlah dibiarkan penuh (sama seperti pesanan semula),
+     * ini setara pengiriman penuh biasa. Begitu ada satu saja yang dikurangi,
+     * jalurnya sama dengan "coret nota": yang diterima dicatat apa adanya,
+     * sisanya jadi jatah kampas — pesanan tidak pernah dianggap terjual penuh
+     * hanya karena notanya terunggah.
+     */
+    public function simpanKonfirmasi(PesananService $pesananService, PengirimanService $pengirimanService): void
+    {
+        if (! $this->semuaTercekKonfirmasi) {
+            $this->dispatch('notifikasi', pesan: __('driver.galat_belum_tercek'), jenis: 'error');
+
+            return;
+        }
+
         $this->validate([
             'fotoNota' => 'required|image|max:5120',
         ], [
@@ -332,17 +324,22 @@ class DaftarKunjungan extends Component
             'fotoNota.max' => __('driver.foto_maks'),
         ]);
 
-        $stop = $this->stopMilikMobil($this->stopDicoret);
+        $stop = $this->stopMilikMobil($this->stopKonfirmasi);
+        $jumlah = array_map('intval', $this->jumlahKonfirmasi);
         $path = $this->fotoNota->store($this->folderNota(), 'public');
 
         try {
-            $service->coretNota(
-                stop: $stop,
-                jumlahTerkirim: array_map('intval', $this->jumlahCoret),
-                pathFotoNota: $path,
-                driver: auth()->user(),
-                catatan: $this->catatanDriver ?: null,
-            );
+            if (array_sum($jumlah) === $stop->total_dus) {
+                $pesananService->selesaikanPengiriman($stop, $path, auth()->user(), $this->catatanDriver ?: null);
+            } else {
+                $pengirimanService->coretNota(
+                    stop: $stop,
+                    jumlahTerkirim: $jumlah,
+                    pathFotoNota: $path,
+                    driver: auth()->user(),
+                    catatan: $this->catatanDriver ?: null,
+                );
+            }
         } catch (RuntimeException $e) {
             Storage::disk('public')->delete($path);
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
@@ -351,10 +348,11 @@ class DaftarKunjungan extends Component
         }
 
         $nama = $stop->toko->nama;
-        $this->tutupCoret();
+        $kode = $stop->pesanan->kode;
+        $this->tutupKonfirmasi();
         $this->segarkan();
 
-        $this->dispatch('notifikasi', pesan: __('pengiriman.notif_coret', ['toko' => $nama]));
+        $this->dispatch('notifikasi', pesan: __('driver.notif_selesai', ['toko' => $nama, 'kode' => $kode]));
     }
 
     // ------------------------------------------------------------------
@@ -560,7 +558,7 @@ class DaftarKunjungan extends Component
 
         unset(
             $this->stops, $this->progres, $this->berikutnya,
-            $this->jatahKampas, $this->totalJatahKampas, $this->kampasMelebihiJatah, $this->stopDicoretModel,
+            $this->jatahKampas, $this->totalJatahKampas, $this->kampasMelebihiJatah, $this->stopKonfirmasiModel,
         );
     }
 

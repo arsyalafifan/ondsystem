@@ -44,4 +44,8 @@ return [
     'galat_kampas_melebihi' => ':produk 僅剩 :tersedia 箱，不足 :diminta 箱。',
     'lewat_jatah' => ':produk 最多 :jumlah 箱。',
     'ada_lewat_jatah' => '有填寫超出可分配數量，請修改後再儲存。',
+    'galat_koreksi_bukan_selesai' => '訂單 :kode 尚未完成，此更正僅適用於已完成的訂單。',
+    'galat_koreksi_melebihi' => ':produk 的數量不能超過原訂單（最多 :maks 箱）。',
+    'galat_koreksi_tanpa_perubahan' => '輸入的數量與已記錄的相同，沒有需要更正的內容。',
+    'mutasi_koreksi' => '更正訂單 :kode 的實收數量',
 ];

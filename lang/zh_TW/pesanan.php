@@ -91,4 +91,5 @@ return [
     'toko_tanpa_wilayah' => '尚無區域',
     'galat_hapus_sudah_dirutekan' => '訂單 :kode 已經進入配送路線，無法刪除。',
     'galat_link_cetak_sudah_dipakai' => '此列印連結已被使用或已過期。請重新載入頁面以再次列印。',
+    'ket_kurang_kirim' => '此訂單中的部分商品未被店鋪領取。下方清單與總額已按實際收貨數量調整。',
 ];

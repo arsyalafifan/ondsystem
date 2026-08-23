@@ -70,7 +70,7 @@
                         {{ __('driver.navigasi_ke_sini') }}
                     </a>
                 @endif
-                <button type="button" wire:click="bukaUnggah({{ $this->berikutnya->id }})"
+                <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
                         class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
                     {{ __('driver.upload_nota') }}
                 </button>
@@ -184,13 +184,9 @@
                         @endif
 
                         @if ($stop->status === \App\Enums\StatusStop::Pending)
-                            <button type="button" wire:click="bukaUnggah({{ $stop->id }})"
+                            <button type="button" wire:click="bukaKonfirmasi({{ $stop->id }})"
                                     title="{{ __('driver.upload_nota') }}"
                                     class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm text-white hover:bg-blue-700"><x-heroicon-o-camera class="size-4 inline" /></button>
-
-                            <button type="button" wire:click="bukaCoret({{ $stop->id }})"
-                                    title="{{ __('pengiriman.aksi_coret') }}"
-                                    class="rounded-lg border border-orange-300 bg-white px-2.5 py-1.5 text-sm text-orange-700 hover:bg-orange-50"><x-heroicon-o-scissors class="size-4 inline" /></button>
 
                             <button type="button" wire:click="bukaBatal({{ $stop->id }})"
                                     title="{{ __('pengiriman.aksi_batalkan') }}"
@@ -201,46 +197,6 @@
             </div>
         @endforeach
     </div>
-
-    {{-- ============ Unggah foto nota (pengiriman penuh) ============ --}}
-    @if ($stopAktif)
-        @php $stop = $this->stops->firstWhere('id', $stopAktif); @endphp
-        <x-modal :judul="__('driver.judul_unggah', ['toko' => $stop?->toko->nama])" tutup="tutupUnggah">
-            <div class="space-y-4 p-5">
-                <p class="text-sm text-gray-600">{{ __('driver.ket_unggah') }}</p>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('driver.label_foto') }}</label>
-                    <input type="file" wire:model="fotoNota" accept="image/*" capture="environment"
-                           class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
-                    @error('fotoNota') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-
-                    <div wire:loading wire:target="fotoNota" class="mt-2 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
-
-                    @if ($fotoNota)
-                        <img src="{{ $fotoNota->temporaryUrl() }}" alt="{{ __('driver.label_foto') }}"
-                             class="mt-3 max-h-56 rounded-lg border border-gray-200">
-                    @endif
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('umum.catatan_opsional') }}</label>
-                    <textarea wire:model="catatanDriver" rows="2" placeholder="{{ __('driver.catatan_contoh') }}"
-                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
-                </div>
-            </div>
-
-            <x-slot:aksi>
-                <button type="button" wire:click="tutupUnggah"
-                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
-                <button type="button" wire:click="kirimNota" wire:loading.attr="disabled" wire:target="kirimNota,fotoNota"
-                        class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-                    <span wire:loading.remove wire:target="kirimNota">{{ __('driver.simpan_selesaikan') }}</span>
-                    <span wire:loading wire:target="kirimNota">{{ __('umum.menyimpan') }}</span>
-                </button>
-            </x-slot:aksi>
-        </x-modal>
-    @endif
 
     {{-- ============ Batalkan toko ============ --}}
     @if ($stopDibatalkan)
@@ -281,30 +237,37 @@
         </x-modal>
     @endif
 
-    {{-- ============ Coret nota ============ --}}
-    @if ($this->stopDicoretModel)
-        @php $sc = $this->stopDicoretModel; @endphp
-        <x-modal :judul="__('pengiriman.judul_coret', ['toko' => $sc->toko->nama])" lebar="max-w-xl" tutup="tutupCoret">
+    {{-- ============ Konfirmasi penerimaan & unggah nota ============ --}}
+    @if ($this->stopKonfirmasiModel)
+        @php $sk = $this->stopKonfirmasiModel; @endphp
+        <x-modal :judul="__('driver.judul_konfirmasi', ['toko' => $sk->toko->nama])" lebar="max-w-xl" tutup="tutupKonfirmasi">
             <div class="space-y-4 p-5">
-                <p class="text-sm text-gray-600">{{ __('pengiriman.ket_coret') }}</p>
+                <p class="text-sm text-gray-600">{{ __('driver.ket_konfirmasi') }}</p>
 
                 <div class="overflow-hidden rounded-lg border border-gray-200">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                             <tr>
+                                <th class="w-10 px-3 py-2 font-medium"><span class="sr-only">{{ __('driver.kolom_cek') }}</span></th>
                                 <th class="px-3 py-2 font-medium">{{ __('umum.produk') }}</th>
                                 <th class="w-24 px-3 py-2 text-right font-medium">{{ __('pengiriman.dipesan') }}</th>
                                 <th class="w-28 px-3 py-2 font-medium">{{ __('pengiriman.diterima') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            @foreach ($sc->pesanan->items as $item)
-                                <tr>
+                            @foreach ($sk->pesanan->items as $item)
+                                @php $kurang = (int) ($jumlahKonfirmasi[$item->id] ?? $item->jumlah_dus) < $item->jumlah_dus; @endphp
+                                <tr @class(['bg-amber-50' => $kurang])>
+                                    <td class="px-3 py-2">
+                                        <input type="checkbox" wire:model.live="dicekKonfirmasi.{{ $item->id }}"
+                                               aria-label="{{ __('driver.kolom_cek') }}"
+                                               class="size-5 rounded text-emerald-600 focus:ring-emerald-500">
+                                    </td>
                                     <td class="px-3 py-2">{{ $item->produk->nama }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums text-gray-500">@angka($item->jumlah_dus)</td>
                                     <td class="px-3 py-2">
                                         <input type="number" min="0" max="{{ $item->jumlah_dus }}"
-                                               wire:model.live="jumlahCoret.{{ $item->id }}"
+                                               wire:model.live="jumlahKonfirmasi.{{ $item->id }}"
                                                class="block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     </td>
                                 </tr>
@@ -312,13 +275,26 @@
                         </tbody>
                         <tfoot class="bg-gray-50 text-sm font-medium">
                             <tr>
+                                <td class="px-3 py-2"></td>
                                 <td class="px-3 py-2 text-right">{{ __('pengiriman.total_diterima') }}</td>
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-500">@angka($sc->total_dus)</td>
-                                <td class="px-3 py-2 tabular-nums">@angka($this->totalCoret)</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-gray-500">@angka($sk->total_dus)</td>
+                                <td class="px-3 py-2 tabular-nums">@angka($this->totalKonfirmasi)</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+
+                @if (! $this->semuaTercekKonfirmasi)
+                    <p class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+                        {{ __('driver.galat_belum_tercek') }}
+                    </p>
+                @endif
+
+                @if ($this->totalKonfirmasi < $sk->total_dus)
+                    <p class="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                        {{ __('driver.ket_sisa_kampas', ['dus' => \App\Support\Bahasa::angka($sk->total_dus - $this->totalKonfirmasi)]) }}
+                    </p>
+                @endif
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('driver.label_foto') }}</label>
@@ -326,22 +302,28 @@
                            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
                     @error('fotoNota') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     <div wire:loading wire:target="fotoNota" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
+
+                    @if ($fotoNota)
+                        <img src="{{ $fotoNota->temporaryUrl() }}" alt="{{ __('driver.label_foto') }}"
+                             class="mt-3 max-h-56 rounded-lg border border-gray-200">
+                    @endif
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.catatan_opsional') }}</label>
-                    <textarea wire:model="catatanDriver" rows="2"
+                    <textarea wire:model="catatanDriver" rows="2" placeholder="{{ __('driver.catatan_contoh') }}"
                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
                 </div>
             </div>
 
             <x-slot:aksi>
-                <button type="button" wire:click="tutupCoret"
+                <button type="button" wire:click="tutupKonfirmasi"
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
-                <button type="button" wire:click="simpanCoret" wire:loading.attr="disabled" wire:target="simpanCoret,fotoNota"
-                        class="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60">
-                    <span wire:loading.remove wire:target="simpanCoret">{{ __('pengiriman.simpan_coret') }}</span>
-                    <span wire:loading wire:target="simpanCoret">{{ __('umum.menyimpan') }}</span>
+                <button type="button" wire:click="simpanKonfirmasi" wire:loading.attr="disabled" wire:target="simpanKonfirmasi,fotoNota"
+                        @disabled(! $this->semuaTercekKonfirmasi)
+                        class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+                    <span wire:loading.remove wire:target="simpanKonfirmasi">{{ __('driver.simpan_selesaikan') }}</span>
+                    <span wire:loading wire:target="simpanKonfirmasi">{{ __('umum.menyimpan') }}</span>
                 </button>
             </x-slot:aksi>
         </x-modal>

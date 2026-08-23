@@ -8,6 +8,7 @@ use App\Enums\StatusStop;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
+use App\Models\PesananItem;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
@@ -431,6 +432,77 @@ class PengirimanService
             'keterangan' => __('pesanan.mutasi_keluar', ['kode' => $pesanan->kode]),
             'user_id' => $user->id,
         ]);
+    }
+
+    /**
+     * Mengoreksi jumlah yang benar-benar diterima toko pada pesanan yang
+     * SUDAH terlanjur SELESAI lewat unggah nota penuh — kasus driver salah
+     * pencet: toko sebenarnya tidak mengambil semua barang, tapi driver
+     * mengunggah nota lewat jalur pengiriman penuh (bukan coret nota),
+     * sehingga seluruh isi pesanan tercatat terkirim dan stoknya sudah
+     * terlanjur keluar penuh dari gudang.
+     *
+     * Beda dengan coretNota() yang berjalan SEBELUM stop ditutup, method ini
+     * mengoreksi SESUDAHNYA: stok fisik yang sudah kadung keluar dikembalikan
+     * sebesar selisihnya, dan pesanan ditandai kurang_kirim supaya Pelunasan
+     * otomatis menagih sesuai yang benar-benar diterima (lihat
+     * Pesanan::tagihan()). Kuncian (stok_reserved) tidak disentuh — sudah
+     * bernilai nol sejak pesanannya ditutup, tidak seperti coretNota() yang
+     * masih perlu melepaskannya.
+     *
+     * @throws RuntimeException bila pesanannya belum SELESAI, jumlahnya tidak
+     *                          masuk akal, atau tidak ada yang berubah
+     */
+    public function koreksiItemSetelahSelesai(
+        PesananItem $item,
+        int $jumlahSebenarnya,
+        User $admin,
+        ?string $catatan = null,
+    ): void {
+        $item->loadMissing(['pesanan.stop', 'produk']);
+        $pesanan = $item->pesanan;
+
+        if ($pesanan->status !== StatusPesanan::Selesai) {
+            throw new RuntimeException(__('pengiriman.galat_koreksi_bukan_selesai', ['kode' => $pesanan->kode]));
+        }
+
+        if ($jumlahSebenarnya < 0 || $jumlahSebenarnya > $item->jumlah_dus) {
+            throw new RuntimeException(__('pengiriman.galat_koreksi_melebihi', [
+                'produk' => $item->produk->nama,
+                'maks' => $item->jumlah_dus,
+            ]));
+        }
+
+        $selisih = $item->terkirim - $jumlahSebenarnya;
+
+        if ($selisih <= 0) {
+            throw new RuntimeException(__('pengiriman.galat_koreksi_tanpa_perubahan'));
+        }
+
+        DB::transaction(function () use ($item, $pesanan, $jumlahSebenarnya, $selisih, $admin, $catatan): void {
+            $item->update(['jumlah_dus_terkirim' => $jumlahSebenarnya]);
+
+            $pesanan->update(['kurang_kirim' => true]);
+
+            $pesanan->stop?->update([
+                'total_dus_terkirim' => max(0, $pesanan->stop->total_dus_terkirim - $selisih),
+            ]);
+
+            $produk = $item->produk;
+            $produk->increment('stok', $selisih);
+            $produk->refresh();
+
+            StokMutasi::create([
+                'produk_id' => $produk->id,
+                'pesanan_id' => $pesanan->id,
+                'tipe' => 'penyesuaian',
+                'jumlah' => $selisih,
+                'stok_sesudah' => $produk->stok,
+                'reserved_sesudah' => $produk->stok_reserved,
+                'keterangan' => $catatan ?? __('pengiriman.mutasi_koreksi', ['kode' => $pesanan->kode]),
+                'user_id' => $admin->id,
+            ]);
+        });
     }
 
     private function kodeKampas(): string

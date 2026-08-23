@@ -124,7 +124,14 @@ final class EscpNotaBuilder
         $b .= self::BOLD_OFF.self::crlf();
         $b .= self::garis().self::crlf();
 
-        foreach ($pesanan->items as $i => $item) {
+        // Baris yang toko sama sekali tidak ambil (terkirim = 0) tidak
+        // dicetak — item-nya tetap tersimpan apa adanya di basis data,
+        // hanya tidak muncul di faktur supaya tidak terlihat seperti ikut
+        // ditagihkan. Qty dan total memakai jumlah yang benar-benar
+        // diterima, bukan pesanan semula.
+        $itemDicetak = $pesanan->items->filter(fn ($i) => $i->terkirim > 0)->values();
+
+        foreach ($itemDicetak as $i => $item) {
             // Nama barang panjang turun ke baris berikutnya, tidak dipotong
             // hilang — kolom lain dikosongkan di baris lanjutannya.
             $barisNama = self::pecahBaris($item->produk->nama, $lebar['nama']);
@@ -132,11 +139,11 @@ final class EscpNotaBuilder
             $b .= self::gabung([
                 self::kiri((string) ($i + 1), $lebar['no']),
                 self::kiri($barisNama[0] ?? '', $lebar['nama']),
-                self::kanan(number_format($item->jumlah_dus, 0, ',', '.'), $lebar['qty']),
+                self::kanan(number_format($item->terkirim, 0, ',', '.'), $lebar['qty']),
                 self::kiri('DUS', $lebar['satuan']),
                 self::kanan(number_format((float) $item->harga_satuan, 0, ',', '.'), $lebar['harga']),
                 self::kanan('0', $lebar['disc']),
-                self::kanan(number_format((float) $item->subtotal, 0, ',', '.'), $lebar['total']),
+                self::kanan(number_format($item->terkirim * (float) $item->harga_satuan, 0, ',', '.'), $lebar['total']),
             ]).self::crlf();
 
             foreach (array_slice($barisNama, 1) as $lanjutan) {
@@ -159,13 +166,15 @@ final class EscpNotaBuilder
 
     private static function ringkasan(Pesanan $pesanan): string
     {
-        $b = 'Terbilang: '.Terbilang::rupiah((float) $pesanan->total_nilai).self::crlf();
+        $totalNilai = (float) $pesanan->tagihan;
+
+        $b = 'Terbilang: '.Terbilang::rupiah($totalNilai).self::crlf();
         $b .= 'Keterangan'.($pesanan->catatan ? ": {$pesanan->catatan}" : '').self::crlf().self::crlf();
 
-        $b .= self::kananPenuh('Sub Total    : '.number_format((float) $pesanan->total_nilai, 0, ',', '.')).self::crlf();
+        $b .= self::kananPenuh('Sub Total    : '.number_format($totalNilai, 0, ',', '.')).self::crlf();
         $b .= self::kananPenuh('Diskon       : 0').self::crlf();
         $b .= self::BOLD_ON;
-        $b .= self::kananPenuh('Total Invoice: '.number_format((float) $pesanan->total_nilai, 0, ',', '.')).self::crlf();
+        $b .= self::kananPenuh('Total Invoice: '.number_format($totalNilai, 0, ',', '.')).self::crlf();
         $b .= self::BOLD_OFF;
         $b .= self::kananPenuh('*Harga sudah termasuk pajak').self::crlf();
 

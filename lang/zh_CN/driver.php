@@ -25,8 +25,8 @@ return [
     'lihat_foto_nota' => '查看签收单',
     'rincian_barang' => '货品明细',
     'selesai_pukul' => ':waktu 完成',
-    'judul_unggah' => '上传签收单 — :toko',
-    'ket_unggah' => '拍摄签收单照片作为商店收货凭证。保存后订单自动转为“已完成”，无法再取消。',
+    'judul_konfirmasi' => '确认收货 — :toko',
+    'ket_konfirmasi' => '上传签收单前，请先确认商店实际收到的各产品箱数——默认已填满订单数量，只需减去未领取的部分。保存后订单自动转为“已完成”，无法再取消。',
     'label_foto' => '签收单照片',
     'catatan_contoh' => '例如：由 Budi 先生签收',
     'simpan_selesaikan' => '保存并完成',
@@ -34,4 +34,7 @@ return [
     'foto_harus_gambar' => '文件必须是图片。',
     'foto_maks' => '照片最大 5 MB。',
     'notif_selesai' => '已完成配送至 :toko，订单 :kode 状态为“已完成”。',
+    'ket_sisa_kampas' => '未被领取的 :dus 箱将成为可分配给其他店铺的余量。',
+    'galat_belum_tercek' => '请先勾选所有产品行以确认已核对。',
+    'kolom_cek' => '核对',
 ];

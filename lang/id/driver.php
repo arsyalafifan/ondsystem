@@ -25,8 +25,8 @@ return [
     'lihat_foto_nota' => 'Lihat foto nota',
     'rincian_barang' => 'Rincian barang',
     'selesai_pukul' => 'Selesai :waktu',
-    'judul_unggah' => 'Upload Foto Nota — :toko',
-    'ket_unggah' => 'Ambil foto nota sebagai bukti barang sudah diterima toko. Setelah tersimpan, pesanan otomatis berubah menjadi SELESAI dan tidak bisa dibatalkan lagi.',
+    'judul_konfirmasi' => 'Konfirmasi Penerimaan — :toko',
+    'ket_konfirmasi' => 'Sebelum mengunggah nota, pastikan dulu jumlah dus tiap produk yang BENAR-BENAR diambil toko — bawaannya sudah diisi penuh sesuai pesanan, tinggal kurangi baris yang tidak diambil. Setelah tersimpan, pesanan otomatis berubah menjadi SELESAI dan tidak bisa dibatalkan lagi.',
     'label_foto' => 'Foto nota',
     'catatan_contoh' => 'Misalnya: diterima oleh Pak Budi',
     'simpan_selesaikan' => 'Simpan & Selesaikan',
@@ -34,4 +34,7 @@ return [
     'foto_harus_gambar' => 'Berkas harus berupa gambar.',
     'foto_maks' => 'Ukuran foto maksimal 5 MB.',
     'notif_selesai' => 'Pengiriman ke :toko selesai. Pesanan :kode berstatus SELESAI.',
+    'ket_sisa_kampas' => ':dus dus yang tidak jadi diambil akan menjadi jatah kampas untuk toko lain.',
+    'galat_belum_tercek' => 'Centang dulu semua baris produk untuk menandai sudah diperiksa.',
+    'kolom_cek' => 'Cek',
 ];

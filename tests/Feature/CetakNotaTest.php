@@ -8,6 +8,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
+use App\Support\EscpNotaBuilder;
 use App\Support\TokenCetakSekaliPakai;
 use Illuminate\Support\Facades\URL;
 
@@ -245,4 +246,32 @@ it('menolak link ondprint yang sudah kedaluwarsa', function () {
     );
 
     $this->get($url)->assertForbidden();
+});
+
+// =====================================================================
+describe('rendering EscpNotaBuilder untuk pesanan kurang_kirim', function () {
+    /**
+     * bisaDicetak() hanya mengizinkan status PROCESS/DELIVERY, sedangkan
+     * kurang_kirim baru pernah bernilai true setelah pesanan berstatus
+     * SELESAI (lewat coretNota() atau koreksiItemSetelahSelesai()) — jadi
+     * rute cetak tidak pernah bisa dipakai untuk pesanan begini (lihat
+     * 'menolak nota untuk pesanan berstatus SELESAI' di atas). Builder-nya
+     * dites langsung di sini, lepas dari gerbang rute, supaya rumusnya
+     * (terkirim, tagihan) tetap benar seandainya kelak ada fitur cetak-ulang.
+     */
+    it('tidak mencetak produk yang terkirim-nya 0 dus, dan totalnya memakai tagihan', function () {
+        $pesanan = buatPesananProcess(2);
+        $pesanan->load('items.produk');
+
+        $itemDihapus = $pesanan->items->first();
+        $itemDihapus->update(['jumlah_dus_terkirim' => 0]);
+        $pesanan->update(['kurang_kirim' => true]);
+        $pesanan->refresh()->load('items.produk', 'toko', 'pembuat');
+
+        $hasil = EscpNotaBuilder::build($pesanan);
+        $hasil = iconv('CP437', 'UTF-8//IGNORE', $hasil) ?: $hasil;
+
+        expect($hasil)->not->toContain($itemDihapus->produk->nama)
+            ->and($hasil)->toContain(number_format((float) $pesanan->tagihan, 0, ',', '.'));
+    });
 });

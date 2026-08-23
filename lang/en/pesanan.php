@@ -91,4 +91,5 @@ return [
     'toko_tanpa_wilayah' => 'no region yet',
     'galat_hapus_sudah_dirutekan' => 'Order :kode has already entered a delivery route and cannot be deleted.',
     'galat_link_cetak_sudah_dipakai' => 'This print link has already been used or has expired. Reload the page to print again.',
+    'ket_kurang_kirim' => 'Some items on this order were not taken by the store. The list and total below already reflect what was actually received.',
 ];
