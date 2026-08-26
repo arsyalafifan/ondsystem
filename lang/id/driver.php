@@ -37,4 +37,5 @@ return [
     'ket_sisa_kampas' => ':dus dus yang tidak jadi diambil akan menjadi jatah kampas untuk toko lain.',
     'galat_belum_tercek' => 'Centang dulu semua baris produk untuk menandai sudah diperiksa.',
     'kolom_cek' => 'Cek',
+    'peta_rute' => 'Peta Rute',
 ];

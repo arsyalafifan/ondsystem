@@ -86,6 +86,57 @@ final class Geo
         return $hasil;
     }
 
+    /**
+     * Kebalikan encodePolyline(): membaca garis rute tersimpan menjadi
+     * daftar koordinat. Dipakai untuk memeriksa apakah garis rute yang
+     * tersimpan masih sungguh melewati toko-tokonya.
+     *
+     * @return array<int, Koordinat>
+     */
+    public static function decodePolyline(string $terenkode, int $presisi = 5): array
+    {
+        $titik = [];
+        $indeks = 0;
+        $panjang = strlen($terenkode);
+        $faktor = 10 ** $presisi;
+        $lat = 0;
+        $lng = 0;
+
+        while ($indeks < $panjang) {
+            $dLat = self::decodeNilai($terenkode, $indeks, $panjang);
+            $dLng = self::decodeNilai($terenkode, $indeks, $panjang);
+
+            if ($dLat === null || $dLng === null) {
+                break;
+            }
+
+            $lat += $dLat;
+            $lng += $dLng;
+
+            $titik[] = new Koordinat($lat / $faktor, $lng / $faktor);
+        }
+
+        return $titik;
+    }
+
+    private static function decodeNilai(string $terenkode, int &$indeks, int $panjang): ?int
+    {
+        $hasil = 0;
+        $geser = 0;
+
+        do {
+            if ($indeks >= $panjang) {
+                return null;
+            }
+
+            $b = ord($terenkode[$indeks++]) - 63;
+            $hasil |= ($b & 0x1F) << $geser;
+            $geser += 5;
+        } while ($b >= 0x20);
+
+        return ($hasil & 1) ? ~($hasil >> 1) : ($hasil >> 1);
+    }
+
     private static function encodeNilai(int $nilai): string
     {
         $v = $nilai < 0 ? ~($nilai << 1) : ($nilai << 1);

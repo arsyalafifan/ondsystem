@@ -29,6 +29,16 @@ enum StatusStop: string
         };
     }
 
+    /** Warna heksa yang sama dengan badge(), dipakai penanda di peta. */
+    public function warna(): string
+    {
+        return match ($this) {
+            self::Pending => '#6b7280',
+            self::Selesai => '#059669',
+            self::Dibatalkan => '#dc2626',
+        };
+    }
+
     /** Kunjungan yang tidak lagi menunggu tindakan driver. */
     public function tuntas(): bool
     {

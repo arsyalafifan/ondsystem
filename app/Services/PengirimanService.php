@@ -35,6 +35,10 @@ use RuntimeException;
  */
 class PengirimanService
 {
+    public function __construct(
+        private readonly RoutingService $routingService,
+    ) {}
+
     /**
      * Membatalkan satu toko dari rute karena tidak bisa dikirimi.
      *
@@ -356,6 +360,12 @@ class PengirimanService
                 'selesai_at' => now(),
             ]);
 
+            // Kampas menambah toko baru ke urutan kunjungan — beda dari
+            // batal/coret nota yang tidak mengubah daftar sama sekali. Garis
+            // rute (geometry) dan jarak/ETA tiap stop harus dihitung ulang,
+            // kalau tidak toko barunya akan tampil di peta seolah-olah tidak
+            // terhubung dengan rute yang sudah digambar sebelumnya.
+            $this->routingService->hitungUlang($kendaraan->fresh(['stops']));
             $this->segarkanKendaraan($kendaraan->fresh(['stops']));
 
             return $pesanan;
@@ -363,10 +373,15 @@ class PengirimanService
     }
 
     /**
-     * Menyegarkan angka ringkas kendaraan setelah isinya berubah.
+     * Menyegarkan status kendaraan (siap/jalan/selesai) setelah isinya
+     * berubah.
      *
-     * `target_dus` sengaja tidak ikut disentuh: ia salinan muatan saat mobil
-     * berangkat, dan menjadi penyebut persentase pengiriman.
+     * Angka ringkas (total_toko, total_dus) sengaja tidak diulang di sini
+     * kalau pemanggilnya sudah lewat RoutingService::hitungUlang() — itu
+     * sudah menghitungnya sekaligus dengan geometry dan total batch.
+     * `target_dus` sengaja tidak ikut disentuh sama sekali: ia salinan
+     * muatan saat mobil berangkat, dan menjadi penyebut persentase
+     * pengiriman.
      */
     private function segarkanKendaraan(Kendaraan $kendaraan): void
     {

@@ -361,6 +361,51 @@ describe('kampas', function () {
             $kendaraan->fresh(['stops']), buatTokoKirim('Toko Kampas'), [], gambarNota(), $this->driver,
         ))->toThrow(RuntimeException::class);
     });
+
+    /**
+     * Bug nyata: toko kampas ditambahkan ke urutan kunjungan, tapi garis
+     * rute (geometry) kendaraan tidak pernah dihitung ulang -- di peta,
+     * penanda toko kampas jadi terlihat lepas dari garis rute yang sudah
+     * digambar sebelumnya, seolah tidak berhubungan sama sekali. Kampas
+     * satu-satunya tindakan lapangan yang MENAMBAH toko baru ke urutan
+     * kunjungan (batal dan coret nota tidak mengubah daftar sama sekali),
+     * jadi ini satu-satunya yang butuh RoutingService::hitungUlang().
+     */
+    it('menghitung ulang garis rute dan ETA setelah toko kampas ditambahkan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        $geometrySebelum = $kendaraan->fresh()->geometry;
+        $tokoKampas = buatTokoKirim('Toko Kampas');
+
+        $this->service->kampas(
+            $kendaraan->fresh(['stops']), $tokoKampas, [$this->air->id => 10], gambarNota(), $this->driver,
+        );
+
+        $kendaraan = $kendaraan->fresh(['stops']);
+        $stopKampas = $kendaraan->stops->firstWhere('jenis', 'kampas');
+
+        expect($kendaraan->geometry)->not->toBeNull()
+            ->and($kendaraan->geometry)->not->toBe($geometrySebelum)
+            ->and($kendaraan->total_jarak_m)->toBeGreaterThan(0)
+            // Sebelum diperbaiki, stop kampas dibuat tanpa jarak/ETA sama
+            // sekali -- kolom-kolom ini tetap null selamanya.
+            ->and($stopKampas->jarak_dari_sebelumnya_m)->not->toBeNull()
+            ->and($stopKampas->eta)->not->toBeNull();
+    });
+
+    it('memperbarui total jarak dan dus pada batch routing setelah kampas', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+        $batch = $kendaraan->batch;
+        $jarakBatchSebelum = $batch->total_jarak_m;
+
+        $this->service->kampas(
+            $kendaraan->fresh(['stops']), buatTokoKirim('Toko Kampas'), [$this->air->id => 10], gambarNota(), $this->driver,
+        );
+
+        expect($batch->fresh()->total_jarak_m)->not->toBe($jarakBatchSebelum);
+    });
 });
 
 // =====================================================================
