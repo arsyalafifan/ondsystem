@@ -322,7 +322,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('driver.label_foto') }}</label>
-                    <input type="file" wire:model="fotoNota" accept="image/*" capture="environment"
+                    <input type="file" wire:model="fotoNota" accept="image/*"
                            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
                     @error('fotoNota') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     <div wire:loading wire:target="fotoNota" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
@@ -485,7 +485,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('driver.label_foto') }}</label>
-                    <input type="file" wire:model="fotoNota" accept="image/*" capture="environment"
+                    <input type="file" wire:model="fotoNota" accept="image/*"
                            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
                     @error('fotoNota') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     <div wire:loading wire:target="fotoNota" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
