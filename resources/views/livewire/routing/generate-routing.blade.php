@@ -251,6 +251,26 @@
                             @endforeach
                         </div>
 
+                        {{-- Driver: bisa ditetapkan/diganti sampai ada kunjungan yang
+                             dituntaskan, dicoret, atau dibatalkan di kendaraan ini. --}}
+                        <div class="border-t border-gray-100 px-4 py-2.5">
+                            <label class="block text-xs font-medium text-gray-600">{{ __('routing.driver') }}</label>
+                            @if ($this->driverBisaDiubah[$kendaraan->id] ?? false)
+                                <select wire:change="ubahDriver({{ $kendaraan->id }}, $event.target.value || null)"
+                                        class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                    <option value="">{{ __('routing.driver_belum_ditentukan') }}</option>
+                                    @foreach ($this->drivers as $d)
+                                        <option value="{{ $d->id }}" @selected($kendaraan->driver_id === $d->id)>{{ $d->name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <p class="mt-1 text-sm text-gray-900">
+                                    {{ $kendaraan->driver?->name ?? __('routing.driver_belum_ditentukan') }}
+                                    {{-- <span class="ml-1 text-xs text-gray-400">({{ __('routing.driver_terkunci') }})</span> --}}
+                                </p>
+                            @endif
+                        </div>
+
                         @if ($dibuka)
                             <div class="border-t border-gray-100">
                                 @forelse ($kendaraan->stops as $stop)

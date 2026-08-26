@@ -6,6 +6,7 @@ use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\RoutingBatch;
+use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\RoutingService;
 use Carbon\CarbonImmutable;
@@ -100,6 +101,7 @@ class GenerateRouting extends Component
             ? null
             : RoutingBatch::with([
                 'kendaraans.wilayah:id,nama',
+                'kendaraans.driver:id,name',
                 'kendaraans.stops.toko:id,nama,kode,alamat,latitude,longitude',
                 'kendaraans.stops.pesanan:id,kode,total_dus',
                 'pembuat:id,name',
@@ -141,6 +143,31 @@ class GenerateRouting extends Component
     public function wilayahs(): Collection
     {
         return Wilayah::aktif()->orderBy('nama')->get(['id', 'nama']);
+    }
+
+    /** @return Collection<int, User> */
+    #[Computed]
+    public function drivers(): Collection
+    {
+        return User::driver()->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Kendaraan yang driver-nya masih boleh diganti — belum ada satu pun
+     * kunjungannya yang dituntaskan, dicoret, atau dibatalkan. Dihitung
+     * sekali di sini, bukan per baris di Blade, supaya tidak memicu kueri
+     * berulang saat daftar kendaraan dirender.
+     *
+     * @return array<int, bool>
+     */
+    #[Computed]
+    public function driverBisaDiubah(): array
+    {
+        return $this->batch === null ? [] : $this->batch->kendaraans
+            ->mapWithKeys(fn (Kendaraan $k) => [
+                $k->id => $k->stops->every(fn (KendaraanStop $s) => ! $s->status->tuntas()),
+            ])
+            ->all();
     }
 
     /**
@@ -350,6 +377,34 @@ class GenerateRouting extends Component
         );
     }
 
+    /**
+     * Menetapkan atau mengganti driver satu kendaraan. Sengaja tidak dibatasi
+     * hanya saat batch masih draft — admin boleh menentukan driver dari saat
+     * routing baru dibuat sampai kendaraan itu benar-benar mulai dikerjakan
+     * (lihat penjagaannya di RoutingService::ubahDriver()).
+     */
+    public function ubahDriver(int $kendaraanId, ?int $driverId, RoutingService $service): void
+    {
+        $kendaraan = Kendaraan::findOrFail($kendaraanId);
+        $driver = $driverId === null ? null : User::findOrFail($driverId);
+
+        try {
+            $service->ubahDriver($kendaraan, $driver);
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+            $this->segarkan();
+
+            return;
+        }
+
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('routing.notif_driver_diubah', [
+            'mobil' => $kendaraan->nama,
+            'driver' => $driver?->name ?? __('routing.driver_belum_ditentukan'),
+        ]), jenis: 'info');
+    }
+
     public function tambahKendaraan(RoutingService $service): void
     {
         $this->pastikanMasihDraft($this->batchId);
@@ -426,7 +481,10 @@ class GenerateRouting extends Component
     /** Membuang cache computed lalu mengirim data baru ke peta. */
     private function segarkan(): void
     {
-        unset($this->batch, $this->dataPeta, $this->pesananMenunggu, $this->ringkasanMenunggu);
+        unset(
+            $this->batch, $this->dataPeta, $this->pesananMenunggu, $this->ringkasanMenunggu,
+            $this->driverBisaDiubah,
+        );
 
         $this->dispatch('peta-diperbarui', data: $this->dataPeta);
     }

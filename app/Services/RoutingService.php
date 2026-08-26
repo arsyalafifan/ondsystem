@@ -486,6 +486,54 @@ class RoutingService
         ]);
     }
 
+    /**
+     * Menetapkan atau mengganti driver satu kendaraan.
+     *
+     * Sengaja tidak dibatasi hanya saat batch masih draft seperti tindakan
+     * penyuntingan rute lainnya (pindahStop, geserUrutan, dst.) — admin boleh
+     * menentukan atau mengganti driver dari saat routing baru dibuat sampai
+     * kendaraan itu benar-benar mulai dikerjakan di lapangan. Begitu ada satu
+     * saja kunjungan yang sudah dituntaskan (upload nota, coret nota, atau
+     * dibatalkan), pertanggungjawabannya sudah melekat ke driver itu dan
+     * tidak boleh dialihkan diam-diam lagi.
+     *
+     * @throws RuntimeException bila kendaraan sudah mulai dikerjakan, akun
+     *                          yang dipilih bukan driver, atau driver itu
+     *                          sedang membawa kendaraan aktif lainnya
+     */
+    public function ubahDriver(Kendaraan $kendaraan, ?User $driver): void
+    {
+        $sudahJalan = $kendaraan->stops()
+            ->get()
+            ->contains(fn (KendaraanStop $s) => $s->status->tuntas());
+
+        if ($sudahJalan) {
+            throw new RuntimeException(__('routing.galat_driver_sudah_jalan', ['mobil' => $kendaraan->nama]));
+        }
+
+        if ($driver !== null) {
+            if (! $driver->isDriver()) {
+                throw new RuntimeException(__('routing.galat_bukan_driver', ['nama' => $driver->name]));
+            }
+
+            $sedangBertugas = Kendaraan::where('driver_id', $driver->id)
+                ->where('id', '!=', $kendaraan->id)
+                ->whereIn('status', ['siap', 'jalan'])
+                ->exists();
+
+            if ($sedangBertugas) {
+                throw new RuntimeException(__('routing.galat_driver_sedang_bertugas', ['nama' => $driver->name]));
+            }
+        }
+
+        $kendaraan->update([
+            'driver_id' => $driver?->id,
+            // Selalu dikosongkan lagi: driver yang baru ditetapkan/diganti
+            // belum tentu sudah membuka layarnya sendiri.
+            'diambil_at' => null,
+        ]);
+    }
+
     public function depot(): Koordinat
     {
         return new Koordinat(

@@ -84,4 +84,11 @@ return [
     'cetak_packing_list' => '列印裝箱單',
     'galat_tak_bisa_cetak_packing_list' => '路線獲批准後才能列印裝箱單。',
     'galat_link_cetak_sudah_dipakai' => '此列印連結已被使用或已過期。請重新載入頁面以再次列印。',
+    'driver' => '司機',
+    'driver_belum_ditentukan' => '尚未指定',
+    'driver_terkunci' => '已經開始配送，無法更改',
+    'notif_driver_diubah' => ':mobil 的司機已設為 :driver。',
+    'galat_driver_sudah_jalan' => ':mobil 已經在現場開始配送，司機無法再更改。',
+    'galat_bukan_driver' => ':nama 不是司機角色的帳號。',
+    'galat_driver_sedang_bertugas' => ':nama 目前正在駕駛另一輛仍在執行任務的車輛。',
 ];
