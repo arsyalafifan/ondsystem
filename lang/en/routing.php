@@ -84,4 +84,11 @@ return [
     'cetak_packing_list' => 'Print Packing List',
     'galat_tak_bisa_cetak_packing_list' => 'The packing list can only be printed after routing is approved.',
     'galat_link_cetak_sudah_dipakai' => 'This print link has already been used or has expired. Reload the page to print again.',
+    'driver' => 'Driver',
+    'driver_belum_ditentukan' => 'Not assigned',
+    'driver_terkunci' => 'already underway, cannot be changed',
+    'notif_driver_diubah' => ':mobil driver set to :driver.',
+    'galat_driver_sudah_jalan' => ':mobil has already started in the field — its driver can no longer be changed.',
+    'galat_bukan_driver' => ':nama is not a driver-role account.',
+    'galat_driver_sedang_bertugas' => ':nama is already driving another active vehicle.',
 ];

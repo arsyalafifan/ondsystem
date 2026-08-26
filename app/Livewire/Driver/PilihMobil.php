@@ -54,7 +54,18 @@ class PilihMobil extends Component
             return null;
         }
 
-        if ($kendaraan->driver_id === null) {
+        // Hanya driver sungguhan yang boleh "mengambil" mobil. Superadmin (dan
+        // admin, lewat bypass peran di PastikanPeran) bisa membuka layar ini
+        // untuk keperluan dukungan — tanpa penjagaan ini, sekali mereka klik
+        // tombol ini pada mobil yang masih kosong, driver_id-nya diam-diam
+        // terkunci ke akun mereka dan driver aslinya tidak bisa mengambilnya
+        // lagi sama sekali.
+        //
+        // diambil_at masih kosong dicek terpisah dari driver_id, karena admin
+        // sekarang bisa menetapkan driver dari layar Generate Routing —
+        // driver_id-nya sudah terisi begitu ia belum sempat membuka layar ini
+        // sendiri, dan diambil_at yang menandai kapan itu sungguhan terjadi.
+        if ($kendaraan->diambil_at === null && auth()->user()->isDriver()) {
             $kendaraan->update([
                 'driver_id' => auth()->id(),
                 'diambil_at' => now(),

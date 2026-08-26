@@ -207,6 +207,32 @@ Bawaannya terisi hari ini (kasus paling umum), tapi admin bebas
 menggantinya. Panggilan terprogram (`RoutingService::generate()`) tetap
 memakai hari ini sebagai bawaan bila `tanggalKeberangkatan` tidak diisi.
 
+### Menetapkan driver dari layar Generate Routing
+
+Sebelumnya satu-satunya cara sebuah mobil punya driver adalah driver itu
+sendiri membuka menu Pilih Mobil dan menekan "Ambil" — kalau admin (atau
+superadmin, yang lolos dari semua batasan peran) membuka layar itu duluan
+untuk sekadar melihat-lihat, mobilnya ikut "terambil" ke akun mereka dan
+driver aslinya terkunci keluar sama sekali.
+
+Sekarang tiap kartu mobil di halaman Generate Routing punya pilihan
+**Driver** sendiri (`RoutingService::ubahDriver()`). Begitu ditetapkan,
+hanya akun itu yang bisa membuka mobil tersebut di menu Pilih Mobil driver.
+Bisa diisi/diganti sejak routing baru saja di-generate — **tidak dibatasi
+hanya saat masih draft** seperti penyuntingan lain di halaman ini — sampai
+ada satu saja kunjungan yang tuntas (upload nota, coret nota, atau
+dibatalkan di lapangan) di mobil itu. Begitu itu terjadi, pilihannya
+terkunci (tampil sebagai teks biasa, bukan lagi `<select>`) — tanggung
+jawab driver atas mobil itu sudah melekat dan tidak boleh dialihkan
+diam-diam.
+
+Dua penjagaan lain: akun yang dipilih harus benar berperan Driver (bukan
+sekadar siapa saja yang bisa membuka halamannya), dan tidak sedang membawa
+mobil aktif lain (`status` `siap`/`jalan`) — satu driver, satu mobil pada
+satu waktu. Memilih "Belum ditentukan" mengosongkannya lagi, berguna kalau
+mobil kadung terambil ke akun yang salah (persis kasus admin/superadmin di
+atas) — tidak perlu lagi turun ke `tinker` untuk membukanya.
+
 ### Menyunting draf routing
 
 Hasil otomatis jarang sempurna, jadi selama batch masih berstatus draft
@@ -741,7 +767,7 @@ berupa desimal atau negatif.
 php artisan test
 ```
 
-343 tes, mencakup:
+364 tes, mencakup:
 
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
@@ -791,6 +817,20 @@ php artisan test
   yang sudah disetujui, serta tanggal keberangkatan yang terpisah dari
   tanggal batch dibuat (wajib diisi di halaman, hari ini sebagai bawaan
   bila dipanggil terprogram).
+- **[`tests/Feature/RoutingDriverTest.php`](tests/Feature/RoutingDriverTest.php)** —
+  menetapkan/mengganti/mengosongkan driver kendaraan, penolakan akun yang
+  bukan berperan driver dan driver yang sedang membawa kendaraan aktif lain
+  (tapi diizinkan kalau kendaraan itu sudah berstatus selesai), boleh
+  diganti bebas sejak draft dibuat (bukan cuma sebelum disetujui), terkunci
+  begitu ada kunjungan yang selesai/dicoret/dibatalkan, dan alur lewat
+  komponen Livewire-nya langsung termasuk notifikasi galat saat ditolak.
+- **[`tests/Feature/PilihMobilTest.php`](tests/Feature/PilihMobilTest.php)** —
+  superadmin/admin yang membuka mobil kosong tidak ikut mengunci
+  `driver_id`-nya (beda dari driver sungguhan yang memang menguncinya),
+  mobil itu tetap muncul di daftar untuk driver asli, driver kedua tetap
+  ditolak kalau mobil sudah benar-benar diambil driver pertama, dan
+  `diambil_at` tetap tercatat saat driver membuka mobil yang driver-nya
+  sudah ditetapkan admin lebih dulu lewat Generate Routing.
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
   ketiga tindakan driver dan pembukuan stoknya: pembatalan yang menuntaskan
   toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah

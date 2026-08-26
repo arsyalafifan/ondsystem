@@ -84,4 +84,11 @@ return [
     'cetak_packing_list' => 'Cetak Packing List',
     'galat_tak_bisa_cetak_packing_list' => 'Packing list hanya bisa dicetak setelah routing disetujui.',
     'galat_link_cetak_sudah_dipakai' => 'Link cetak ini sudah dipakai atau sudah kedaluwarsa. Muat ulang halaman untuk mencetak lagi.',
+    'driver' => 'Driver',
+    'driver_belum_ditentukan' => 'Belum ditentukan',
+    'driver_terkunci' => 'sudah mulai dikerjakan, tidak bisa diganti',
+    'notif_driver_diubah' => 'Driver :mobil ditetapkan ke :driver.',
+    'galat_driver_sudah_jalan' => ':mobil sudah mulai dikerjakan di lapangan, drivernya tidak bisa diganti lagi.',
+    'galat_bukan_driver' => ':nama bukan akun berperan driver.',
+    'galat_driver_sedang_bertugas' => ':nama sedang membawa kendaraan lain yang masih aktif.',
 ];

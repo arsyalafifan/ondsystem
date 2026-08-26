@@ -84,4 +84,11 @@ return [
     'cetak_packing_list' => '打印装箱单',
     'galat_tak_bisa_cetak_packing_list' => '路线获批准后才能打印装箱单。',
     'galat_link_cetak_sudah_dipakai' => '此打印链接已被使用或已过期。请重新加载页面以再次打印。',
+    'driver' => '司机',
+    'driver_belum_ditentukan' => '尚未指定',
+    'driver_terkunci' => '已经开始配送，无法更改',
+    'notif_driver_diubah' => ':mobil 的司机已设为 :driver。',
+    'galat_driver_sudah_jalan' => ':mobil 已经在现场开始配送，司机无法再更改。',
+    'galat_bukan_driver' => ':nama 不是司机角色的账号。',
+    'galat_driver_sedang_bertugas' => ':nama 目前正在驾驶另一辆仍在执行任务的车辆。',
 ];
