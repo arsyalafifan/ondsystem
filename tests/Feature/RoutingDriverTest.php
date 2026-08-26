@@ -10,6 +10,7 @@ use App\Models\Wilayah;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Services\RoutingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -35,6 +36,12 @@ beforeEach(function () {
 /** Satu kendaraan berisi satu toko, sudah disetujui, driver_id masih kosong. */
 function kendaraanUjiDriver(): Kendaraan
 {
+    return kendaraanUjiDriverTanggal(null);
+}
+
+/** Sama seperti kendaraanUjiDriver(), tapi tanggal keberangkatannya bisa diatur. */
+function kendaraanUjiDriverTanggal(?CarbonImmutable $tanggal): Kendaraan
+{
     static $n = 0;
     $n++;
 
@@ -50,7 +57,7 @@ function kendaraanUjiDriver(): Kendaraan
     $pesanan = $pesananService->buat($toko, [['produk_id' => $produk->id, 'jumlah_dus' => 10]], test()->sales);
     $pesananService->setujui($pesanan, test()->admin);
 
-    $batch = app(RoutingService::class)->generate(test()->admin);
+    $batch = app(RoutingService::class)->generate(test()->admin, tanggalKeberangkatan: $tanggal);
     app(RoutingService::class)->setujui($batch, test()->admin);
 
     return $batch->fresh()->kendaraans->first();
@@ -94,7 +101,9 @@ describe('RoutingService::ubahDriver', function () {
         expect($kendaraan->fresh()->driver_id)->toBeNull();
     });
 
-    it('menolak driver yang sedang membawa kendaraan aktif lain', function () {
+    it('menolak driver yang sedang membawa kendaraan aktif lain di tanggal keberangkatan yang sama', function () {
+        // kendaraanUjiDriver() tidak menyebut tanggal, jadi keduanya sama-sama
+        // bertanggal hari ini — persis kasus yang harus ditolak.
         $kendaraan1 = kendaraanUjiDriver();
         $kendaraan2 = kendaraanUjiDriver();
 
@@ -104,6 +113,19 @@ describe('RoutingService::ubahDriver', function () {
             ->toThrow(RuntimeException::class);
 
         expect($kendaraan2->fresh()->driver_id)->toBeNull();
+    });
+
+    it('mengizinkan driver yang sama dijadwalkan di kendaraan lain pada tanggal keberangkatan yang berbeda', function () {
+        $kendaraan1 = kendaraanUjiDriverTanggal(CarbonImmutable::today());
+        $kendaraan2 = kendaraanUjiDriverTanggal(CarbonImmutable::today()->addDay());
+
+        $this->routingService->ubahDriver($kendaraan1, $this->driver);
+
+        // Kendaraan1 masih aktif (status siap), tapi tanggal berangkatnya
+        // besok berbeda dari kendaraan2 — tidak seharusnya bentrok.
+        $this->routingService->ubahDriver($kendaraan2, $this->driver);
+
+        expect($kendaraan2->fresh()->driver_id)->toBe($this->driver->id);
     });
 
     it('mengizinkan driver yang mobil sebelumnya sudah berstatus selesai', function () {

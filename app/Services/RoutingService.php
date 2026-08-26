@@ -499,10 +499,13 @@ class RoutingService
      *
      * @throws RuntimeException bila kendaraan sudah mulai dikerjakan, akun
      *                          yang dipilih bukan driver, atau driver itu
-     *                          sedang membawa kendaraan aktif lainnya
+     *                          sedang membawa kendaraan aktif lain yang
+     *                          berangkat di tanggal yang sama
      */
     public function ubahDriver(Kendaraan $kendaraan, ?User $driver): void
     {
+        $kendaraan->loadMissing('batch');
+
         $sudahJalan = $kendaraan->stops()
             ->get()
             ->contains(fn (KendaraanStop $s) => $s->status->tuntas());
@@ -516,13 +519,21 @@ class RoutingService
                 throw new RuntimeException(__('routing.galat_bukan_driver', ['nama' => $driver->name]));
             }
 
+            // Patokannya tanggal keberangkatan, bukan sekadar status kendaraan
+            // — seorang driver boleh terdaftar di beberapa mobil yang aktif
+            // bersamaan asalkan tanggal berangkatnya berbeda. Yang dicegah
+            // cuma bentrok pada hari yang sama.
             $sedangBertugas = Kendaraan::where('driver_id', $driver->id)
                 ->where('id', '!=', $kendaraan->id)
                 ->whereIn('status', ['siap', 'jalan'])
+                ->whereHas('batch', fn ($q) => $q->whereDate('tanggal', $kendaraan->batch->tanggal))
                 ->exists();
 
             if ($sedangBertugas) {
-                throw new RuntimeException(__('routing.galat_driver_sedang_bertugas', ['nama' => $driver->name]));
+                throw new RuntimeException(__('routing.galat_driver_sedang_bertugas', [
+                    'nama' => $driver->name,
+                    'tanggal' => $kendaraan->batch->tanggal->isoFormat('ll'),
+                ]));
             }
         }
 

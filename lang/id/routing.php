@@ -90,5 +90,5 @@ return [
     'notif_driver_diubah' => 'Driver :mobil ditetapkan ke :driver.',
     'galat_driver_sudah_jalan' => ':mobil sudah mulai dikerjakan di lapangan, drivernya tidak bisa diganti lagi.',
     'galat_bukan_driver' => ':nama bukan akun berperan driver.',
-    'galat_driver_sedang_bertugas' => ':nama sedang membawa kendaraan lain yang masih aktif.',
+    'galat_driver_sedang_bertugas' => ':nama sedang membawa kendaraan lain yang berangkat di tanggal yang sama (:tanggal).',
 ];

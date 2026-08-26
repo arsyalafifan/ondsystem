@@ -90,5 +90,5 @@ return [
     'notif_driver_diubah' => ':mobil 的司机已设为 :driver。',
     'galat_driver_sudah_jalan' => ':mobil 已经在现场开始配送，司机无法再更改。',
     'galat_bukan_driver' => ':nama 不是司机角色的账号。',
-    'galat_driver_sedang_bertugas' => ':nama 目前正在驾驶另一辆仍在执行任务的车辆。',
+    'galat_driver_sedang_bertugas' => ':nama 已在同一天（:tanggal）驾驶另一辆车。',
 ];
