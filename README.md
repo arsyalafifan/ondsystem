@@ -228,10 +228,14 @@ diam-diam.
 
 Dua penjagaan lain: akun yang dipilih harus benar berperan Driver (bukan
 sekadar siapa saja yang bisa membuka halamannya), dan tidak sedang membawa
-mobil aktif lain (`status` `siap`/`jalan`) — satu driver, satu mobil pada
-satu waktu. Memilih "Belum ditentukan" mengosongkannya lagi, berguna kalau
-mobil kadung terambil ke akun yang salah (persis kasus admin/superadmin di
-atas) — tidak perlu lagi turun ke `tinker` untuk membukanya.
+mobil aktif lain (`status` `siap`/`jalan`) **pada tanggal keberangkatan yang
+sama** — patokannya `RoutingBatch.tanggal`, bukan sekadar status
+kendaraannya. Seorang driver boleh terdaftar di beberapa mobil yang sama-sama
+masih aktif selama tanggal berangkatnya berbeda (mis. mobil hari ini dan
+mobil untuk lusa); yang dicegah cuma dua mobil pada hari yang sama. Memilih
+"Belum ditentukan" mengosongkannya lagi, berguna kalau mobil kadung terambil
+ke akun yang salah (persis kasus admin/superadmin di atas) — tidak perlu
+lagi turun ke `tinker` untuk membukanya.
 
 ### Menyunting draf routing
 
@@ -767,7 +771,7 @@ berupa desimal atau negatif.
 php artisan test
 ```
 
-364 tes, mencakup:
+365 tes, mencakup:
 
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
@@ -820,7 +824,8 @@ php artisan test
 - **[`tests/Feature/RoutingDriverTest.php`](tests/Feature/RoutingDriverTest.php)** —
   menetapkan/mengganti/mengosongkan driver kendaraan, penolakan akun yang
   bukan berperan driver dan driver yang sedang membawa kendaraan aktif lain
-  (tapi diizinkan kalau kendaraan itu sudah berstatus selesai), boleh
+  di tanggal keberangkatan yang sama (tapi diizinkan kalau tanggalnya
+  berbeda, atau kalau kendaraan sebelumnya sudah berstatus selesai), boleh
   diganti bebas sejak draft dibuat (bukan cuma sebelum disetujui), terkunci
   begitu ada kunjungan yang selesai/dicoret/dibatalkan, dan alur lewat
   komponen Livewire-nya langsung termasuk notifikasi galat saat ditolak.

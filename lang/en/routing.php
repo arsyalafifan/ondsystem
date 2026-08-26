@@ -90,5 +90,5 @@ return [
     'notif_driver_diubah' => ':mobil driver set to :driver.',
     'galat_driver_sudah_jalan' => ':mobil has already started in the field — its driver can no longer be changed.',
     'galat_bukan_driver' => ':nama is not a driver-role account.',
-    'galat_driver_sedang_bertugas' => ':nama is already driving another active vehicle.',
+    'galat_driver_sedang_bertugas' => ':nama is already driving another vehicle departing on the same date (:tanggal).',
 ];
