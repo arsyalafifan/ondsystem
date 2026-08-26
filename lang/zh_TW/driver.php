@@ -37,4 +37,5 @@ return [
     'ket_sisa_kampas' => '未被領取的 :dus 箱將成為可分配給其他店鋪的餘量。',
     'galat_belum_tercek' => '請先勾選所有產品行以確認已核對。',
     'kolom_cek' => '核對',
+    'peta_rute' => '路線地圖',
 ];

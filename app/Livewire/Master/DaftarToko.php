@@ -7,6 +7,7 @@ use App\Models\Pesanan;
 use App\Models\Toko;
 use App\Models\Wilayah;
 use App\Services\Peta\NominatimGeocoder;
+use App\Services\RoutingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -122,6 +123,16 @@ class DaftarToko extends Component
 
     /** @var array<int, string> */
     public array $imporCatatan = [];
+
+    /**
+     * Kumpulan id toko yang koordinatnya berubah selama impor, dipakai
+     * memicu hitung ulang rute kendaraan sekali di akhir — bukan per
+     * baris, supaya toko yang muncul di banyak batch tidak dihitung ulang
+     * berkali-kali dan panggilan OSRM tidak meledak untuk berkas besar.
+     *
+     * @var array<int, int>
+     */
+    public array $imporTokoKoordinatBerubah = [];
 
     private int $ukuranBatchImpor = 250;
 
@@ -335,7 +346,7 @@ class DaftarToko extends Component
         $this->dispatch('pindahkan-penanda', lat: $hasil['lat'], lng: $hasil['lng']);
     }
 
-    public function simpan(): void
+    public function simpan(RoutingService $routingService): void
     {
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:30', Rule::unique('tokos', 'kode')->ignore($this->tokoId)],
@@ -367,7 +378,14 @@ class DaftarToko extends Component
             'nikPemilik' => __('master.atr_nik_pemilik'),
         ]);
 
-        Toko::updateOrCreate(['id' => $this->tokoId], [
+        // Diambil sebelum disimpan supaya bisa dibandingkan sesudahnya —
+        // hanya toko yang koordinatnya SUNGGUH berubah yang perlu memicu
+        // hitung ulang rute kendaraan yang sudah memuatnya.
+        $tokoSebelum = $this->tokoId !== null
+            ? Toko::find($this->tokoId, ['latitude', 'longitude'])
+            : null;
+
+        $toko = Toko::updateOrCreate(['id' => $this->tokoId], [
             'kode' => $data['kode'],
             // Disimpan huruf besar tanpa spasi agar cocok dengan hasil
             // pemindaian QR, yang juga dirapikan dengan cara yang sama.
@@ -389,6 +407,11 @@ class DaftarToko extends Component
             'geocoded_at' => $this->latitude === null ? null : now(),
             'aktif' => $this->aktif,
         ]);
+
+        if ($tokoSebelum !== null
+            && ($tokoSebelum->latitude !== $toko->latitude || $tokoSebelum->longitude !== $toko->longitude)) {
+            $routingService->hitungUlangUntukToko($toko->id);
+        }
 
         $pesan = $this->tokoId === null ? __('master.toko_tersimpan') : __('master.toko_diperbarui');
 
@@ -768,9 +791,16 @@ class DaftarToko extends Component
                 // di sini toko lama sudah diketahui dari peta, jadi langsung
                 // create/save supaya tidak ada query tersembunyi per baris.
                 if ($tokoLama !== null) {
+                    $latSebelum = $tokoLama->latitude;
+                    $lngSebelum = $tokoLama->longitude;
+
                     $tokoLama->fill($dataSimpan);
                     $tokoLama->save();
                     $tokoTersimpan = $tokoLama;
+
+                    if ($punyaTitik && ($latSebelum !== $tokoTersimpan->latitude || $lngSebelum !== $tokoTersimpan->longitude)) {
+                        $this->imporTokoKoordinatBerubah[$tokoTersimpan->id] = $tokoTersimpan->id;
+                    }
                 } else {
                     $dataSimpan['kode'] = $kodeAkhir;
                     $tokoTersimpan = Toko::create($dataSimpan);
@@ -825,6 +855,14 @@ class DaftarToko extends Component
             Storage::disk('local')->delete("impor-toko/{$this->imporToken}.json");
         }
 
+        $routingService = app(RoutingService::class);
+
+        foreach ($this->imporTokoKoordinatBerubah as $tokoId) {
+            $routingService->hitungUlangUntukToko($tokoId);
+        }
+
+        $this->imporTokoKoordinatBerubah = [];
+
         $this->hasilImpor = [
             'baru' => $this->imporBaru,
             'diperbarui' => $this->imporDiperbarui,
@@ -838,13 +876,21 @@ class DaftarToko extends Component
     }
 
     /** Membatalkan impor yang sedang berjalan, misalnya kalau admin menutup modal di tengah jalan. */
-    public function batalkanImporCsv(): void
+    public function batalkanImporCsv(RoutingService $routingService): void
     {
         if ($this->imporToken !== null) {
             Storage::disk('local')->delete("impor-toko/{$this->imporToken}.json");
         }
 
-        $this->reset(['imporBerjalan', 'imporToken', 'imporOffset', 'imporTotal', 'imporBaru', 'imporDiperbarui', 'imporDilewati', 'imporCatatan']);
+        // Batch-batch yang sudah diproses sebelum dibatalkan sudah tersimpan
+        // permanen ke basis data (tiap batch punya transaksinya sendiri),
+        // jadi kendaraan yang terdampak koordinatnya tetap perlu dihitung
+        // ulang meski impornya tidak sampai selesai.
+        foreach ($this->imporTokoKoordinatBerubah as $tokoId) {
+            $routingService->hitungUlangUntukToko($tokoId);
+        }
+
+        $this->reset(['imporBerjalan', 'imporToken', 'imporOffset', 'imporTotal', 'imporBaru', 'imporDiperbarui', 'imporDilewati', 'imporCatatan', 'imporTokoKoordinatBerubah']);
     }
 
     /** @return array<int, array<int, mixed>> */

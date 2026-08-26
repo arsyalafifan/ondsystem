@@ -37,4 +37,5 @@ return [
     'ket_sisa_kampas' => ':dus boxes not taken will become kampas quota for another store.',
     'galat_belum_tercek' => 'Check every product row first to confirm it has been reviewed.',
     'kolom_cek' => 'Check',
+    'peta_rute' => 'Route Map',
 ];

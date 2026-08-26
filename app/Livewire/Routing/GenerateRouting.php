@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Routing;
 
+use App\Enums\StatusStop;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -204,7 +205,12 @@ class GenerateRouting extends Component
                     'urutan' => $s->urutan,
                     'dus' => $s->total_dus,
                     'eta' => $s->eta ? substr((string) $s->eta, 0, 5) : null,
-                    'selesai' => $s->status === 'selesai',
+                    // Sebelumnya dibandingkan dengan string 'selesai' —
+                    // $s->status di-cast ke enum StatusStop, jadi perbandingan
+                    // itu selalu salah dan penanda centang tidak pernah
+                    // muncul di peta ini walau kunjungannya sungguh selesai.
+                    'selesai' => $s->status === StatusStop::Selesai,
+                    'warnaStatus' => $s->status->warna(),
                     'lat' => $s->toko->latitude !== null ? (float) $s->toko->latitude : null,
                     'lng' => $s->toko->longitude !== null ? (float) $s->toko->longitude : null,
                 ])->values()->all(),

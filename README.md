@@ -93,6 +93,15 @@ Jatah kampas dihitung **per produk**, bukan sebagai satu angka gelondongan:
 10 dus bebas. Tanpa itu driver bisa menjanjikan barang yang tidak ada di
 mobilnya.
 
+Kampas satu-satunya dari ketiga tindakan ini yang **menambah** toko baru ke
+urutan kunjungan (cancel dan checklist tidak mengubah daftar sama sekali) —
+`PengirimanService::kampas()` karena itu memanggil
+`RoutingService::hitungUlang()` setelah menyimpan stop-nya, supaya garis
+rute (geometry) dan jarak/ETA tiap toko ikut dihitung ulang. Tanpa ini toko
+kampas tetap masuk daftar dan progres, tapi **penandanya di peta terlihat
+lepas dari garis rute** — rute yang digambar masih rute lama, sebelum toko
+itu ditambahkan, karena kolom `geometry` tidak pernah disentuh ulang.
+
 Di baliknya, checklist ini memanggil salah satu dari dua service yang sudah
 ada — `PesananService::selesaikanPengiriman()` kalau tidak ada baris yang
 dikurangi, atau `PengirimanService::coretNota()` begitu ada. Keduanya tidak
@@ -552,7 +561,21 @@ Memakai Leaflet + ubin OpenStreetMap — tanpa API key dan tanpa biaya.
 - **Master Toko** — peta pemilih titik: klik atau geser penanda untuk menaruh
   koordinat toko.
 - **Layar driver** — tiap toko punya tombol navigasi yang membuka Google Maps
-  di ponsel.
+  di ponsel, ditambah **peta rute** sendiri (kartu "Peta Rute", tertutup
+  secara bawaan supaya tidak menggeser daftar kunjungan yang dipakai
+  berulang sepanjang hari) — satu kendaraan saja, milik driver itu, dengan
+  penanda diwarnai menurut status kunjungan (abu-abu/hijau/merah), ditambah
+  tombol lokasi GPS. Menekan penanda di peta menggulir ke kartu tokonya di
+  daftar — kebalikan dari halaman admin, karena di sini yang berguna justru
+  arah dari peta ke daftar, bukan sebaliknya.
+
+Bug yang ditemukan sambil membangun peta driver: `@script`/`@endscript`
+mendeteksi kode multi-statement lewat regex yang mengecek apakah teksnya
+(setelah di-trim) **diawali langsung** oleh `const`/`let`/`if` — komentar
+JS di baris pertama membuat deteksi itu gagal, kode diperlakukan sebagai
+satu ekspresi tunggal, dan pernyataan berikutnya melempar "Unexpected
+token". Jangan taruh komentar sebagai baris pertama di dalam blok
+`@script`.
 
 ### Melengkapi koordinat toko
 
@@ -565,6 +588,52 @@ Tiga jalan, dari yang paling cepat:
 
 Toko tanpa koordinat dilewati saat routing — bukan menggagalkan prosesnya — dan
 dilaporkan ke admin.
+
+**Koordinat toko yang dikoreksi setelah rutenya jadi** — baik lewat form edit
+maupun impor CSV — memicu `RoutingService::hitungUlangUntukToko()`: garis
+rute dan jarak/ETA tiap kendaraan yang belum berstatus `selesai` dan memuat
+toko itu dihitung ulang memakai koordinat barunya. Tanpa ini, `geometry`
+kendaraan tetap mengacu ke koordinat lama sementara peta menggambar
+penandanya dari koordinat baru (dibaca langsung dari `toko.latitude`/
+`longitude`) — keduanya jadi tidak sinkron secara visual walau sopir belum
+melakukan aksi lapangan apa pun. Bug nyata ini ditemukan dari kendaraan
+produksi yang koordinat semua tokonya diperbarui lewat impor CSV setelah
+rutenya disetujui.
+
+Urutan kunjungan **tidak** ikut dihitung ulang (sama seperti perilaku kampas)
+— hanya jarak/garis rute untuk urutan yang sudah ada. Kalau koreksi
+koordinatnya besar, urutan lama bisa jadi tidak lagi efisien untuk lokasi
+barunya; admin perlu menekan hitung ulang rute (atau generate ulang) di
+halaman Generate Routing kalau urutannya juga perlu dioptimalkan lagi.
+
+#### Membereskan rute lama yang terlanjur basi
+
+Rute yang dibuat SEBELUM perilaku di atas ada tetap menyimpan garis rute
+versi koordinat lama. Untuk membereskannya sekali jalan:
+
+```bash
+php artisan rute:perbaiki-geometry --dry-run    # lihat dulu apa saja yang kena
+php artisan rute:perbaiki-geometry              # perbaiki garis rutenya saja
+php artisan rute:perbaiki-geometry --urutkan-ulang  # sekalian optimalkan urutannya
+```
+
+Perintah ini **memeriksa dulu, baru memperbaiki**: garis rute tersimpan
+dibaca balik (`Geo::decodePolyline`) lalu tiap toko diukur jaraknya ke garis
+itu. Kendaraan yang garis rutenya masih melewati toko-tokonya dilewati, jadi
+perintahnya aman dijalankan berulang dan tidak menghujani OSRM tanpa perlu.
+
+Dua penjaga yang penting:
+
+- **Kendaraan yang sudah dijalani sopirnya tidak pernah diurutkan ulang**,
+  bahkan dengan `--urutkan-ulang` — sebagian kunjungannya sudah selesai, dan
+  mengacak urutannya akan memindahkan toko yang sudah dikirimi barang. Garis
+  rutenya tetap diperbaiki, karena itu yang bikin petanya salah.
+- **Toko yang tetap jauh dari garis rute setelah dihitung ulang dilaporkan
+  terpisah** sebagai koordinat yang patut dicurigai. Ini bukan lagi soal
+  garis rute basi: titiknya memang tidak berada di dekat jalan mana pun
+  (mis. jatuh di laut), jadi OSRM menempelkannya ke jalan terdekat yang
+  jauh — menghitung ulang berapa kali pun tidak akan menutup jarak itu.
+  Yang perlu diperbaiki koordinat tokonya, lewat Master Toko.
 
 ---
 
@@ -771,8 +840,35 @@ berupa desimal atau negatif.
 php artisan test
 ```
 
-365 tes, mencakup:
+384 tes, mencakup:
 
+- **[`tests/Feature/PerbaikiGeometryRuteTest.php`](tests/Feature/PerbaikiGeometryRuteTest.php)** —
+  perintah `rute:perbaiki-geometry`: `decodePolyline` membaca balik apa yang
+  ditulis `encodePolyline`, kendaraan yang garis rutenya masih cocok
+  dilewati, yang sudah tidak melewati tokonya diperbaiki, `--dry-run` tidak
+  mengubah apa pun, kendaraan yang sudah dijalani sopirnya tidak diurutkan
+  ulang, dan toko yang tetap jauh dari jalan dilaporkan sebagai koordinat
+  mencurigakan (OSRM dipalsukan, karena perhitungan cadangan garis lurus
+  selalu lewat tepat di atas tokonya). Tes utamanya sengaja memakai
+  BEBERAPA kendaraan: Laravel 13 diam-diam memuat relasi yang kurang ketika
+  modelnya cuma satu, jadi pelanggaran mode ketat baru kelihatan begitu
+  koleksinya lebih dari satu — versi satu-kendaraan lolos padahal
+  perintahnya gagal di pemakaian nyata.
+- **[`tests/Feature/TokoKoordinatRoutingTest.php`](tests/Feature/TokoKoordinatRoutingTest.php)** —
+  mengoreksi koordinat toko lewat form edit memicu hitung ulang garis rute
+  dan jarak kendaraan yang belum selesai dan memuat toko itu; toko yang
+  disunting tanpa mengubah koordinatnya tidak memicu apa-apa; kendaraan yang
+  sudah berstatus `selesai` tidak disentuh lagi.
+- **[`tests/Feature/DriverPetaRuteTest.php`](tests/Feature/DriverPetaRuteTest.php)** —
+  peta driver hanya berisi kendaraannya sendiri (bukan seluruh armada),
+  kunjungan yang sudah terkirim ditandai centang + hijau, yang dibatalkan di
+  lapangan berwarna merah tapi TIDAK bercentang (tuntas secara tanggung
+  jawab, bukan sukses terkirim), yang masih pending abu-abu, serta tes
+  regresi untuk bug nyata yang ditemukan sambil membangun ini: peta admin
+  (`GenerateRouting::dataPeta()`) membandingkan status kunjungan dengan
+  string `'selesai'` padahal kolomnya di-cast ke enum `StatusStop` —
+  perbandingan itu selalu salah, jadi penanda centang di peta admin tidak
+  pernah muncul walau kunjungannya sungguh selesai.
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
   dan draft), kop menampilkan nama mobil/jumlah faktur/jumlah dus/tanggal
@@ -837,7 +933,10 @@ php artisan test
   `diambil_at` tetap tercatat saat driver membuka mobil yang driver-nya
   sudah ditetapkan admin lebih dulu lewat Generate Routing.
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
-  ketiga tindakan driver dan pembukuan stoknya: pembatalan yang menuntaskan
+  ketiga tindakan driver dan pembukuan stoknya, termasuk garis rute
+  (geometry) dan ETA yang dihitung ulang setelah kampas menambah toko baru
+  ke urutan kunjungan — dan total jarak batch routing yang ikut diperbarui:
+  pembatalan yang menuntaskan
   toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah
   batas minimal, jatah kampas per produk yang menolak permintaan melebihi sisa
   produk itu meski total jatahnya cukup, dan pemeriksaan bahwa dus yang tidak

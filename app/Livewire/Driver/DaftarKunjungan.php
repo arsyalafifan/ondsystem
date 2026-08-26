@@ -180,6 +180,55 @@ class DaftarKunjungan extends Component
             ->get();
     }
 
+    /**
+     * Bentuk data yang dibaca peta di sisi browser — satu kendaraan saja
+     * (milik driver ini), berbeda dari halaman admin yang menampilkan
+     * banyak kendaraan sekaligus.
+     */
+    #[Computed]
+    public function dataPeta(): array
+    {
+        return [
+            'kendaraan' => [[
+                'id' => $this->kendaraan->id,
+                'nama' => $this->kendaraan->nama,
+                'warna' => $this->kendaraan->warna,
+                'geometry' => $this->kendaraan->geometry,
+                'stops' => $this->stops->map(fn (KendaraanStop $s) => [
+                    'id' => $s->id,
+                    'nama' => $s->toko->nama,
+                    'urutan' => $s->urutan,
+                    'dus' => $s->total_dus,
+                    'eta' => $s->eta ? substr((string) $s->eta, 0, 5) : null,
+                    // Centang cuma untuk yang benar-benar terkirim — dibatalkan
+                    // tetap dapat warna sendiri (warnaStatus) tapi bukan
+                    // centang, supaya tidak terlihat seperti terkirim sukses.
+                    'selesai' => $s->status === StatusStop::Selesai,
+                    'warnaStatus' => $s->status->warna(),
+                    'lat' => $s->toko->latitude !== null ? (float) $s->toko->latitude : null,
+                    'lng' => $s->toko->longitude !== null ? (float) $s->toko->longitude : null,
+                ])->values()->all(),
+            ]],
+            'belumDirutekan' => [],
+        ];
+    }
+
+    #[Computed]
+    public function konfigPeta(): array
+    {
+        return [
+            'tileUrl' => config('ond.peta.tile_url'),
+            'attribution' => config('ond.peta.attribution'),
+            'zoom' => config('ond.peta.zoom_default'),
+            'depot' => [
+                'lat' => (float) config('ond.depot.lat'),
+                'lng' => (float) config('ond.depot.lng'),
+                'nama' => config('ond.depot.nama'),
+            ],
+            'bisaDiklik' => true,
+        ];
+    }
+
     #[Computed]
     public function progres(): array
     {
@@ -557,9 +606,11 @@ class DaftarKunjungan extends Component
         $this->kendaraan->refresh();
 
         unset(
-            $this->stops, $this->progres, $this->berikutnya,
+            $this->stops, $this->progres, $this->berikutnya, $this->dataPeta,
             $this->jatahKampas, $this->totalJatahKampas, $this->kampasMelebihiJatah, $this->stopKonfirmasiModel,
         );
+
+        $this->dispatch('peta-diperbarui', data: $this->dataPeta);
     }
 
     public function render()

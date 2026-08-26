@@ -443,6 +443,31 @@ class RoutingService
         $this->perbaruiTotalBatch($kendaraan->batch);
     }
 
+    /**
+     * Menghitung ulang garis rute semua kendaraan yang memuat toko ini
+     * sebagai titik kunjungan, dipanggil setelah koordinatnya diperbaiki
+     * (edit manual maupun impor CSV). Tanpa ini, kendaraan yang sudah
+     * digenerate tetap menyimpan garis rute lama sesuai koordinat sebelum
+     * diperbaiki, sementara peta menggambar penandanya dari koordinat baru
+     * — keduanya jadi tidak sinkron walau tidak ada aksi lapangan sama
+     * sekali. Kendaraan yang sudah selesai tidak disentuh lagi.
+     */
+    public function hitungUlangUntukToko(int $tokoId): void
+    {
+        $kendaraanIds = KendaraanStop::where('toko_id', $tokoId)
+            ->whereHas('kendaraan', fn ($q) => $q->where('status', '!=', 'selesai'))
+            ->distinct()
+            ->pluck('kendaraan_id');
+
+        foreach ($kendaraanIds as $kendaraanId) {
+            $kendaraan = Kendaraan::find($kendaraanId);
+
+            if ($kendaraan !== null) {
+                $this->hitungUlang($kendaraan);
+            }
+        }
+    }
+
     /** Menutup celah nomor urut setelah stop dipindah atau dihapus. */
     private function rapikanUrutan(Kendaraan $kendaraan): void
     {

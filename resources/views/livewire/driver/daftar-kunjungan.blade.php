@@ -49,6 +49,30 @@
         @endif
     </div>
 
+    {{-- Peta rute, tertutup secara bawaan supaya tidak menggeser daftar
+         kunjungan (yang dipakai berulang-ulang sepanjang hari) ke bawah
+         layar. Menyimpan diri lewat Alpine, bukan properti Livewire — buka
+         tutupnya murni tampilan, tidak perlu bolak-balik ke server. --}}
+    <div x-data="{ terbuka: true }" class="mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <button type="button" @click="
+                terbuka = !terbuka;
+                if (terbuka) { setTimeout(() => window._petaKunjungan?.peta?.invalidateSize(), 50); }
+            "
+                class="flex w-full items-center justify-between px-4 py-3 text-left">
+            <span class="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <x-heroicon-o-map class="size-4 inline text-gray-500" /> {{ __('driver.peta_rute') }}
+            </span>
+            <x-heroicon-o-chevron-down class="size-4 shrink-0 text-gray-400 transition-transform" x-bind:class="{ 'rotate-180': terbuka }" />
+        </button>
+
+        <div x-show="terbuka" x-cloak class="border-t border-gray-200">
+            <div class="flex justify-end gap-2 border-b border-gray-100 px-3 py-2">
+                <x-tombol-lokasi-saya callback="pusatkanLokasiSayaDriver" />
+            </div>
+            <div wire:ignore id="peta-kunjungan" class="peta h-[360px]"></div>
+        </div>
+    </div>
+
     @if ($p['belum'] === 0)
         <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
             <p class="text-2xl"><x-heroicon-o-sparkles class="size-6 inline text-yellow-500" /></p>
@@ -86,8 +110,8 @@
                 $batal = $stop->status === \App\Enums\StatusStop::Dibatalkan;
             @endphp
 
-            <div @class([
-                    'rounded-xl border bg-white p-4',
+            <div id="stop-{{ $stop->id }}" @class([
+                    'rounded-xl border bg-white p-4 scroll-mt-4',
                     'border-emerald-200 bg-emerald-50/40' => $selesai,
                     'border-red-200 bg-red-50/40' => $batal,
                     'border-gray-200' => ! $selesai && ! $batal,
@@ -486,6 +510,37 @@
             </x-slot:aksi>
         </x-modal>
     @endif
+
+    {{-- Bukan komentar JS di baris pertama <script> ini dengan sengaja —
+         @script Livewire/Alpine mendeteksi kode multi-statement lewat regex
+         yang mengecek apakah TEKSNYA (setelah di-trim) diawali langsung oleh
+         const/let/if. Komentar di baris pertama membuat deteksi itu gagal,
+         kode diperlakukan sebagai satu ekspresi tunggal, dan `const` di
+         baris berikutnya melempar "Unexpected token 'const'". --}}
+    @script
+    <script>
+        const petaKunjungan = window.pasangPetaRute('peta-kunjungan', @js($this->konfigPeta));
+
+        if (petaKunjungan) {
+            window._petaKunjungan = petaKunjungan;
+            petaKunjungan.gambar(@js($this->dataPeta));
+
+            $wire.on('peta-diperbarui', (payload) => {
+                petaKunjungan.gambar(payload.data ?? payload[0]?.data ?? payload);
+            });
+
+            // Menekan penanda di peta menggulir ke kartu tokonya di daftar,
+            // bukan menyorot balik di peta (beda dari layar admin) — di sini
+            // peta cuma satu kendaraan, jadi yang berguna justru arah
+            // sebaliknya: dari peta ke daftar.
+            window.Livewire.on('stop-dipilih', ({ stopId }) => {
+                document.getElementById('stop-' + stopId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+
+            window.pusatkanLokasiSayaDriver = (lat, lng) => petaKunjungan.pusatkanKe(lat, lng);
+        }
+    </script>
+    @endscript
 
     @script
     <script>
