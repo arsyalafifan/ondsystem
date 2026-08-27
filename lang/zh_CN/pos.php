@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => '门店直销 (POS)',
+    'ket' => '现场直接销售——不经过司机配送。库存立即扣减，收入立即入账。',
+    'langkah_toko' => '1. 选择商店',
+    'langkah_produk' => '2. 选择商品',
+    'langkah_pembayaran' => '3. 付款',
+    'langkah_catatan' => '4. 备注（可选）',
+    'cari_toko' => '输入商店名称、编号或地址…',
+    'tidak_ada_toko' => '没有匹配的商店。',
+    'cari_barcode_label' => '扫描或输入商品条码',
+    'cari_barcode_placeholder' => '将光标对准这里再扫描，或手动输入…',
+    'tombol_tambah_barcode' => '添加',
+    'barcode_tidak_dikenali' => '无法识别条码 ":kode"。该商品尚未设置条码，或尚未加入商品主档——请用下方名称搜索添加。',
+    'notif_barcode_ditambah' => '已通过条码添加 :nama。',
+    'tombol_simpan' => '保存并完成销售',
+    'tersimpan' => '销售单 :kode 已成功保存。',
+    'notif_tersimpan' => '销售单 :kode 已保存，库存已扣减并标记为已付款。',
+    'lihat_riwayat' => '查看收入记录',
+    'ditolak' => '销售被拒绝，请检查下方说明。',
+    'bayar_cash_penuh' => '全部现金',
+    'bayar_transfer_penuh' => '全部转账',
+    'halangan_nominal_belum_pas' => '现金 + 转账金额必须与总金额完全一致。',
+    'periksa_nominal' => '现金 + 转账与总金额一致',
+    'catatan_simpan' => '此销售立即记为已完成并已付款，登记人为 :nama。',
+];

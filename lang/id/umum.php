@@ -10,6 +10,7 @@ return [
     'lihat' => 'Lihat',
     'rincian' => 'Rincian',
     'cari' => 'Cari',
+    'tidak_ada_hasil' => 'Tidak ada yang cocok.',
     'bersihkan' => 'Bersihkan',
     'ganti' => 'Ganti',
     'terapkan' => 'Terapkan',

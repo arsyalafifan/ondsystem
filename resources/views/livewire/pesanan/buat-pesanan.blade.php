@@ -160,17 +160,16 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
+                            @php
+                                $opsiProduk = $this->produks->map(fn ($p) => ['value' => $p->id, 'label' => $p->nama.' ('.$p->kode.')'])->all();
+                            @endphp
                             @foreach ($baris as $i => $b)
                                 @php $produk = $this->produks->firstWhere('id', (int) $b['produk_id']); @endphp
-                                <tr>
+                                <tr wire:key="baris-{{ $i }}">
                                     <td class="px-4 py-2">
-                                        <select wire:model.live="baris.{{ $i }}.produk_id"
-                                                class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                                            <option value="">{{ __('pesanan.pilih_produk') }}</option>
-                                            @foreach ($this->produks as $p)
-                                                <option value="{{ $p->id }}">{{ $p->nama }} ({{ $p->kode }})</option>
-                                            @endforeach
-                                        </select>
+                                        <x-pilih-cari :opsi="$opsiProduk" :nilai="$b['produk_id']"
+                                                       set="baris.{{ $i }}.produk_id"
+                                                       placeholder="{{ __('pesanan.pilih_produk') }}" />
                                     </td>
                                     <td class="px-4 py-2">
                                         <input type="number" min="1" wire:model.live.debounce.400ms="baris.{{ $i }}.jumlah_dus"

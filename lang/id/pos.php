@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => 'Point of Sale',
+    'ket' => 'Penjualan langsung di tempat — tidak melalui pengantaran driver. Stok berkurang dan uangnya masuk pendapatan seketika.',
+    'langkah_toko' => '1. Pilih Toko',
+    'langkah_produk' => '2. Pilih Produk',
+    'langkah_pembayaran' => '3. Pembayaran',
+    'langkah_catatan' => '4. Catatan (opsional)',
+    'cari_toko' => 'Ketik nama, kode, atau alamat toko…',
+    'tidak_ada_toko' => 'Tidak ada toko yang cocok.',
+    'cari_barcode_label' => 'Pindai / ketik barcode produk',
+    'cari_barcode_placeholder' => 'Sorot ke sini lalu pindai, atau ketik manual…',
+    'tombol_tambah_barcode' => 'Tambah',
+    'barcode_tidak_dikenali' => 'Barcode ":kode" tidak dikenali. Produk ini belum ditempeli barcode, atau belum ada di Master Produk — tambahkan lewat pencarian nama di bawah.',
+    'notif_barcode_ditambah' => ':nama ditambahkan dari barcode.',
+    'tombol_simpan' => 'Simpan & Selesaikan Penjualan',
+    'tersimpan' => 'Penjualan :kode berhasil disimpan.',
+    'notif_tersimpan' => 'Penjualan :kode tersimpan. Stok sudah berkurang dan tercatat lunas.',
+    'lihat_riwayat' => 'Lihat riwayat pendapatan',
+    'ditolak' => 'Penjualan ditolak. Periksa keterangan di bawah.',
+    'bayar_cash_penuh' => 'Semua Cash',
+    'bayar_transfer_penuh' => 'Semua Transfer',
+    'halangan_nominal_belum_pas' => 'Jumlah cash + transfer harus persis sama dengan total belanja.',
+    'periksa_nominal' => 'Cash + transfer sama dengan total belanja',
+    'catatan_simpan' => 'Penjualan tercatat SELESAI dan LUNAS seketika, atas nama :nama.',
+];

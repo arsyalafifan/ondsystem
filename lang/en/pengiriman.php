@@ -6,6 +6,7 @@ return [
     'status_dibatalkan' => 'Cancelled',
     'jenis_normal' => 'Route',
     'jenis_kampas' => 'Offload',
+    'jenis_pos' => 'Point of Sale',
     'label_kampas' => 'Offload',
     'dus_terkirim' => 'Boxes delivered',
     'dus_sisa' => 'Left on the vehicle',

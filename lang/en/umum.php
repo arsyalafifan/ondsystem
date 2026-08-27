@@ -10,6 +10,7 @@ return [
     'lihat' => 'View',
     'rincian' => 'Details',
     'cari' => 'Search',
+    'tidak_ada_hasil' => 'No match found.',
     'bersihkan' => 'Clear',
     'ganti' => 'Change',
     'terapkan' => 'Apply',
