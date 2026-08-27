@@ -27,6 +27,20 @@ class Pendapatan extends Component
     #[Url(as: 'sampai')]
     public string $sampaiTanggal = '';
 
+    // --- Penyaring tabel riwayat — hanya menyaring tabel per pesanan di
+    // bawah, bukan kartu ringkasan/kategori/grafik di atasnya. Kartu-kartu
+    // itu tetap menunjukkan gambaran keseluruhan rentang tanggal; tabel
+    // riwayat adalah alat cari yang menyaring DI DALAM rentang itu. ---
+
+    #[Url(as: 'q')]
+    public string $riwayatCari = '';
+
+    #[Url(as: 'kat')]
+    public string $riwayatKategori = '';
+
+    #[Url(as: 'metode')]
+    public string $riwayatMetode = '';
+
     public function mount(): void
     {
         $this->tanggal = $this->tanggal ?: today()->toDateString();
@@ -41,9 +55,18 @@ class Pendapatan extends Component
             unset(
                 $this->pesanans, $this->ringkasanHarian, $this->dataChart,
                 $this->totalKeseluruhan, $this->totalCash, $this->totalTransfer,
+                $this->totalPerKategori, $this->riwayat,
             );
             $this->dispatch('pendapatan-diperbarui', data: $this->dataChart);
+        } elseif (in_array($kolom, ['riwayatCari', 'riwayatKategori', 'riwayatMetode'], true)) {
+            unset($this->riwayat);
         }
+    }
+
+    public function bersihkanFilterRiwayat(): void
+    {
+        $this->reset(['riwayatCari', 'riwayatKategori', 'riwayatMetode']);
+        unset($this->riwayat);
     }
 
     #[Computed]
@@ -51,7 +74,7 @@ class Pendapatan extends Component
     {
         return Pesanan::query()
             ->where('status_bayar', StatusBayar::Lunas)
-            ->with('items')
+            ->with(['items', 'toko:id,nama'])
             ->when($this->mode === 'hari', fn ($q) => $q->whereDate('tanggal_lunas', $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');
@@ -92,6 +115,74 @@ class Pendapatan extends Component
     public function totalTransfer(): float
     {
         return (float) $this->pesanans->sum(fn (Pesanan $p) => (float) $p->nominal_transfer);
+    }
+
+    /**
+     * Pendapatan menurut sumbernya (kategori), bukan menurut cara bayarnya
+     * (cash/transfer di atas). Rute biasa dan kampas sama-sama dikelompokkan
+     * "driver" karena keduanya lewat kendaraan — lihat
+     * JenisPesanan::kategoriPendapatan().
+     *
+     * @return array<string, array{total: float, jumlah: int}>
+     */
+    #[Computed]
+    public function totalPerKategori(): array
+    {
+        $grup = $this->pesanans->groupBy(fn (Pesanan $p) => $p->jenis->kategoriPendapatan());
+
+        return [
+            'driver' => [
+                'total' => (float) ($grup->get('driver')?->sum->tagihan ?? 0),
+                'jumlah' => $grup->get('driver')?->count() ?? 0,
+            ],
+            'pos' => [
+                'total' => (float) ($grup->get('pos')?->sum->tagihan ?? 0),
+                'jumlah' => $grup->get('pos')?->count() ?? 0,
+            ],
+        ];
+    }
+
+    /**
+     * Riwayat pendapatan per pesanan, bukan agregat per hari — dipakai
+     * tabel rincian di bawah ringkasan, terurut yang paling baru lunas
+     * dulu, dan disaring lewat riwayatCari/riwayatKategori/riwayatMetode.
+     *
+     * Disaring di memori (bukan lewat kueri baru ke basis data): tabelnya
+     * menyaring DI DALAM `pesanans()` yang sudah diambil untuk kartu
+     * ringkasan di atas, bukan permintaan terpisah — rentang tanggalnya
+     * sudah sama, jadi tidak ada gunanya bertanya ke basis data dua kali.
+     *
+     * @return Collection<int, Pesanan>
+     */
+    #[Computed]
+    public function riwayat(): Collection
+    {
+        $kata = mb_strtolower(trim($this->riwayatCari));
+
+        return $this->pesanans
+            ->filter(function (Pesanan $p) use ($kata): bool {
+                if ($this->riwayatKategori !== '' && $p->jenis->kategoriPendapatan() !== $this->riwayatKategori) {
+                    return false;
+                }
+
+                if ($this->riwayatMetode === 'cash' && (float) $p->nominal_cash <= 0) {
+                    return false;
+                }
+
+                if ($this->riwayatMetode === 'transfer' && (float) $p->nominal_transfer <= 0) {
+                    return false;
+                }
+
+                if ($kata !== ''
+                    && ! str_contains(mb_strtolower($p->kode), $kata)
+                    && ! str_contains(mb_strtolower($p->toko->nama), $kata)) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->sortByDesc(fn (Pesanan $p) => $p->tanggal_lunas.$p->id)
+            ->values();
     }
 
     #[Computed]

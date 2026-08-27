@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => 'Point of Sale',
+    'ket' => 'On-the-spot sale — not through driver delivery. Stock drops and the money hits revenue immediately.',
+    'langkah_toko' => '1. Choose Store',
+    'langkah_produk' => '2. Choose Products',
+    'langkah_pembayaran' => '3. Payment',
+    'langkah_catatan' => '4. Notes (optional)',
+    'cari_toko' => 'Type store name, code, or address…',
+    'tidak_ada_toko' => 'No matching store.',
+    'cari_barcode_label' => 'Scan / type product barcode',
+    'cari_barcode_placeholder' => 'Focus here then scan, or type manually…',
+    'tombol_tambah_barcode' => 'Add',
+    'barcode_tidak_dikenali' => 'Barcode ":kode" was not recognized. This product has no barcode assigned yet, or isn\'t in Master Products — add it via the name search below.',
+    'notif_barcode_ditambah' => ':nama added from barcode.',
+    'tombol_simpan' => 'Save & Complete Sale',
+    'tersimpan' => 'Sale :kode saved successfully.',
+    'notif_tersimpan' => 'Sale :kode saved. Stock reduced and marked paid.',
+    'lihat_riwayat' => 'View revenue history',
+    'ditolak' => 'Sale rejected. Check the details below.',
+    'bayar_cash_penuh' => 'All Cash',
+    'bayar_transfer_penuh' => 'All Transfer',
+    'halangan_nominal_belum_pas' => 'Cash + transfer must exactly match the total.',
+    'periksa_nominal' => 'Cash + transfer matches the total',
+    'catatan_simpan' => 'The sale is recorded as COMPLETE and PAID immediately, under :nama.',
+];

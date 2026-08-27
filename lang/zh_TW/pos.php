@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => '門市直銷 (POS)',
+    'ket' => '現場直接銷售——不經過司機配送。庫存立即扣減，收入立即入帳。',
+    'langkah_toko' => '1. 選擇商店',
+    'langkah_produk' => '2. 選擇商品',
+    'langkah_pembayaran' => '3. 付款',
+    'langkah_catatan' => '4. 備註（選填）',
+    'cari_toko' => '輸入商店名稱、代碼或地址…',
+    'tidak_ada_toko' => '沒有符合的商店。',
+    'cari_barcode_label' => '掃描或輸入商品條碼',
+    'cari_barcode_placeholder' => '將游標對準這裡再掃描，或手動輸入…',
+    'tombol_tambah_barcode' => '加入',
+    'barcode_tidak_dikenali' => '無法辨識條碼 ":kode"。此商品尚未設定條碼，或尚未加入商品主檔——請用下方名稱搜尋加入。',
+    'notif_barcode_ditambah' => '已透過條碼加入 :nama。',
+    'tombol_simpan' => '儲存並完成銷售',
+    'tersimpan' => '銷售單 :kode 已成功儲存。',
+    'notif_tersimpan' => '銷售單 :kode 已儲存，庫存已扣減並標記為已付款。',
+    'lihat_riwayat' => '查看收入紀錄',
+    'ditolak' => '銷售被拒絕，請檢查下方說明。',
+    'bayar_cash_penuh' => '全部現金',
+    'bayar_transfer_penuh' => '全部轉帳',
+    'halangan_nominal_belum_pas' => '現金 + 轉帳金額必須與總金額完全一致。',
+    'periksa_nominal' => '現金 + 轉帳與總金額一致',
+    'catatan_simpan' => '此銷售立即記為已完成並已付款，登記人為 :nama。',
+];

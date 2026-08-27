@@ -858,14 +858,139 @@ berupa desimal atau negatif.
 
 ---
 
+## Point of Sale (POS)
+
+Layar tersendiri (menu **Point of Sale**, `/pos`, admin dan sales) untuk
+penjualan langsung di tempat — **tidak pernah lewat pengantaran driver sama
+sekali**. Dibuat sebagai layar terpisah dari Input Pesanan biasa, bukan opsi
+di dalamnya: alur normal punya banyak aturan yang tidak relevan di sini
+(batas minimal dus, satu pesanan aktif per toko, reservasi stok menunggu
+pengiriman), dan mencampurnya lewat percabangan kondisi akan membuat kedua
+alur sama-sama lebih sulit dibaca.
+
+Polanya mengikuti **kampas** (`PengirimanService::kampas()`), bukan pesanan
+biasa: barangnya berpindah tangan seketika, jadi begitu disimpan lewat
+`PesananService::buatPos()` pesanannya langsung berstatus **SELESAI dan
+LUNAS** — tidak ada fase ORDER/PROCESS/DELIVERY, tidak ada reservasi stok
+menunggu pengiriman. Bedanya dari kampas: POS **tidak pernah membuat
+`KendaraanStop`** sama sekali, karena memang tidak ada kendaraan yang
+terlibat — toko tetap dipilih (barangnya tercatat masuk ke toko yang mana),
+tapi tidak ada rute.
+
+Tiga aturan yang sengaja beda dari pesanan biasa:
+
+- **Tidak ada minimal pembelian** — mulai dari 1, bukan `min_dus_per_toko`.
+- **Dibandingkan dengan stok fisik penuh** (`produks.stok`), bukan
+  `stok_tersedia` (stok dikurangi reservasi) — POS menjual langsung dari
+  rak, jadi reservasi pesanan pengantaran lain tidak relevan di sini.
+- **Toko yang masih punya pesanan pengantaran aktif tetap boleh dilayani** —
+  POS tidak bersinggungan dengan routing sama sekali, jadi aturan "satu
+  pesanan aktif per toko" (yang ada untuk mencegah konflik rute) tidak
+  berlaku.
+
+Pembayarannya langsung diminta saat itu juga (rincian cash/transfer, pola
+input yang sama dengan Pelunasan — lihat di atas) dan disimpan dalam
+transaksi yang sama dengan pesanannya, bukan lewat `PelunasanService`
+terpisah belakangan.
+
+### Barcode: siap dipakai, belum wajib dipakai
+
+Kolom `produks.barcode` (nullable, unik) dan input pindai di layar Kasir
+sudah berfungsi penuh — tapi tidak ada produk yang punya barcode sampai
+admin melengkapinya lewat **Master Produk**. Sengaja tidak dibangun lewat
+kamera: alat pemindai USB/Bluetooth (perangkat POS yang sesungguhnya) bagi
+peramban tidak beda dari mengetik cepat lalu menekan Enter, jadi satu kolom
+teks biasa + `wire:submit` sudah cukup — tanpa perlu menduplikasi
+infrastruktur kamera QR yang sudah ada di
+[`resources/js/pemindai-qr.js`](resources/js/pemindai-qr.js) untuk kasus
+pakai yang berbeda. Memindai kode yang sama dua kali menambah jumlah baris
+yang sudah ada, bukan membuat baris baru — meniru kelaziman kasir
+sungguhan: tiap pindai berarti "tambah satu lagi".
+
+### Kategori pendapatan: Pengantaran Driver vs Point of Sale
+
+Layar **Pendapatan** sudah murni berbasis `Pesanan::where('status_bayar',
+Lunas)`, jadi penjualan POS otomatis ikut terhitung tanpa perubahan pada
+kueri dasarnya. Yang ditambahkan:
+
+- **Kartu ringkasan per kategori** — `JenisPesanan::kategoriPendapatan()`
+  mengelompokkan `normal` dan `kampas` sama-sama sebagai `driver` (keduanya
+  lewat kendaraan, bedanya cuma cara kunjungannya masuk ke rute), dan `pos`
+  sebagai kategorinya sendiri.
+- **Riwayat per pesanan** (bukan cuma agregat per hari seperti tabel yang
+  sudah ada) — kode pesanan, toko, kategori, rincian cash/transfer, dan
+  total, terurut yang paling baru lunas dulu. Tabelnya sendiri bisa disaring
+  lewat kode/nama toko, kategori (Pengantaran Driver / Point of Sale), dan
+  metode bayar (Cash / Transfer), plus tombol Bersihkan — lihat properti
+  `riwayatCari`/`riwayatKategori`/`riwayatMetode` pada `Pendapatan.php`.
+  Sengaja hanya menyaring TABEL riwayat, bukan kartu ringkasan/kategori/
+  grafik di atasnya — kartu-kartu itu tetap gambaran keseluruhan rentang
+  tanggal, tabel riwayat adalah alat cari yang menyaring di dalamnya.
+  Penyaring disaring di memori dari `pesanans()` yang sudah diambil untuk
+  kartu ringkasan (rentang tanggalnya sudah sama), bukan lewat kueri baru.
+  Metode bayar menjawab "transaksi ini ada unsur cash/transfer-nya?", bukan
+  "metode tunggalnya apa" — pembayaran campuran (sebagian cash, sebagian
+  transfer, seperti yang diizinkan Pelunasan/POS) muncul di KEDUA penyaring.
+
+### Pemilih produk yang bisa dicari (`<x-pilih-cari>`)
+
+Baris produk di **Input Pesanan** dan **POS** memakai
+[`<x-pilih-cari>`](resources/views/components/pilih-cari.blade.php) —
+kotak teks yang menyaring daftar produk sambil diketik, gaya Select2 —
+bukan `<select>` biasa yang mengharuskan menggulir daftar panjang. Dibuat
+sendiri lewat Alpine, bukan menambah pustaka (Select2/Choices.js/dsb):
+daftar produknya sudah dikirim sekali ke halaman lewat `@js()`, jadi
+penyaringan sisi klien saja sudah cukup tanpa permintaan tambahan ke
+server. Mendukung navigasi panah atas/bawah + Enter, bukan cuma klik.
+
+Nilai yang benar-benar tersimpan tetap properti Livewire biasa
+(`baris.{i}.produk_id`), diperbarui lewat `$wire.set()` setiap kali sebuah
+pilihan diklik/di-Enter — bukan `wire:model`, karena kotak teks yang
+tampil menunjukkan LABEL produk ("Nama (KODE)"), bukan id-nya. Sinkron
+ulang ke label yang benar dijaga lewat `x-effect` yang membaca ulang nilai
+server-rendered pada setiap render — pola yang sama dipakai tombol "Semua
+Cash"/"Semua Transfer" di layar Kasir untuk kasus yang serupa: properti
+Livewire berubah dari INTERAKSI LAIN (bukan mengetik langsung di kotak
+itu), jadi tampilannya perlu disegarkan tanpa Livewire tahu-menahu soal
+state Alpine lokal.
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-392 tes, mencakup:
+424 tes, mencakup:
 
+- **[`tests/Feature/PendapatanRiwayatTest.php`](tests/Feature/PendapatanRiwayatTest.php)** —
+  penyaring tabel riwayat lewat kode pesanan, nama toko, kategori (`pos`
+  vs `driver` — termasuk memastikan rute biasa DAN kampas sama-sama masuk
+  `driver`), dan metode bayar (`cash`/`transfer`, termasuk pembayaran
+  campuran yang muncul di kedua penyaring metode); pencarian yang tidak
+  cocok menampilkan pesan kosong yang berbeda dari benar-benar tidak ada
+  transaksi; tombol Bersihkan mengembalikan seluruh transaksi; dan
+  penyaring riwayat sengaja tidak mengubah kartu ringkasan kategori di
+  atasnya.
+- **[`tests/Feature/PosTest.php`](tests/Feature/PosTest.php)** —
+  `PesananService::buatPos()` langsung SELESAI+LUNAS tanpa membuat
+  `KendaraanStop`, stok fisik berkurang seketika (bukan lewat reservasi),
+  tidak menuntut minimal dus, tetap melayani toko yang masih punya pesanan
+  pengantaran aktif, menolak stok fisik kurang dan nominal cash+transfer
+  yang tidak pas; layar Kasir menyelesaikan penjualan dari awal sampai
+  akhir, menambah baris dari barcode (termasuk memindai kode yang sama dua
+  kali menambah jumlah, bukan baris baru) dan menolak barcode yang tidak
+  dikenali; penjualan POS dan pesanan pengantaran biasa yang lunas
+  terkategori benar di Pendapatan (`pos` vs `driver`), termasuk lewat blade
+  yang sungguhan dirender dengan BEBERAPA pesanan sekaligus — pelajaran
+  yang sama seperti pengujian `rute:perbaiki-geometry` dan
+  `DaftarPesananFilterTest`: pelanggaran mode ketat pada relasi `toko` baru
+  kelihatan begitu koleksinya lebih dari satu model; dan Master Produk
+  menolak barcode yang sudah dipakai produk lain tapi membiarkan dua produk
+  sama-sama belum punya barcode; dan `<x-pilih-cari>` bisa memilih produk
+  lewat `$wire.set()` end-to-end sampai tersimpan di kedua layar (Kasir
+  maupun Input Pesanan), termasuk menampilkan label yang sudah terpilih.
 - **[`tests/Feature/DaftarPesananFilterTest.php`](tests/Feature/DaftarPesananFilterTest.php)** —
   penyaring penginput membatasi tabel dan ringkasan status pada satu sales;
   daftar pilihannya hanya berisi user yang pernah menginput pesanan; kolom

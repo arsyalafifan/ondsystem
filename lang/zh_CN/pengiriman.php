@@ -6,6 +6,7 @@ return [
     'status_dibatalkan' => '已取消',
     'jenis_normal' => '路线',
     'jenis_kampas' => '甩货',
+    'jenis_pos' => '门店直销',
     'label_kampas' => '甩货',
     'dus_terkirim' => '已送箱数',
     'dus_sisa' => '车上剩余',

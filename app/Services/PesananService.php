@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\JenisPesanan;
+use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
 use App\Models\KendaraanStop;
@@ -10,6 +12,7 @@ use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
+use App\Support\Bahasa;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -137,6 +140,148 @@ class PesananService
                 ]);
 
                 $this->kunciStok($b['produk'], $b['jumlah_dus'], $pesanan, $pembuat);
+            }
+
+            return $pesanan->fresh(['items.produk', 'toko']);
+        });
+    }
+
+    /**
+     * Penjualan langsung di tempat (POS) — tidak pernah melalui rute
+     * pengantaran driver sama sekali. Mengikuti pola yang sama dengan
+     * PengirimanService::kampas(): barangnya berpindah tangan seketika,
+     * jadi pesanan langsung tercatat SELESAI dan lunas begitu dibuat,
+     * tanpa fase reservasi/DELIVERY seperti pesanan biasa. Bedanya dari
+     * kampas: POS tidak pernah membuat KendaraanStop sama sekali, karena
+     * memang tidak ada kendaraan yang terlibat.
+     *
+     * Beda lain dari pesanan biasa:
+     *  - tidak ada batas minimal dus per toko (mulai dari 1);
+     *  - dibandingkan dengan stok fisik penuh (`stok`), bukan stok_tersedia
+     *    — brang dijual langsung dari rak, jadi reservasi pesanan lain
+     *    tidak relevan di sini;
+     *  - toko yang masih punya pesanan pengantaran aktif tetap boleh
+     *    dilayani, karena POS tidak bersinggungan dengan routing sama
+     *    sekali.
+     *
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items
+     *
+     * @throws ValidationException
+     */
+    public function buatPos(
+        Toko $toko,
+        array $items,
+        User $penjual,
+        float $nominalCash,
+        float $nominalTransfer,
+        ?string $catatan = null,
+    ): Pesanan {
+        $items = $this->bersihkanItems($items);
+
+        if ($items === []) {
+            throw ValidationException::withMessages([
+                'items' => __('pesanan.galat_minimal_satu'),
+            ]);
+        }
+
+        if (! $toko->aktif) {
+            throw ValidationException::withMessages([
+                'toko_id' => __('pesanan.galat_toko_nonaktif', ['nama' => $toko->nama]),
+            ]);
+        }
+
+        if ($toko->wilayah_id === null) {
+            throw ValidationException::withMessages([
+                'toko_id' => __('pesanan.galat_toko_tanpa_wilayah', ['nama' => $toko->nama]),
+            ]);
+        }
+
+        if ($nominalCash < 0 || $nominalTransfer < 0) {
+            throw ValidationException::withMessages([
+                'nominalCash' => __('pembayaran.galat_nominal_negatif'),
+            ]);
+        }
+
+        return DB::transaction(function () use ($toko, $items, $penjual, $nominalCash, $nominalTransfer, $catatan): Pesanan {
+            $produkIds = array_column($items, 'produk_id');
+            $produks = Produk::whereIn('id', $produkIds)->lockForUpdate()->get()->keyBy('id');
+
+            $totalDus = 0;
+            $totalNilai = 0.0;
+            $baris = [];
+
+            foreach ($items as $item) {
+                $produk = $produks->get($item['produk_id']);
+
+                if ($produk === null || ! $produk->aktif) {
+                    throw ValidationException::withMessages([
+                        'items' => __('pesanan.galat_produk_hilang'),
+                    ]);
+                }
+
+                if ($item['jumlah_dus'] > $produk->stok) {
+                    throw ValidationException::withMessages([
+                        'items' => __('pesanan.galat_stok_kurang', [
+                            'nama' => $produk->nama,
+                            'diminta' => $item['jumlah_dus'],
+                            'tersedia' => $produk->stok,
+                        ]),
+                    ]);
+                }
+
+                $subtotal = (float) $produk->harga * $item['jumlah_dus'];
+                $totalDus += $item['jumlah_dus'];
+                $totalNilai += $subtotal;
+
+                $baris[] = [
+                    'produk' => $produk,
+                    'jumlah_dus' => $item['jumlah_dus'],
+                    'harga_satuan' => (float) $produk->harga,
+                    'subtotal' => $subtotal,
+                ];
+            }
+
+            // Toleransi 1 rupiah untuk pembulatan, sama seperti
+            // PelunasanService::tandaiLunas().
+            if (abs(($nominalCash + $nominalTransfer) - $totalNilai) > 1.0) {
+                throw ValidationException::withMessages([
+                    'nominalCash' => __('pembayaran.galat_nominal_tidak_sesuai', [
+                        'total' => Bahasa::rupiah($nominalCash + $nominalTransfer),
+                        'tagihan' => Bahasa::rupiah($totalNilai),
+                    ]),
+                ]);
+            }
+
+            $pesanan = Pesanan::create([
+                'kode' => $this->kodePos(),
+                'toko_id' => $toko->id,
+                'wilayah_id' => $toko->wilayah_id,
+                'dibuat_oleh' => $penjual->id,
+                'status' => StatusPesanan::Selesai,
+                'jenis' => JenisPesanan::Pos,
+                'tanggal' => today(),
+                'total_dus' => $totalDus,
+                'total_nilai' => $totalNilai,
+                'catatan' => $catatan,
+                'dikirim_at' => now(),
+                'selesai_at' => now(),
+                'status_bayar' => StatusBayar::Lunas,
+                'tanggal_lunas' => today(),
+                'dilunasi_oleh' => $penjual->id,
+                'nominal_cash' => $nominalCash,
+                'nominal_transfer' => $nominalTransfer,
+            ]);
+
+            foreach ($baris as $b) {
+                $pesanan->items()->create([
+                    'produk_id' => $b['produk']->id,
+                    'jumlah_dus' => $b['jumlah_dus'],
+                    'jumlah_dus_terkirim' => $b['jumlah_dus'],
+                    'harga_satuan' => $b['harga_satuan'],
+                    'subtotal' => $b['subtotal'],
+                ]);
+
+                $this->keluarkanStok($b['produk'], $b['jumlah_dus'], $pesanan, $penjual);
             }
 
             return $pesanan->fresh(['items.produk', 'toko']);
@@ -342,6 +487,14 @@ class PesananService
         // sebelumnya di hari yang sama sudah di-soft-delete — kode punya
         // batasan unik yang tetap menghitung baris yang di-soft-delete.
         $urutan = Pesanan::withTrashed()->whereDate('created_at', today())->count() + 1;
+
+        return sprintf('%s-%04d', $prefix, $urutan);
+    }
+
+    private function kodePos(): string
+    {
+        $prefix = 'POS-'.now()->format('Ymd');
+        $urutan = Pesanan::withTrashed()->where('jenis', JenisPesanan::Pos)->whereDate('created_at', today())->count() + 1;
 
         return sprintf('%s-%04d', $prefix, $urutan);
     }

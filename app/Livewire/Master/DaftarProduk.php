@@ -23,6 +23,8 @@ class DaftarProduk extends Component
 
     public string $kode = '';
 
+    public string $barcode = '';
+
     public string $nama = '';
 
     public string $satuan = 'dus';
@@ -68,6 +70,7 @@ class DaftarProduk extends Component
 
         $this->produkId = $produk->id;
         $this->kode = $produk->kode;
+        $this->barcode = $produk->barcode ?? '';
         $this->nama = $produk->nama;
         $this->satuan = $produk->satuan;
         $this->stok = $produk->stok;
@@ -85,7 +88,7 @@ class DaftarProduk extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['produkId', 'kode', 'nama', 'stok', 'harga']);
+        $this->reset(['produkId', 'kode', 'barcode', 'nama', 'stok', 'harga']);
         $this->satuan = 'dus';
         $this->aktif = true;
         $this->resetValidation();
@@ -95,17 +98,23 @@ class DaftarProduk extends Component
     {
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:30', Rule::unique('produks', 'kode')->ignore($this->produkId)],
+            'barcode' => ['nullable', 'string', 'max:64', Rule::unique('produks', 'barcode')->ignore($this->produkId)],
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:20',
             'stok' => 'required|integer|min:0',
             'harga' => 'required|numeric|min:0',
-        ], [], ['kode' => __('master.atr_kode_produk'), 'nama' => __('master.atr_nama_produk')]);
+        ], [], [
+            'kode' => __('master.atr_kode_produk'),
+            'barcode' => __('master.atr_barcode'),
+            'nama' => __('master.atr_nama_produk'),
+        ]);
 
         $produk = Produk::find($this->produkId);
         $stokLama = $produk?->stok ?? 0;
 
         $produk = Produk::updateOrCreate(['id' => $this->produkId], [
             'kode' => $data['kode'],
+            'barcode' => $data['barcode'] !== '' ? $data['barcode'] : null,
             'nama' => $data['nama'],
             'satuan' => $data['satuan'],
             'stok' => $data['stok'],

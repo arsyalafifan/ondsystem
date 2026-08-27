@@ -19,6 +19,7 @@
                 <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                         <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('master.barcode') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('master.dikunci') }}</th>
@@ -32,6 +33,9 @@
                     @forelse ($this->produks as $p)
                         <tr class="hover:bg-gray-50">
                             <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">{{ $p->kode }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-600">
+                                {{ $p->barcode ?? __('master.barcode_belum_ada') }}
+                            </td>
                             <td class="px-4 py-2">
                                 {{ $p->nama }}
                                 <span class="text-xs text-gray-500">/ {{ $p->satuan }}</span>
@@ -64,7 +68,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <x-kosong ikon="cube" :judul="__('master.produk_kosong')" :keterangan="__('master.produk_kosong_ket')" />
                             </td>
                         </tr>
@@ -100,6 +104,13 @@
                     <input type="text" wire:model="nama"
                            class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('master.barcode') }}</label>
+                    <input type="text" wire:model="barcode" placeholder="{{ __('master.barcode_belum_ada') }}"
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    @error('barcode') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">

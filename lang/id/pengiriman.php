@@ -6,6 +6,7 @@ return [
     'status_dibatalkan' => 'Dibatalkan',
     'jenis_normal' => 'Rute',
     'jenis_kampas' => 'Kampas',
+    'jenis_pos' => 'Point of Sale',
     'label_kampas' => 'Kampas',
     'dus_terkirim' => 'Dus terkirim',
     'dus_sisa' => 'Sisa di mobil',

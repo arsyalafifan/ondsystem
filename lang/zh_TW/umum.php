@@ -10,6 +10,7 @@ return [
     'lihat' => '查看',
     'rincian' => '明細',
     'cari' => '搜尋',
+    'tidak_ada_hasil' => '沒有符合的結果。',
     'bersihkan' => '清除',
     'ganti' => '更換',
     'terapkan' => '套用',

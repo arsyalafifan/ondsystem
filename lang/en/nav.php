@@ -4,6 +4,7 @@ return [
     'dashboard' => 'Dashboard',
     'pesanan' => 'Orders',
     'input_pesanan' => 'New Order',
+    'pos' => 'Point of Sale',
     'riwayat_pesanan' => 'Order History',
     'generate_routing' => 'Generate Routing',
     'riwayat_routing' => 'Routing History',

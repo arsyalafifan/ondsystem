@@ -1,0 +1,337 @@
+<?php
+
+namespace App\Livewire\Pos;
+
+use App\Models\Produk;
+use App\Models\Toko;
+use App\Services\PesananService;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
+
+/**
+ * Point of Sale — penjualan langsung di tempat, bukan lewat pengantaran
+ * driver. Toko tetap dipilih (barangnya tercatat masuk ke toko yang mana),
+ * tapi tidak ada rute, tidak ada minimal pembelian, dan uangnya diterima
+ * seketika, bukan menunggu pelunasan belakangan.
+ *
+ * Sengaja dibuat sebagai layar tersendiri, bukan opsi di Input Pesanan
+ * biasa: alur normal punya banyak aturan yang tidak relevan di sini (batas
+ * minimal dus, satu pesanan aktif per toko, reservasi stok menunggu
+ * pengiriman) dan mencampurnya lewat percabangan kondisi akan membuat kedua
+ * alur sama-sama lebih sulit dibaca.
+ */
+class Kasir extends Component
+{
+    public string $cariToko = '';
+
+    public ?int $tokoId = null;
+
+    public string $catatan = '';
+
+    /** @var array<int, array{produk_id: int|string, jumlah_dus: int|string}> */
+    public array $baris = [];
+
+    /**
+     * Barcode diketik atau dipindai lewat alat pemindai USB/Bluetooth, yang
+     * bagi peramban tidak beda dari mengetik cepat lalu menekan Enter — jadi
+     * tidak perlu kamera untuk sudah bisa dipakai. Kolom `produks.barcode`
+     * memang belum diisi untuk produk mana pun sampai admin melengkapinya
+     * lewat Master Produk, tapi jalurnya sudah siap dipakai begitu barcode
+     * pertama ditempelkan.
+     */
+    public string $cariBarcode = '';
+
+    public string $nominalCash = '';
+
+    public string $nominalTransfer = '';
+
+    public ?string $kodeTerakhir = null;
+
+    public function mount(): void
+    {
+        $this->tambahBaris();
+    }
+
+    public function tambahBaris(): void
+    {
+        $this->baris[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBaris(int $indeks): void
+    {
+        unset($this->baris[$indeks]);
+        $this->baris = array_values($this->baris);
+
+        if ($this->baris === []) {
+            $this->tambahBaris();
+        }
+    }
+
+    public function pilihToko(int $id): void
+    {
+        $this->tokoId = $id;
+        $this->cariToko = '';
+        $this->resetValidation();
+    }
+
+    public function batalPilihToko(): void
+    {
+        $this->tokoId = null;
+    }
+
+    /**
+     * Mencari produk lewat barcode-nya, lalu menambah satu baris baru atau
+     * menambah jumlah baris yang sudah ada untuk produk yang sama —
+     * persis kelaziman pemindai di kasir sungguhan: tiap pindai berarti
+     * "tambah satu lagi", bukan menimpa jumlah yang sudah diketik.
+     */
+    public function tambahDariBarcode(): void
+    {
+        $kode = trim($this->cariBarcode);
+        $this->cariBarcode = '';
+
+        if ($kode === '') {
+            return;
+        }
+
+        $produk = Produk::aktif()->where('barcode', $kode)->first();
+
+        if ($produk === null) {
+            $this->dispatch('notifikasi', pesan: __('pos.barcode_tidak_dikenali', ['kode' => $kode]), jenis: 'error');
+
+            return;
+        }
+
+        foreach ($this->baris as $i => $b) {
+            if ((int) ($b['produk_id'] ?: 0) === $produk->id) {
+                $this->baris[$i]['jumlah_dus'] = (int) ($b['jumlah_dus'] ?: 0) + 1;
+
+                $this->dispatch('notifikasi', pesan: __('pos.notif_barcode_ditambah', ['nama' => $produk->nama]));
+
+                return;
+            }
+        }
+
+        // Baris kosong yang belum diisi produk apa pun (mis. sisa dari
+        // tambahBaris() di mount()) dipakai lebih dulu, supaya barcode
+        // pertama tidak menyisakan baris kosong yang mengganggu di bawahnya.
+        foreach ($this->baris as $i => $b) {
+            if (($b['produk_id'] ?: '') === '') {
+                $this->baris[$i] = ['produk_id' => $produk->id, 'jumlah_dus' => 1];
+
+                $this->dispatch('notifikasi', pesan: __('pos.notif_barcode_ditambah', ['nama' => $produk->nama]));
+
+                return;
+            }
+        }
+
+        $this->baris[] = ['produk_id' => $produk->id, 'jumlah_dus' => 1];
+
+        $this->dispatch('notifikasi', pesan: __('pos.notif_barcode_ditambah', ['nama' => $produk->nama]));
+    }
+
+    public function bayarCashPenuh(): void
+    {
+        $this->nominalCash = (string) round($this->totalNilai, 2);
+        $this->nominalTransfer = '0';
+    }
+
+    public function bayarTransferPenuh(): void
+    {
+        $this->nominalTransfer = (string) round($this->totalNilai, 2);
+        $this->nominalCash = '0';
+    }
+
+    /**
+     * Pencarian toko: nama, kode, atau alamat. Tidak menyaring toko yang
+     * masih punya pesanan pengantaran aktif — POS tidak bersinggungan
+     * dengan routing sama sekali, jadi aturan itu tidak relevan di sini.
+     *
+     * @return Collection<int, Toko>
+     */
+    #[Computed]
+    public function hasilCariToko(): Collection
+    {
+        if (mb_strlen(trim($this->cariToko)) < 2) {
+            return collect();
+        }
+
+        $kata = trim($this->cariToko);
+
+        return Toko::query()
+            ->aktif()
+            ->with('wilayah:id,nama')
+            ->where(fn ($q) => $q
+                ->where('nama', 'like', "%{$kata}%")
+                ->orWhere('kode', 'like', "%{$kata}%")
+                ->orWhere('alamat', 'like', "%{$kata}%"))
+            ->orderBy('nama')
+            ->limit(12)
+            ->get();
+    }
+
+    #[Computed]
+    public function toko(): ?Toko
+    {
+        return $this->tokoId === null
+            ? null
+            : Toko::with('wilayah:id,nama')->find($this->tokoId);
+    }
+
+    /** @return Collection<int, Produk> */
+    #[Computed]
+    public function produks(): Collection
+    {
+        return Produk::aktif()->orderBy('nama')->get();
+    }
+
+    #[Computed]
+    public function totalDus(): int
+    {
+        return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->baris));
+    }
+
+    #[Computed]
+    public function totalNilai(): float
+    {
+        $produks = $this->produks->keyBy('id');
+        $total = 0.0;
+
+        foreach ($this->baris as $b) {
+            $produk = $produks->get((int) $b['produk_id']);
+
+            if ($produk !== null) {
+                $total += (float) $produk->harga * (int) ($b['jumlah_dus'] ?: 0);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * Selisih antara total belanja dan jumlah cash+transfer yang diisi.
+     * Nol berarti pas, dipakai mengunci tombol Simpan.
+     */
+    #[Computed]
+    public function selisihNominal(): float
+    {
+        $terisi = (float) ($this->nominalCash ?: 0) + (float) ($this->nominalTransfer ?: 0);
+
+        return round($this->totalNilai - $terisi, 2);
+    }
+
+    /**
+     * Semua yang menghalangi transaksi disimpan, dikumpulkan jadi satu
+     * daftar — pola yang sama dengan BuatPesanan::halangan().
+     *
+     * @return array<int, array{jenis: string, pesan: string}>
+     */
+    #[Computed]
+    public function halangan(): array
+    {
+        $masalah = [];
+
+        if ($this->tokoId === null) {
+            $masalah[] = ['jenis' => 'toko', 'pesan' => __('pesanan.toko_belum_dipilih')];
+        } elseif ($this->toko?->wilayah_id === null) {
+            $masalah[] = ['jenis' => 'toko_tanpa_wilayah', 'pesan' => __('pesanan.halangan_toko_tanpa_wilayah')];
+        }
+
+        $produks = $this->produks->keyBy('id');
+        $diminta = [];
+
+        foreach ($this->baris as $b) {
+            $id = (int) $b['produk_id'];
+            $jumlah = (int) ($b['jumlah_dus'] ?: 0);
+
+            if ($id > 0 && $jumlah > 0) {
+                $diminta[$id] = ($diminta[$id] ?? 0) + $jumlah;
+            }
+        }
+
+        foreach ($diminta as $id => $jumlah) {
+            $produk = $produks->get($id);
+
+            if ($produk === null) {
+                continue;
+            }
+
+            // Dibandingkan dengan stok fisik penuh, bukan stok_tersedia —
+            // POS menjual langsung dari rak, jadi reservasi pesanan
+            // pengantaran lain tidak relevan di sini.
+            if ($jumlah > $produk->stok) {
+                $masalah[] = [
+                    'jenis' => 'stok',
+                    'pesan' => __('pesanan.galat_stok_kurang_ringkas', [
+                        'nama' => $produk->nama,
+                        'diminta' => $jumlah,
+                        'tersedia' => $produk->stok,
+                    ]),
+                ];
+            }
+        }
+
+        if ($diminta === []) {
+            $masalah[] = ['jenis' => 'produk', 'pesan' => __('pesanan.belum_ada_produk')];
+        }
+
+        if ($diminta !== [] && $this->selisihNominal !== 0.0) {
+            $masalah[] = ['jenis' => 'nominal', 'pesan' => __('pos.halangan_nominal_belum_pas')];
+        }
+
+        return $masalah;
+    }
+
+    public function adaHalangan(string $jenis): bool
+    {
+        foreach ($this->halangan as $h) {
+            if ($h['jenis'] === $jenis) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function simpan(PesananService $service): void
+    {
+        if ($this->tokoId === null) {
+            $this->addError('tokoId', __('pesanan.pilih_toko_dulu'));
+
+            return;
+        }
+
+        try {
+            $pesanan = $service->buatPos(
+                toko: Toko::findOrFail($this->tokoId),
+                items: $this->baris,
+                penjual: auth()->user(),
+                nominalCash: (float) ($this->nominalCash ?: 0),
+                nominalTransfer: (float) ($this->nominalTransfer ?: 0),
+                catatan: $this->catatan ?: null,
+            );
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $kolom => $pesan) {
+                $this->addError($kolom === 'items' ? 'baris' : $kolom, $pesan[0]);
+            }
+
+            $this->dispatch('notifikasi', pesan: __('pos.ditolak'), jenis: 'error');
+
+            return;
+        }
+
+        $this->kodeTerakhir = $pesanan->kode;
+
+        $this->reset(['tokoId', 'catatan', 'baris', 'cariToko', 'nominalCash', 'nominalTransfer', 'cariBarcode']);
+        $this->tambahBaris();
+
+        $this->dispatch('notifikasi', pesan: __('pos.notif_tersimpan', ['kode' => $pesanan->kode]));
+    }
+
+    public function render()
+    {
+        return view('livewire.pos.kasir')->title(__('pos.judul'));
+    }
+}
