@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 
 #[Fillable([
@@ -139,6 +140,35 @@ class Pesanan extends Model
             return (float) $this->items->sum(
                 fn (PesananItem $i) => $i->terkirim * (float) $i->harga_satuan
             );
+        });
+    }
+
+    /**
+     * Aktor dan waktu tindakan TERAKHIR yang tercatat pada pesanan ini,
+     * dipakai kolom "Update By | Date" di daftar pesanan.
+     *
+     * Pesanan tidak punya satu kolom "diubah oleh" yang umum — tiap
+     * tindakan (proses, batal, lunas) punya pasangan aktor+waktunya
+     * sendiri. Yang terbaru di antaranya itulah yang ditampilkan; kalau
+     * belum ada satu pun tindakan lanjutan, jatuh kembali ke penginput
+     * dan waktu pesanan dibuat. Pemanggil wajib memuat relasi pembuat,
+     * pemroses, pembatal, dan dilunasiOleh lebih dulu — mode ketat model
+     * melempar galat kalau belum, alih-alih memicu kueri N+1 diam-diam.
+     *
+     * @return array{user: ?User, at: ?Carbon}
+     */
+    protected function pembaruTerakhir(): Attribute
+    {
+        return Attribute::get(function (): array {
+            $kandidat = collect([
+                ['user' => $this->pembatal, 'at' => $this->dibatalkan_at],
+                ['user' => $this->dilunasiOleh, 'at' => $this->tanggal_lunas],
+                ['user' => $this->pemroses, 'at' => $this->diproses_at],
+                ['user' => $this->pembuat, 'at' => $this->created_at],
+            ])->filter(fn (array $k) => $k['at'] !== null);
+
+            return $kandidat->sortByDesc(fn (array $k) => $k['at'])->first()
+                ?? ['user' => $this->pembuat, 'at' => $this->created_at];
         });
     }
 

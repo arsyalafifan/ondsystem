@@ -250,6 +250,7 @@ APP_ENV=production
 APP_DEBUG=false
 APP_KEY=
 APP_URL=https://$DOMAIN
+APP_TIMEZONE=Asia/Jakarta
 
 LOG_CHANNEL=stack
 LOG_LEVEL=warning

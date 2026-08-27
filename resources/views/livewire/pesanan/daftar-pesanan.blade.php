@@ -40,6 +40,16 @@
                 <input type="date" wire:model.live="filterTanggal"
                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('pesanan.penginput') }}</label>
+                <select wire:model.live="filterPenginput"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">{{ __('pesanan.semua_penginput') }}</option>
+                    @foreach ($this->penginputs as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                    @endforeach
+                </select>
+            </div>
             <button type="button" wire:click="bersihkanFilter"
                     class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                 {{ __('umum.bersihkan') }}
@@ -74,6 +84,8 @@
                         <th class="px-4 py-2 font-medium">{{ __('umum.status') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.kendaraan') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pesanan.penginput') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('pesanan.tanggal_diinput') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('pesanan.update_by_date') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('umum.aksi') }}</th>
                     </tr>
                 </thead>
@@ -103,6 +115,20 @@
                             <td class="px-4 py-2"><x-badge-status :status="$p->status" /></td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->stop?->kendaraan?->nama ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->pembuat->name }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                {{ $p->created_at->isoFormat('ll') }}
+                                <span class="text-xs text-gray-400">{{ $p->created_at->format('H:i') }}</span>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                @php $pembaru = $p->pembaru_terakhir @endphp
+                                <span class="block font-medium text-gray-900">{{ $pembaru['user']?->name ?? '—' }}</span>
+                                <span class="block text-xs text-gray-500">
+                                    {{ $pembaru['at']?->isoFormat('ll') }}
+                                    @if ($pembaru['at']?->format('H:i:s') !== '00:00:00')
+                                        {{ $pembaru['at']?->format('H:i') }}
+                                    @endif
+                                </span>
+                            </td>
                             <td class="whitespace-nowrap px-4 py-2 text-right">
                                 <div class="flex justify-end gap-1">
                                     <button type="button" wire:click="$set('pesananDilihat', {{ $p->id }})"
@@ -136,7 +162,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9">
+                            <td colspan="11">
                                 <x-kosong :judul="__('pesanan.kosong')" :keterangan="__('pesanan.kosong_ket')" />
                             </td>
                         </tr>

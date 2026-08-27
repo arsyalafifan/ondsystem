@@ -4,6 +4,7 @@ namespace App\Livewire\Pesanan;
 
 use App\Enums\StatusPesanan;
 use App\Models\Pesanan;
+use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,9 @@ class DaftarPesanan extends Component
 
     #[Url(as: 'tgl')]
     public string $filterTanggal = '';
+
+    #[Url(as: 'sales')]
+    public string $filterPenginput = '';
 
     /** @var array<int, int> */
     public array $terpilih = [];
@@ -75,17 +79,24 @@ class DaftarPesanan extends Component
 
     public function bersihkanFilter(): void
     {
-        $this->reset(['filterStatus', 'filterWilayah', 'cari', 'filterTanggal']);
+        $this->reset(['filterStatus', 'filterWilayah', 'cari', 'filterTanggal', 'filterPenginput']);
         $this->resetPage();
     }
 
     private function dasarKueri(): Builder
     {
         return Pesanan::query()
-            ->with(['toko:id,nama,kode,alamat,latitude,longitude', 'wilayah:id,nama', 'pembuat:id,name', 'stop.kendaraan:id,nomor,nama'])
+            ->with([
+                'toko:id,nama,kode,alamat,latitude,longitude', 'wilayah:id,nama', 'stop.kendaraan:id,nomor,nama',
+                // Keempatnya dimuat di depan untuk kolom "Update By | Date"
+                // (Pesanan::pembaruTerakhir()) — mode ketat model melempar
+                // galat kalau salah satunya diakses belum termuat.
+                'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name', 'dilunasiOleh:id,name',
+            ])
             ->when($this->filterStatus !== '', fn ($q) => $q->where('status', $this->filterStatus))
             ->when($this->filterWilayah !== '', fn ($q) => $q->where('wilayah_id', $this->filterWilayah))
             ->when($this->filterTanggal !== '', fn ($q) => $q->whereDate('tanggal', $this->filterTanggal))
+            ->when($this->filterPenginput !== '', fn ($q) => $q->where('dibuat_oleh', $this->filterPenginput))
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('kode', 'like', "%{$this->cari}%")
                 ->orWhereHas('toko', fn ($t) => $t
@@ -116,6 +127,7 @@ class DaftarPesanan extends Component
         $hitung = Pesanan::query()
             ->when($this->filterWilayah !== '', fn ($q) => $q->where('wilayah_id', $this->filterWilayah))
             ->when($this->filterTanggal !== '', fn ($q) => $q->whereDate('tanggal', $this->filterTanggal))
+            ->when($this->filterPenginput !== '', fn ($q) => $q->where('dibuat_oleh', $this->filterPenginput))
             ->selectRaw('status, count(*) as jumlah')
             ->groupBy('status')
             ->pluck('jumlah', 'status');
@@ -129,6 +141,20 @@ class DaftarPesanan extends Component
     public function wilayahs()
     {
         return Wilayah::aktif()->orderBy('nama')->get(['id', 'nama']);
+    }
+
+    /**
+     * Penginput untuk pilihan pada penyaring — diambil dari siapa saja yang
+     * PERNAH menginput pesanan (bukan seluruh sales aktif), supaya sales
+     * yang belum pernah input tidak memenuhi daftar pilihan.
+     */
+    #[Computed]
+    public function penginputs()
+    {
+        return User::query()
+            ->whereIn('id', Pesanan::query()->select('dibuat_oleh')->distinct())
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]

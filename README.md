@@ -56,6 +56,30 @@ Driver        Kirim + upload nota► SELESAI
 Pembatalan bisa dilakukan pada status ORDER, PROCESS, dan DELIVERY selama foto
 nota belum diunggah.
 
+### Daftar Pesanan — penyaring penginput dan kolom Update By | Date
+
+Selain status, wilayah, tanggal, dan pencarian teks, daftar pesanan bisa
+disaring per **penginput** — dropdown-nya hanya berisi user yang PERNAH
+menginput pesanan (bukan seluruh sales aktif), supaya tidak penuh pilihan
+kosong. Ringkasan status di bagian atas ikut mengikuti penyaring ini, jadi
+admin bisa langsung melihat berapa pesanan per status untuk satu sales.
+
+Dua kolom tambahan pada tabel:
+
+- **Tanggal Diinput** — `created_at` pesanan, terpisah dari kolom penyaring
+  "Tanggal" yang menyaring `tanggal` (tanggal target pengiriman, bisa
+  berbeda dari kapan pesanannya sungguh diketik).
+- **Update By | Date** — aktor dan waktu tindakan TERAKHIR yang tercatat
+  pada pesanan itu (`Pesanan::pembaruTerakhir()`). Pesanan tidak punya satu
+  kolom "diubah oleh" yang umum — tiap tindakan (disetujui, dibatalkan,
+  dilunasi) punya pasangan aktor+waktunya sendiri di kolom terpisah; yang
+  paling baru di antaranya itulah yang ditampilkan. Kalau belum ada satu
+  pun tindakan lanjutan, kolom ini jatuh kembali ke penginput dan waktu
+  pesanan dibuat — persis seperti yang diminta: "kalau tidak ada berarti
+  penginputnya". Pemanggil wajib memuat keempat relasi (pembuat, pemroses,
+  pembatal, dilunasiOleh) lebih dulu; mode ketat model melempar galat kalau
+  belum, alih-alih memicu kueri N+1 diam-diam untuk tiap baris tabel.
+
 ### Tiga keputusan driver di lapangan
 
 Rencana di kantor jarang selamat bertemu kenyataan di jalan. Selain navigasi,
@@ -840,8 +864,17 @@ berupa desimal atau negatif.
 php artisan test
 ```
 
-384 tes, mencakup:
+392 tes, mencakup:
 
+- **[`tests/Feature/DaftarPesananFilterTest.php`](tests/Feature/DaftarPesananFilterTest.php)** —
+  penyaring penginput membatasi tabel dan ringkasan status pada satu sales;
+  daftar pilihannya hanya berisi user yang pernah menginput pesanan; kolom
+  Update By | Date jatuh ke penginput saat belum ada tindakan lanjutan, lalu
+  berpindah ke admin yang menyetujui, lalu ke admin yang membatalkan sebagai
+  tindakan terbaru; dan `pembaru_terakhir` bisa diakses pada BANYAK baris
+  pesanan sekaligus tanpa lazy load (pelajaran yang sama seperti pengujian
+  `rute:perbaiki-geometry`: pelanggaran mode ketat baru kelihatan begitu
+  koleksinya lebih dari satu model).
 - **[`tests/Feature/PerbaikiGeometryRuteTest.php`](tests/Feature/PerbaikiGeometryRuteTest.php)** —
   perintah `rute:perbaiki-geometry`: `decodePolyline` membaca balik apa yang
   ditulis `encodePolyline`, kendaraan yang garis rutenya masih cocok
