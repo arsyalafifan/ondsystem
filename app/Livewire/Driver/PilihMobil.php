@@ -14,7 +14,14 @@ class PilihMobil extends Component
      *
      * Mobil yang belum diambil siapa pun tetap ditampilkan agar driver bisa
      * mengambilnya sendiri, sesuai kebiasaan di lapangan: siapa yang siap
-     * berangkat, dia yang mengambil mobil.
+     * berangkat, dia yang mengambil mobil. Driver hanya melihat mobil yang
+     * belum diambil siapa pun atau yang sudah jadi miliknya sendiri — bukan
+     * mobil yang dibawa driver lain.
+     *
+     * Admin/superadmin beda aturan: mereka di sini cuma memantau (lihat
+     * ambil() di bawah), jadi SEMUA mobil ditampilkan tanpa terkecuali,
+     * termasuk yang sudah dibawa driver lain — itulah yang justru perlu
+     * mereka lihat.
      *
      * @return Collection<int, Kendaraan>
      */
@@ -25,7 +32,8 @@ class PilihMobil extends Component
             ->with(['wilayah:id,nama', 'driver:id,name', 'stops'])
             ->whereHas('batch', fn ($q) => $q->where('status', 'disetujui'))
             ->whereIn('status', ['siap', 'jalan'])
-            ->where(fn ($q) => $q->whereNull('driver_id')->orWhere('driver_id', auth()->id()))
+            ->when(! auth()->user()->isAdmin(), fn ($q) => $q
+                ->where(fn ($q2) => $q2->whereNull('driver_id')->orWhere('driver_id', auth()->id())))
             ->orderBy('nomor')
             ->get();
     }
@@ -47,6 +55,14 @@ class PilihMobil extends Component
     {
         $kendaraan = Kendaraan::findOrFail($kendaraanId);
 
+        // Admin/superadmin cuma memantau di sini — boleh membuka kendaraan
+        // siapa pun, langsung ke layar kunjungannya, dan TIDAK PERNAH ditolak
+        // dengan "mobil sudah diambil orang lain" (itu penolakan yang cuma
+        // berlaku untuk driver sungguhan) atau ikut mengklaim mobilnya.
+        if (auth()->user()->isAdmin()) {
+            return redirect()->route('driver.kunjungan', $kendaraan);
+        }
+
         if ($kendaraan->driver_id !== null && $kendaraan->driver_id !== auth()->id()) {
             $this->dispatch('notifikasi', pesan: __('driver.mobil_diambil_lain'), jenis: 'error');
             unset($this->kendaraans);
@@ -54,13 +70,6 @@ class PilihMobil extends Component
             return null;
         }
 
-        // Hanya driver sungguhan yang boleh "mengambil" mobil. Superadmin (dan
-        // admin, lewat bypass peran di PastikanPeran) bisa membuka layar ini
-        // untuk keperluan dukungan — tanpa penjagaan ini, sekali mereka klik
-        // tombol ini pada mobil yang masih kosong, driver_id-nya diam-diam
-        // terkunci ke akun mereka dan driver aslinya tidak bisa mengambilnya
-        // lagi sama sekali.
-        //
         // diambil_at masih kosong dicek terpisah dari driver_id, karena admin
         // sekarang bisa menetapkan driver dari layar Generate Routing —
         // driver_id-nya sudah terisi begitu ia belum sempat membuka layar ini

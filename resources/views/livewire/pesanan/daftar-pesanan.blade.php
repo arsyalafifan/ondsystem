@@ -1,5 +1,18 @@
 <div>
-    <x-judul-halaman :judul="__('pesanan.judul_daftar')" :keterangan="__('pesanan.ket_daftar')" />
+    <x-judul-halaman :judul="__('pesanan.judul_daftar')" :keterangan="__('pesanan.ket_daftar')">
+        <x-slot:aksi>
+            <button type="button" wire:click="bukaTokoTidakAktif"
+                    class="relative inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                <x-heroicon-o-bell-alert class="size-4 text-amber-500" />
+                {{ __('pesanan.tombol_toko_tidak_aktif') }}
+                @if ($this->totalTokoTidakAktif > 0)
+                    <span class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-white">
+                        {{ $this->totalTokoTidakAktif }}
+                    </span>
+                @endif
+            </button>
+        </x-slot:aksi>
+    </x-judul-halaman>
 
     {{-- Ringkasan status, sekaligus tombol saring cepat --}}
     <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -344,6 +357,60 @@
                     {{ __('pesanan.tombol_batalkan') }}
                 </button>
             </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- Toko yang belum pesan 1 bulan --}}
+    @if ($tokoTidakAktifTerbuka)
+        <x-modal :judul="__('pesanan.judul_toko_tidak_aktif')" lebar="max-w-2xl" tutup="tutupTokoTidakAktif">
+            <div class="border-b border-gray-200 p-4">
+                <p class="text-sm text-gray-600">{{ __('pesanan.ket_toko_tidak_aktif') }}</p>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
+                <div class="min-w-56 flex-1">
+                    <label class="block text-xs font-medium text-gray-600">{{ __('umum.cari') }}</label>
+                    <input type="search" wire:model.live.debounce.300ms="cariTokoTidakAktif" placeholder="{{ __('pesanan.cari_toko_tidak_aktif') }}"
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('pesanan.label_sales') }}</label>
+                    <select wire:model.live="filterSalesTidakAktif"
+                            class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">{{ __('pesanan.semua_sales_tidak_aktif') }}</option>
+                        @foreach ($this->tokoTidakAktifSemua as $g)
+                            <option value="{{ $g['sales']->id }}">{{ $g['sales']->name }} ({{ $g['tokos']->count() }})</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="max-h-[60vh] space-y-5 overflow-y-auto p-4">
+                @forelse ($this->tokoTidakAktif as $g)
+                    <div>
+                        <p class="mb-2 flex items-center justify-between text-sm font-semibold text-gray-900">
+                            <span>{{ $g['sales']->name }}</span>
+                            <span class="text-xs font-normal text-gray-500">@angka($g['tokos']->count()) {{ __('umum.toko') }}</span>
+                        </p>
+                        <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                            @foreach ($g['tokos'] as $toko)
+                                <li class="px-3 py-2 text-sm">
+                                    <span class="block truncate font-medium text-gray-900">{{ $toko->nama }}</span>
+                                    <span class="block text-xs text-gray-500">{{ $toko->kode }} · {{ $toko->wilayah?->nama ?? __('pesanan.toko_tanpa_wilayah') }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @empty
+                    @if (! $this->adaPenugasanBulanIni)
+                        <x-kosong ikon="user-group" :judul="__('pesanan.toko_tanpa_penugasan')" />
+                    @elseif ($this->tokoTidakAktifSemua->isEmpty())
+                        <x-kosong ikon="check-circle" :judul="__('pesanan.kosong_toko_tidak_aktif')" />
+                    @else
+                        <x-kosong ikon="magnifying-glass" :judul="__('pesanan.kosong_toko_tidak_aktif_filter')" />
+                    @endif
+                @endforelse
+            </div>
         </x-modal>
     @endif
 </div>

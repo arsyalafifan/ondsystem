@@ -115,15 +115,13 @@ Route::middleware('auth')->group(function () {
     });
 
     // --- Driver ---
-    Route::middleware('peran:driver')->group(function () {
-        Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
-    });
-
-    // Admin/superadmin boleh memantau kendaraan mana pun di sini (hanya
-    // memantau — DaftarKunjungan sendiri yang mengunci semua tindakan
-    // driver untuk peran selain driver), jadi rutenya perlu peran admin
-    // juga, bukan cuma driver.
+    // Admin/superadmin boleh memantau kendaraan mana pun di kedua rute ini
+    // (hanya memantau — PilihMobil::ambil() dan
+    // DaftarKunjungan::pastikanBisaBertindak() sendiri yang mengunci semua
+    // tindakan driver untuk peran selain driver), jadi keduanya perlu
+    // peran admin juga, bukan cuma driver.
     Route::middleware('peran:driver,admin')->group(function () {
+        Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
 
