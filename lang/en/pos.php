@@ -19,9 +19,8 @@ return [
     'notif_tersimpan' => 'Sale :kode saved. Stock reduced and marked paid.',
     'lihat_riwayat' => 'View revenue history',
     'ditolak' => 'Sale rejected. Check the details below.',
-    'bayar_cash_penuh' => 'All Cash',
-    'bayar_transfer_penuh' => 'All Transfer',
-    'halangan_nominal_belum_pas' => 'Cash + transfer must exactly match the total.',
-    'periksa_nominal' => 'Cash + transfer matches the total',
+    'isi_total_belanja' => 'Fill Full Amount',
+    'halangan_nominal_belum_pas' => 'Cash amount must exactly match the total.',
+    'periksa_nominal' => 'Cash amount matches the total',
     'catatan_simpan' => 'The sale is recorded as COMPLETE and PAID immediately, under :nama.',
 ];

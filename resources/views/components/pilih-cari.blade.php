@@ -81,7 +81,6 @@
         },
      }"
      x-effect="if (! terbuka) { teks = @js($terpilih['label'] ?? '') }"
-     x-on:scroll.window.capture="if (terbuka) { tutup() }"
      class="relative">
     <input type="text" x-ref="masukan" x-model="teks" autocomplete="off"
            x-on:focus="buka()"

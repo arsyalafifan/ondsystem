@@ -7,6 +7,7 @@ use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
+use App\Livewire\Insentif\InsentifSales;
 use App\Livewire\Kunjungan\DaftarPeriode;
 use App\Livewire\Kunjungan\DetailPeriode;
 use App\Livewire\Kunjungan\Kunjungi;
@@ -89,6 +90,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan');
         Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas');
         Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan');
+
+        Route::get('/insentif/sales', InsentifSales::class)->name('insentif.sales');
 
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
