@@ -83,6 +83,7 @@ return [
     'jadwal_berangkat' => 'Berangkat :tanggal',
     'cetak_packing_list' => 'Cetak Packing List',
     'galat_tak_bisa_cetak_packing_list' => 'Packing list hanya bisa dicetak setelah routing disetujui.',
+    'pantau_pengantaran' => 'Pantau Pengantaran',
     'galat_link_cetak_sudah_dipakai' => 'Link cetak ini sudah dipakai atau sudah kedaluwarsa. Muat ulang halaman untuk mencetak lagi.',
     'driver' => 'Driver',
     'driver_belum_ditentukan' => 'Belum ditentukan',

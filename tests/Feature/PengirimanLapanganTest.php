@@ -127,7 +127,14 @@ describe('membatalkan toko di lapangan', function () {
             ->and($kendaraan->dus_terkirim)->toBe(0);
     });
 
-    it('mengembalikan kuncian stok tanpa memotong stok fisik', function () {
+    /**
+     * Bug nyata yang dilaporkan pengguna: sebelum perbaikan ini, kuncian
+     * dilepas seketika toko dibatalkan, padahal dus-nya masih fisik di
+     * dalam mobil (belum kembali ke gudang) — membuat stok_tersedia naik
+     * seolah-olah barangnya sudah ada di rak, padahal masih di jalan.
+     * Selisih antara stok sistem dan stok aktual itulah yang dilaporkan.
+     */
+    it('TIDAK melepas kuncian stok — dusnya masih fisik di dalam mobil, bukan kembali ke gudang', function () {
         $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
 
         $sebelum = $this->air->fresh();
@@ -138,9 +145,13 @@ describe('membatalkan toko di lapangan', function () {
 
         $sesudah = $this->air->fresh();
 
-        // Barangnya masih di mobil: kunciannya dilepas, stoknya utuh.
+        // Stok fisik tidak berkurang (memang tidak pernah keluar gudang),
+        // dan kuncian TETAP utuh — dus-nya masih di mobil, kampas-eligible,
+        // baru benar-benar lepas saat diampaskan atau kendaraannya ditutup
+        // admin lewat selesaikanKendaraan().
         expect($sesudah->stok)->toBe($sebelum->stok)
-            ->and($sesudah->stok_reserved)->toBe(0);
+            ->and($sesudah->stok_reserved)->toBe(20)
+            ->and($sesudah->stok_tersedia)->toBe($sebelum->stok_tersedia);
     });
 
     it('membatalkan pesanannya dengan alasan yang dipilih driver', function () {
@@ -194,7 +205,13 @@ describe('coret nota', function () {
             ->and($pesanan->items->first()->jumlah_dus_terkirim)->toBe(5);
     });
 
-    it('memotong stok hanya sebanyak yang diterima, dan melepas seluruh kuncian', function () {
+    /**
+     * Bug nyata yang dilaporkan pengguna, sama seperti pembatalan di
+     * lapangan: sisa yang TIDAK diterima toko (5 dari 10) masih fisik di
+     * dalam mobil, bukan kembali ke gudang — kunciannya harus tetap utuh
+     * sebesar sisa itu, bukan ikut lepas seluruhnya.
+     */
+    it('memotong stok DAN kuncian hanya sebanyak yang diterima — sisanya tetap terkunci, masih di mobil', function () {
         $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
         $stop = stopUntuk($kendaraan, 'Toko 1');
         $item = $stop->pesanan->items->first();
@@ -206,7 +223,7 @@ describe('coret nota', function () {
         $air = $this->air->fresh();
 
         expect($air->stok)->toBe($stokAwal - 5)
-            ->and($air->stok_reserved)->toBe(0);
+            ->and($air->stok_reserved)->toBe(5);
     });
 
     it('menolak jumlah yang melebihi pesanan', function () {
@@ -283,6 +300,11 @@ describe('kampas', function () {
 
         $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
 
+        // Kuncian Toko 1 (5 dus) SENGAJA belum lepas di sini — dus-nya
+        // masih di mobil, belum diampaskan ke mana pun. Total kuncian
+        // masih utuh 25 (5 dari Toko 1 + 20 dari Toko 2 yang belum disentuh).
+        expect($this->air->fresh()->stok_reserved)->toBe(25);
+
         $tujuan = buatTokoKirim('Toko Kampas');
         $stokAwal = $this->air->fresh()->stok;
 
@@ -298,7 +320,9 @@ describe('kampas', function () {
             // Kunjungan baru ikut menambah jumlah toko pada rute mobil.
             ->and($kendaraan->stops)->toHaveCount(3)
             ->and($kendaraan->dus_terkirim)->toBe(5)
-            // Stok fisik berkurang; kunciannya sudah dilepas saat pembatalan.
+            // Stok fisik berkurang; kunciannya BARU lepas sekarang, sebesar
+            // yang benar-benar diampaskan (5) — sisa 20 milik Toko 2 yang
+            // masih pending tetap terkunci utuh.
             ->and($this->air->fresh()->stok)->toBe($stokAwal - 5)
             ->and($this->air->fresh()->stok_reserved)->toBe(20);
     });
@@ -409,6 +433,96 @@ describe('kampas', function () {
 });
 
 // =====================================================================
+describe('menyelesaikan kendaraan (admin mengembalikan sisa kampas)', function () {
+    it('mengembalikan seluruh sisa kampas yang belum diampaskan ke stok gudang', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        expect($this->air->fresh()->stok_reserved)->toBe(20);
+
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        expect($this->air->fresh()->stok_reserved)->toBe(0)
+            ->and($this->air->fresh()->stok_tersedia)->toBe($this->air->fresh()->stok);
+    });
+
+    it('hanya mengembalikan sisa yang BELUM diampaskan, bukan yang sudah dipakai', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+        $this->service->kampas(
+            $kendaraan->fresh(['stops']), buatTokoKirim('Toko Kampas'), [$this->air->id => 8], gambarNota(), $this->driver,
+        );
+
+        // 20 dikunci, 8 sudah diampaskan (kunciannya sudah lepas lewat
+        // kampas), jadi sisanya yang masih terkunci tinggal 12.
+        expect($this->air->fresh()->stok_reserved)->toBe(12);
+
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        expect($this->air->fresh()->stok_reserved)->toBe(0);
+    });
+
+    it('mencatat mutasi stok yang ditandai kendaraan-nya, bukan pesanan mana pun', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 15]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        $mutasi = StokMutasi::where('kendaraan_id', $kendaraan->id)->where('tipe', 'release')->first();
+
+        expect($mutasi)->not->toBeNull()
+            ->and($mutasi->jumlah)->toBe(15)
+            ->and($mutasi->pesanan_id)->toBeNull()
+            ->and($mutasi->user_id)->toBe($this->admin->id);
+    });
+
+    it('menolak kalau tidak ada sisa kampas yang perlu dikembalikan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
+        $this->pesananService->selesaikanPengiriman(stopUntuk($kendaraan, 'Toko 1'), gambarNota(), $this->driver);
+
+        expect(fn () => $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin))
+            ->toThrow(RuntimeException::class);
+    });
+
+    /**
+     * Bisa dijalankan berulang: sisa BARU yang muncul setelah penutupan
+     * pertama (mis. toko lain baru dibatalkan) tetap bisa dikembalikan
+     * lagi belakangan, tanpa mengembalikan yang sudah dikembalikan.
+     */
+    it('bisa dijalankan lagi untuk sisa baru tanpa mengembalikan yang sudah dikembalikan', function () {
+        $kendaraan = siapkanMobil([
+            [['produk' => $this->air, 'dus' => 10]],
+            [['produk' => $this->air, 'dus' => 15]],
+        ]);
+
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        expect($this->air->fresh()->stok_reserved)->toBe(15);
+
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 2'), $this->driver, 'Toko tutup');
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        expect($this->air->fresh()->stok_reserved)->toBe(0);
+    });
+
+    it('jatahKampas tidak lagi menawarkan sisa yang sudah dikembalikan admin', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        expect($this->service->jatahKampas($kendaraan->fresh(['stops']))->isEmpty())->toBeTrue();
+
+        // Ditutup sekali sudah menghabiskan jatahnya, jadi mengampaskan
+        // lagi sekarang harus ditolak seperti tidak ada sisa sama sekali.
+        expect(fn () => $this->service->kampas(
+            $kendaraan->fresh(['stops']), buatTokoKirim('Toko Kampas'), [$this->air->id => 1], gambarNota(), $this->driver,
+        ))->toThrow(RuntimeException::class);
+    });
+});
+
+// =====================================================================
 describe('progres berbasis dus', function () {
     it('memakai muatan berangkat sebagai penyebut, bukan target yang menyusut', function () {
         $kendaraan = siapkanMobil([
@@ -454,7 +568,7 @@ describe('progres berbasis dus', function () {
             ->and($kendaraan->dus_tersisa)->toBe(0);
     });
 
-    it('tidak memotong stok untuk dus yang tidak terkirim ke mana pun', function () {
+    it('tidak memotong stok untuk dus yang tidak terkirim ke mana pun, dan tetap menguncinya', function () {
         $kendaraan = siapkanMobil([
             [['produk' => $this->air, 'dus' => 30]],
             [['produk' => $this->air, 'dus' => 70]],
@@ -467,9 +581,13 @@ describe('progres berbasis dus', function () {
 
         $air = $this->air->fresh();
 
-        // 30 dus pulang bersama mobil, jadi stoknya harus tetap utuh.
+        // 30 dus pulang bersama mobil, jadi stok fisiknya tetap utuh — dan
+        // kunciannya pun tetap 30 (bukan 0): dus itu masih di dalam mobil,
+        // belum kembali ke gudang, jadi belum boleh dijanjikan ke pesanan
+        // lain. Toko 2 yang benar-benar terkirim (70) itulah yang
+        // kunciannya lepas lewat PesananService::selesaikanPengiriman().
         expect($air->stok)->toBe($stokAwal - 70)
-            ->and($air->stok_reserved)->toBe(0);
+            ->and($air->stok_reserved)->toBe(30);
     });
 });
 
@@ -954,5 +1072,138 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
                 ->call('bukaKonfirmasi', $stop2->id)
                 ->assertSet("dicekKonfirmasi.{$item2->id}", false);
         });
+    });
+});
+
+// =====================================================================
+describe('admin memantau layar kunjungan driver', function () {
+    it('admin bisa membuka kendaraan siapa pun, bukan cuma yang dia bawa sendiri', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->assertOk()
+            ->assertSet('melihatSebagaiAdmin', true);
+    });
+
+    it('driver tetap tidak boleh membuka kendaraan driver lain', function () {
+        $kendaraanLain = User::factory()->create(['role' => PeranPengguna::Driver]);
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $kendaraan->update(['driver_id' => $kendaraanLain->id]);
+
+        $this->actingAs($this->driver)
+            ->get(route('driver.kunjungan', $kendaraan))
+            ->assertForbidden();
+    });
+
+    it('halaman /driver/mobil/{kendaraan} bisa diakses admin lewat HTTP sungguhan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+
+        $this->actingAs($this->admin)->get(route('driver.kunjungan', $kendaraan))->assertOk();
+    });
+
+    it('sales tidak bisa membuka layar kunjungan driver sama sekali', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+
+        $this->actingAs($this->sales)->get(route('driver.kunjungan', $kendaraan))->assertForbidden();
+    });
+
+    /**
+     * Batasan keamanan sesungguhnya ada di sisi server, bukan cuma
+     * tombolnya disembunyikan di tampilan — memanggil method komponennya
+     * langsung (seperti yang dilakukan tes ini) membuktikan admin memang
+     * tidak bisa memicu tindakan driver sama sekali, bukan cuma tidak
+     * melihat tombolnya.
+     */
+    it('admin ditolak (403) kalau mencoba memicu tindakan driver langsung', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaBatal', $stop->id)
+            ->assertStatus(403);
+    });
+
+    it('admin ditolak (403) memicu batalkanToko langsung meski state-nya dipaksa', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->set('stopDibatalkan', $stop->id)
+            ->set('alasanBatal', 'Toko tutup')
+            ->call('batalkanToko')
+            ->assertStatus(403);
+
+        // Tidak ada yang berubah — pesanan tetap DELIVERY, stok tetap terkunci.
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and($this->air->fresh()->stok_reserved)->toBe(10);
+    });
+
+    it('admin ditolak (403) memicu simpanKampas langsung', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        $tujuan = buatTokoKirim('Toko Kampas');
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan->fresh(['stops'])])
+            ->set('tokoKampasId', $tujuan->id)
+            ->set("jumlahKampas.{$this->air->id}", 5)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKampas')
+            ->assertStatus(403);
+
+        expect(Pesanan::where('toko_id', $tujuan->id)->exists())->toBeFalse();
+    });
+
+    it('driver (bukan admin) ditolak memicu selesaikanKendaraan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan->fresh(['stops'])])
+            ->call('selesaikanKendaraan')
+            ->assertStatus(403);
+
+        expect($this->air->fresh()->stok_reserved)->toBe(10);
+    });
+
+    it('admin bisa menyelesaikan kendaraan lewat layar, mengembalikan sisa kampas ke gudang', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan->fresh(['stops'])])
+            ->call('bukaKonfirmasiSelesaikanKendaraan')
+            ->call('selesaikanKendaraan')
+            ->assertDispatched('notifikasi');
+
+        expect($this->air->fresh()->stok_reserved)->toBe(0);
+    });
+
+    it('superadmin juga bisa membuka dan menyelesaikan kendaraan', function () {
+        $superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        Livewire::actingAs($superadmin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan->fresh(['stops'])])
+            ->assertOk()
+            ->call('selesaikanKendaraan');
+
+        expect($this->air->fresh()->stok_reserved)->toBe(0);
+    });
+
+    it('tombol tindakan driver tidak tampil di layar admin, tombol Selesaikan Mobil yang tampil', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan->fresh(['stops'])])
+            ->assertSee(__('pengiriman.tombol_selesaikan_kendaraan'))
+            ->assertDontSee(__('pengiriman.aksi_kampas'))
+            ->assertDontSee(__('driver.upload_nota'));
     });
 });

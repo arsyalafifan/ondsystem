@@ -3,13 +3,22 @@
 
     <x-judul-halaman :judul="$kendaraan->nama"
                      :keterangan="($kendaraan->wilayah?->nama ?? __('driver.semua_wilayah')).' · '.\App\Support\Bahasa::angka($p['target_dus']).' '.__('umum.satuan_dus').' · '.\App\Support\Bahasa::angka($kendaraan->jarak_km, 1).' km'">
-        <x-slot:aksi>
-            <a href="{{ route('driver.pilih-mobil') }}" wire:navigate
-               class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
-                {{ __('driver.ganti_mobil') }}
-            </a>
-        </x-slot:aksi>
+        @unless ($this->melihatSebagaiAdmin)
+            <x-slot:aksi>
+                <a href="{{ route('driver.pilih-mobil') }}" wire:navigate
+                   class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('driver.ganti_mobil') }}
+                </a>
+            </x-slot:aksi>
+        @endunless
     </x-judul-halaman>
+
+    @if ($this->melihatSebagaiAdmin)
+        <div class="mb-4 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+            <x-heroicon-o-eye class="size-5 shrink-0" />
+            <p>{{ __('pengiriman.mode_lihat_admin') }}</p>
+        </div>
+    @endif
 
     {{-- Ringkasan progres, kini berbasis dus --}}
     <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
@@ -42,10 +51,17 @@
         @endif
 
         @if ($this->totalJatahKampas > 0)
-            <button type="button" wire:click="bukaKampas"
-                    class="mt-3 w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">
-                <x-heroicon-o-cube class="size-4 inline" /> {{ __('pengiriman.aksi_kampas') }} (@angka($this->totalJatahKampas) {{ __('umum.satuan_dus') }})
-            </button>
+            @if ($this->melihatSebagaiAdmin)
+                <button type="button" wire:click="bukaKonfirmasiSelesaikanKendaraan"
+                        class="mt-3 w-full rounded-lg bg-gray-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
+                    <x-heroicon-o-archive-box-arrow-down class="size-4 inline" /> {{ __('pengiriman.tombol_selesaikan_kendaraan') }} (@angka($this->totalJatahKampas) {{ __('umum.satuan_dus') }})
+                </button>
+            @else
+                <button type="button" wire:click="bukaKampas"
+                        class="mt-3 w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">
+                    <x-heroicon-o-cube class="size-4 inline" /> {{ __('pengiriman.aksi_kampas') }} (@angka($this->totalJatahKampas) {{ __('umum.satuan_dus') }})
+                </button>
+            @endif
         @endif
     </div>
 
@@ -94,10 +110,12 @@
                         {{ __('driver.navigasi_ke_sini') }}
                     </a>
                 @endif
-                <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
-                        class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                    {{ __('driver.upload_nota') }}
-                </button>
+                @unless ($this->melihatSebagaiAdmin)
+                    <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
+                            class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                        {{ __('driver.upload_nota') }}
+                    </button>
+                @endunless
             </div>
         </div>
     @endif
@@ -207,7 +225,7 @@
                                class="rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-center text-sm hover:bg-emerald-50"><x-heroicon-o-receipt-percent class="size-4 inline" /></a>
                         @endif
 
-                        @if ($stop->status === \App\Enums\StatusStop::Pending)
+                        @if ($stop->status === \App\Enums\StatusStop::Pending && ! $this->melihatSebagaiAdmin)
                             <button type="button" wire:click="bukaKonfirmasi({{ $stop->id }})"
                                     title="{{ __('driver.upload_nota') }}"
                                     class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm text-white hover:bg-blue-700"><x-heroicon-o-camera class="size-4 inline" /></button>
@@ -506,6 +524,27 @@
                         class="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-gray-300">
                     <span wire:loading.remove wire:target="simpanKampas">{{ __('pengiriman.simpan_kampas') }}</span>
                     <span wire:loading wire:target="simpanKampas">{{ __('umum.menyimpan') }}</span>
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- ============ Selesaikan kendaraan (admin) ============ --}}
+    @if ($konfirmasiSelesaikanKendaraan)
+        <x-modal :judul="__('pengiriman.judul_selesaikan_kendaraan', ['nama' => $kendaraan->nama])" tutup="$set('konfirmasiSelesaikanKendaraan', false)">
+            <div class="space-y-4 p-5">
+                <p class="text-sm text-gray-600">
+                    {{ __('pengiriman.ket_selesaikan_kendaraan', ['dus' => \App\Support\Bahasa::angka($this->totalJatahKampas)]) }}
+                </p>
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="$set('konfirmasiSelesaikanKendaraan', false)"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.kembali') }}</button>
+                <button type="button" wire:click="selesaikanKendaraan" wire:loading.attr="disabled"
+                        class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60">
+                    <span wire:loading.remove wire:target="selesaikanKendaraan">{{ __('pengiriman.tombol_selesaikan_kendaraan') }}</span>
+                    <span wire:loading wire:target="selesaikanKendaraan">{{ __('umum.menyimpan') }}</span>
                 </button>
             </x-slot:aksi>
         </x-modal>

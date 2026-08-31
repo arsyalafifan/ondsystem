@@ -223,6 +223,10 @@
                                 <a href="{{ route('routing.packing-list', $kendaraan) }}" target="_blank"
                                    title="{{ __('routing.cetak_packing_list') }}"
                                    class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"><x-heroicon-o-printer class="size-4 inline" /></a>
+
+                                <a href="{{ route('driver.kunjungan', $kendaraan) }}" target="_blank"
+                                   title="{{ __('routing.pantau_pengantaran') }}"
+                                   class="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"><x-heroicon-o-eye class="size-4 inline" /></a>
                             @endif
 
                             <span class="text-gray-400">

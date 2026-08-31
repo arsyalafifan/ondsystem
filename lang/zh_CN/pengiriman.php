@@ -49,4 +49,11 @@ return [
     'galat_koreksi_melebihi' => ':produk 的数量不能超过原订单（最多 :maks 箱）。',
     'galat_koreksi_tanpa_perubahan' => '输入的数量与已记录的相同，没有需要更正的内容。',
     'mutasi_koreksi' => '更正订单 :kode 的实收数量',
+    'galat_tidak_ada_sisa_kampas' => '没有需要归还仓库的剩余库存。',
+    'mutasi_selesaikan_kendaraan' => '管理员将车辆 :nama 的剩余库存归还仓库',
+    'tombol_selesaikan_kendaraan' => '结束车辆',
+    'judul_selesaikan_kendaraan' => '结束车辆 — :nama',
+    'ket_selesaikan_kendaraan' => '尚未卖给任何商店的剩余库存（:dus 箱）将归还仓库库存。当司机当天不再处理剩余货物时使用此功能。',
+    'notif_selesai_kendaraan' => '已将 :dus 箱归还仓库库存。',
+    'mode_lihat_admin' => '您正以管理员身份查看。司机操作（上传单据、取消、处理剩余库存）在此不可用——只有司机才能执行这些操作。',
 ];

@@ -69,12 +69,13 @@ class PengirimanService
                 throw new RuntimeException(__('pesanan.galat_bukan_delivery', ['kode' => $pesanan->kode]));
             }
 
-            // Kuncian stok dilepas: barangnya tidak jadi diterima toko ini,
-            // jadi tidak boleh terus dihitung sebagai sudah dijanjikan.
-            foreach ($pesanan->items()->with('produk')->get() as $item) {
-                $this->lepasKunci($item->produk, $item->jumlah_dus, $pesanan, $driver);
-            }
-
+            // Kuncian stok SENGAJA TIDAK dilepas di sini. Barangnya tidak
+            // jadi diterima toko ini, tapi juga belum kembali ke gudang —
+            // masih fisik di dalam mobil, jadi angkanya tetap harus terkunci
+            // supaya tidak dijanjikan ke pesanan lain sementara dus-nya ada
+            // di jalan. Kuncian baru benar-benar lepas saat dus ini
+            // diampaskan (PengirimanService::kampas()) atau saat admin
+            // menutup sisa kendaraan (PengirimanService::selesaikanKendaraan()).
             $pesanan->update([
                 'status' => StatusPesanan::Cancel,
                 'alasan_cancel' => $alasan,
@@ -161,9 +162,13 @@ class PengirimanService
 
                 $item->update(['jumlah_dus_terkirim' => $terkirim]);
 
-                // Stok fisik berkurang hanya sebanyak yang diterima toko,
-                // sedangkan seluruh kuncian dilepas karena pesanannya ditutup.
-                $this->keluarkanStok($item->produk, $terkirim, $item->jumlah_dus, $pesanan, $driver);
+                // Stok fisik DAN kuncian berkurang hanya sebanyak yang
+                // diterima toko — sisanya ($item->jumlah_dus - $terkirim)
+                // masih di mobil, jadi kuncian sebesar itu SENGAJA
+                // dibiarkan tetap terkunci (lihat catatan di
+                // batalkanDiLapangan()) sampai diampaskan atau kendaraannya
+                // ditutup admin.
+                $this->keluarkanStok($item->produk, $terkirim, $pesanan, $driver);
             }
 
             $pesanan->update([
@@ -228,19 +233,29 @@ class PengirimanService
             }
         }
 
+        // Yang sudah dikembalikan admin ke gudang (selesaikanKendaraan())
+        // juga dikurangkan — supaya jatah yang sudah "ditutup buku"-nya
+        // tidak terus muncul seolah masih bisa diampaskan lagi.
+        $dikembalikan = StokMutasi::where('kendaraan_id', $kendaraan->id)
+            ->where('tipe', 'release')
+            ->selectRaw('produk_id, sum(jumlah) as total')
+            ->groupBy('produk_id')
+            ->pluck('total', 'produk_id');
+
         $produkIds = array_keys($sisa + $terpakai);
         $produks = Produk::whereIn('id', $produkIds)->get()->keyBy('id');
 
         return collect($produkIds)
-            ->map(function (int $id) use ($sisa, $terpakai, $produks): array {
+            ->map(function (int $id) use ($sisa, $terpakai, $dikembalikan, $produks): array {
                 $jumlahSisa = (int) ($sisa[$id] ?? 0);
                 $jumlahTerpakai = (int) ($terpakai[$id] ?? 0);
+                $jumlahDikembalikan = (int) ($dikembalikan[$id] ?? 0);
 
                 return [
                     'produk' => $produks->get($id),
                     'sisa' => $jumlahSisa,
                     'terpakai' => $jumlahTerpakai,
-                    'tersedia' => max(0, $jumlahSisa - $jumlahTerpakai),
+                    'tersedia' => max(0, $jumlahSisa - $jumlahTerpakai - $jumlahDikembalikan),
                 ];
             })
             ->filter(fn (array $b) => $b['produk'] !== null && $b['tersedia'] > 0)
@@ -337,9 +352,11 @@ class PengirimanService
                     'subtotal' => $subtotal,
                 ]);
 
-                // Kunciannya sudah dilepas waktu toko asalnya dibatalkan atau
-                // notanya dicoret, jadi di sini stok fisik saja yang berkurang.
-                $this->keluarkanStok($produk, $jumlah, 0, $pesanan, $driver);
+                // Kunciannya SENGAJA masih utuh sejak toko asalnya
+                // dibatalkan/dicoret (lihat catatan di batalkanDiLapangan())
+                // — kampas inilah yang akhirnya melepaskannya, karena di
+                // sinilah dus itu benar-benar keluar dari mobil untuk selamanya.
+                $this->keluarkanStok($produk, $jumlah, $pesanan, $driver);
 
                 $totalDus += $jumlah;
                 $totalNilai += $subtotal;
@@ -373,6 +390,58 @@ class PengirimanService
     }
 
     /**
+     * Mengembalikan seluruh sisa kampas satu kendaraan ke gudang —
+     * dipakai admin/superadmin ketika driver tidak menghabiskan sisa
+     * muatannya hari itu juga (mis. rutenya sudah tuntas, tapi ada dus
+     * dari toko yang batal/dicoret yang tidak jadi diampaskan ke toko
+     * mana pun). Admin TIDAK bisa mengambil tindakan yang seharusnya
+     * dilakukan driver (unggah nota, batal, kampas) — ini satu-satunya
+     * tindakan yang boleh dilakukan admin di layar kunjungan kendaraan.
+     *
+     * Aman dijalankan berulang kali: jatahKampas() sudah mengurangkan
+     * sisa yang sebelumnya dikembalikan lewat method ini (dicatat lewat
+     * StokMutasi.kendaraan_id), jadi kalau nanti muncul sisa BARU (mis.
+     * toko lain baru dibatalkan setelah kendaraan ini pernah ditutup),
+     * menjalankannya lagi hanya mengembalikan sisa yang benar-benar baru
+     * — bukan mengembalikan yang sudah pernah dikembalikan sebelumnya.
+     *
+     * @throws RuntimeException bila tidak ada sisa kampas yang perlu dikembalikan
+     */
+    public function selesaikanKendaraan(Kendaraan $kendaraan, User $admin): void
+    {
+        $jatah = $this->jatahKampas($kendaraan);
+
+        if ($jatah->isEmpty()) {
+            throw new RuntimeException(__('pengiriman.galat_tidak_ada_sisa_kampas'));
+        }
+
+        DB::transaction(function () use ($kendaraan, $jatah, $admin): void {
+            foreach ($jatah as $baris) {
+                $produk = Produk::lockForUpdate()->find($baris['produk']->id);
+                $jumlah = min($baris['tersedia'], $produk->stok_reserved);
+
+                if ($jumlah <= 0) {
+                    continue;
+                }
+
+                $produk->decrement('stok_reserved', $jumlah);
+                $produk->refresh();
+
+                StokMutasi::create([
+                    'produk_id' => $produk->id,
+                    'kendaraan_id' => $kendaraan->id,
+                    'tipe' => 'release',
+                    'jumlah' => $jumlah,
+                    'stok_sesudah' => $produk->stok,
+                    'reserved_sesudah' => $produk->stok_reserved,
+                    'keterangan' => __('pengiriman.mutasi_selesaikan_kendaraan', ['nama' => $kendaraan->nama]),
+                    'user_id' => $admin->id,
+                ]);
+            }
+        });
+    }
+
+    /**
      * Menyegarkan status kendaraan (siap/jalan/selesai) setelah isinya
      * berubah.
      *
@@ -400,39 +469,20 @@ class PengirimanService
         }
     }
 
-    private function lepasKunci(Produk $produk, int $jumlah, Pesanan $pesanan, User $user): void
-    {
-        $produk->decrement('stok_reserved', min($jumlah, $produk->stok_reserved));
-        $produk->refresh();
-
-        StokMutasi::create([
-            'produk_id' => $produk->id,
-            'pesanan_id' => $pesanan->id,
-            'tipe' => 'release',
-            'jumlah' => $jumlah,
-            'stok_sesudah' => $produk->stok,
-            'reserved_sesudah' => $produk->stok_reserved,
-            'keterangan' => __('pesanan.mutasi_dilepas', ['kode' => $pesanan->kode]),
-            'user_id' => $user->id,
-        ]);
-    }
-
     /**
-     * Mengeluarkan barang dari gudang.
-     *
-     * `$jumlahDikunci` adalah banyaknya kuncian yang perlu dilepas, yang tidak
-     * selalu sama dengan yang keluar: pada nota yang dicoret, kunciannya
-     * sebesar pesanan semula sedangkan yang keluar hanya sebagian. Pada
-     * kampas, kunciannya sudah dilepas lebih dulu sehingga bernilai nol.
+     * Mengeluarkan barang dari gudang untuk selamanya — dus yang keluar dan
+     * kuncian yang lepas SELALU sama besarnya, karena inilah satu-satunya
+     * saat dus itu benar-benar meninggalkan mobil (ke toko tujuan pesanan,
+     * atau ke toko kampas). Dus yang TIDAK keluar (masih di mobil) sengaja
+     * tidak disentuh kunciannya sama sekali di sini — tetap terkunci
+     * sampai diampaskan lain kali atau kendaraannya ditutup admin lewat
+     * selesaikanKendaraan().
      */
-    private function keluarkanStok(Produk $produk, int $jumlahKeluar, int $jumlahDikunci, Pesanan $pesanan, User $user): void
+    private function keluarkanStok(Produk $produk, int $jumlah, Pesanan $pesanan, User $user): void
     {
-        if ($jumlahKeluar > 0) {
-            $produk->decrement('stok', min($jumlahKeluar, $produk->stok));
-        }
-
-        if ($jumlahDikunci > 0) {
-            $produk->decrement('stok_reserved', min($jumlahDikunci, $produk->stok_reserved));
+        if ($jumlah > 0) {
+            $produk->decrement('stok', min($jumlah, $produk->stok));
+            $produk->decrement('stok_reserved', min($jumlah, $produk->stok_reserved));
         }
 
         $produk->refresh();
@@ -441,7 +491,7 @@ class PengirimanService
             'produk_id' => $produk->id,
             'pesanan_id' => $pesanan->id,
             'tipe' => 'keluar',
-            'jumlah' => -$jumlahKeluar,
+            'jumlah' => -$jumlah,
             'stok_sesudah' => $produk->stok,
             'reserved_sesudah' => $produk->stok_reserved,
             'keterangan' => __('pesanan.mutasi_keluar', ['kode' => $pesanan->kode]),
