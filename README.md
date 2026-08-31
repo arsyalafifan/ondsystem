@@ -159,6 +159,31 @@ belum punya pesanan berjalan:
 Toko yang masih punya pesanan berjalan ditolak **sejak pemindaian**, bukan
 setelah seluruh produk terisi.
 
+### Toko Belum Pesan 1 Bulan
+
+Tombol di pojok kanan atas Daftar Pesanan (badge oranye menunjukkan
+jumlahnya, dobel fungsi sebagai notifikasi) membuka daftar toko yang
+kemungkinan butuh ditindaklanjuti sales-nya. Tiga aturan yang menentukan
+siapa masuk daftar (`DaftarPesanan::tokoTidakAktifSemua()`):
+
+- **Harus terdaftar di Penugasan Toko BULAN INI** — toko yang tidak jadi
+  tanggungan sales mana pun bulan ini tidak pernah muncul di sini, sekalipun
+  sudah lama tidak pesan; ini laporan "tanggungan yang terbengkalai", bukan
+  "semua toko yang sepi".
+- **Belum punya pesanan SELESAI dalam jendela BERGULIR 1 bulan** dari hari
+  ini (`selesai_at >= sebulan lalu`), bukan batas bulan kalender — toko yang
+  pesanannya tuntas 29 hari lalu tetap dianggap aktif walau kalendernya
+  sudah berganti bulan.
+- Pesanan yang masih ORDER/PROCESS/DELIVERY (belum tuntas) tidak menghitung
+  toko sebagai aktif — cuma pesanan yang BENAR-BENAR selesai yang dianggap.
+
+Dikelompokkan per sales (toko tanggungan A dan tanggungan B tidak tercampur
+dalam satu daftar), bisa disaring per sales dan dicari per nama/kode toko.
+Badge jumlah pada tombolnya sengaja SELALU menunjukkan angka penuh
+tanpa terpengaruh penyaring yang sedang aktif di modal — dihitung dari
+`tokoTidakAktifSemua()` (query mentah), bukan `tokoTidakAktif()` (versi
+yang sudah disaring).
+
 ### Perlakuan stok
 
 Stok dipisah menjadi dua angka supaya pembatalan tidak pernah merusak catatan
@@ -203,13 +228,37 @@ sebelumnya, persis karena keduanya SELALU sama besar sejak perbaikan ini.
 
 Sisa yang terkunci itu ("masih di mobil, kampas-eligible") tidak otomatis
 pernah lepas kalau driver tidak menghabiskannya lewat kampas hari itu juga.
-**Admin dan superadmin bisa melihat layar kunjungan kendaraan mana pun**
-(`/driver/mobil/{kendaraan}`, tautan "👁" di kartu kendaraan pada Generate
-Routing setelah rute disetujui) — tapi hanya untuk memantau. Semua tindakan
-driver (unggah nota, batalkan, kampas) dikunci di sisi SERVER lewat
+**Admin dan superadmin bisa melihat SEMUA kendaraan, baik yang sudah
+ditetapkan drivernya maupun yang masih kosong** — lewat menu **Pengiriman
+Driver** (`/driver`, sama seperti yang dibuka driver untuk memilih mobilnya
+sendiri) atau tautan "👁" di kartu kendaraan pada Generate Routing setelah
+rute disetujui — tapi hanya untuk memantau.
+
+Dua lapis yang menjaga ini, dan keduanya penting — kesalahan yang pernah
+terjadi di sini justru salah satu lapisnya kelewatan:
+
+- **Rutenya sendiri** perlu peran admin secara eksplisit
+  (`peran:driver,admin` di `routes/web.php`) — `PastikanPeran` HANYA
+  membebaskan superadmin secara otomatis, admin biasa TIDAK ikut lolos
+  kalau rutenya cuma `peran:driver`. Kedua rute (`/driver` dan
+  `/driver/mobil/{kendaraan}`) perlu keduanya disebut.
+- **`PilihMobil::kendaraans()`** (daftar kendaraan di `/driver`) menyaring
+  ke "belum diambil siapa pun atau sudah milik saya sendiri" — aturan yang
+  benar untuk DRIVER (tidak boleh melihat mobil driver lain), tapi salah
+  untuk admin, yang justru perlu melihat SEMUA termasuk yang sudah
+  dipegang driver lain. `PilihMobil::ambil()` juga perlu jalur pintas
+  serupa: admin yang mengklik kartu kendaraan siapa pun langsung diarahkan
+  ke layar kunjungannya, tidak pernah ditolak dengan "sudah diambil driver
+  lain" (itu penolakan yang cuma berlaku untuk driver sungguhan) dan tidak
+  pernah ikut mengklaim kendaraannya.
+
+Begitu masuk ke layar kunjungan kendaraan, semua tindakan driver (unggah
+nota, batalkan, kampas) dikunci di sisi SERVER lewat
 `DaftarKunjungan::pastikanBisaBertindak()`, bukan cuma disembunyikan di
 tampilan — tombol yang tersembunyi tetap bisa dipicu langsung lewat
-panggilan komponen kalau cuma disembunyikan di Blade saja.
+panggilan komponen kalau cuma disembunyikan di Blade saja. Sebaliknya,
+`selesaikanKendaraan()` mengunci arah yang berlawanan: driver ditolak 403
+kalau mencoba memicunya, cuma admin/superadmin yang boleh.
 
 Satu-satunya tindakan yang boleh dilakukan admin/superadmin di layar ini
 adalah **Selesaikan Mobil** (`PengirimanService::selesaikanKendaraan()`):
@@ -1071,8 +1120,20 @@ orang, bukan uang per hari).
 php artisan test
 ```
 
-456 tes, mencakup:
+480 tes, mencakup:
 
+- **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
+  toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
+  terakhirnya SELESAI lebih dari 1 bulan lalu, keduanya masuk daftar;
+  toko yang selesai KURANG dari 1 bulan lalu tidak masuk; pesanan yang
+  belum SELESAI tidak membuat toko dianggap aktif; toko yang tidak
+  ditugaskan ke sales mana pun bulan ini tidak pernah muncul meski tidak
+  aktif; pengelompokan per sales, penyaring sales dan pencarian toko;
+  badge jumlah pada tombol TIDAK terpengaruh penyaring yang sedang aktif
+  di modal; pesan kosong yang beda antara "belum ada penugasan sama
+  sekali" dan "semua toko tanggungan sudah aktif"; dan halaman tampil
+  dengan BEBERAPA sales dan toko sekaligus tanpa lazy load — pelajaran
+  yang sama seperti `InsentifSalesTest` dan `DaftarPesananFilterTest`.
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)**
   (ditambah, bukan baru) — bug nyata: `stok_reserved` TIDAK dilepas begitu
   toko dibatalkan atau dicoret notanya (dus-nya masih di mobil, bukan
@@ -1229,7 +1290,13 @@ php artisan test
   mobil itu tetap muncul di daftar untuk driver asli, driver kedua tetap
   ditolak kalau mobil sudah benar-benar diambil driver pertama, dan
   `diambil_at` tetap tercatat saat driver membuka mobil yang driver-nya
-  sudah ditetapkan admin lebih dulu lewat Generate Routing.
+  sudah ditetapkan admin lebih dulu lewat Generate Routing. Ditambah: bug
+  nyata di mana admin (bukan superadmin) ditolak 403 di rute `/driver`
+  sama sekali, dan admin/superadmin tidak bisa melihat maupun membuka
+  kendaraan yang sudah dibawa driver lain — dites lewat rute HTTP
+  sungguhan (`->get(route(...))`), bukan `Livewire::test()` yang memanggil
+  komponen langsung, karena jalur itu tidak pernah melewati middleware
+  rute sama sekali sehingga galat 403 pada rute tidak pernah tertangkap.
 - **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)** —
   ketiga tindakan driver dan pembukuan stoknya, termasuk garis rute
   (geometry) dan ETA yang dihitung ulang setelah kampas menambah toko baru

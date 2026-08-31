@@ -7,6 +7,8 @@ return [
     'selesai_dari' => ':selesai / :total selesai',
     'ambil_mobil' => 'Ambil mobil ini →',
     'lanjutkan' => 'Lanjutkan pengiriman →',
+    'lihat_kendaraan' => 'Lihat kendaraan →',
+    'belum_diambil' => 'Belum diambil',
     'belum_ada_mobil' => 'Belum ada mobil yang siap jalan',
     'belum_ada_mobil_ket' => 'Mobil muncul di sini setelah admin menyetujui routing hari ini.',
     'riwayat_anda' => 'Riwayat pengiriman Anda',

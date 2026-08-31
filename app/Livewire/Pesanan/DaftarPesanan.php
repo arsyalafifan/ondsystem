@@ -3,11 +3,15 @@
 namespace App\Livewire\Pesanan;
 
 use App\Enums\StatusPesanan;
+use App\Models\PenugasanSales;
 use App\Models\Pesanan;
+use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -47,6 +51,13 @@ class DaftarPesanan extends Component
 
     /** Pesanan yang sedang dilihat rinciannya. */
     public ?int $pesananDilihat = null;
+
+    // --- Toko yang belum pesan 1 bulan ---
+    public bool $tokoTidakAktifTerbuka = false;
+
+    public string $filterSalesTidakAktif = '';
+
+    public string $cariTokoTidakAktif = '';
 
     /**
      * Alasan pembatalan. Disediakan sebagai daftar terjemahan agar admin
@@ -262,6 +273,104 @@ class DaftarPesanan extends Component
 
         $this->pesananDibatalkan = null;
         unset($this->pesanans, $this->ringkasan);
+    }
+
+    // ------------------------------------------------------------------
+    // Toko yang belum pesan 1 bulan
+    // ------------------------------------------------------------------
+
+    public function bukaTokoTidakAktif(): void
+    {
+        $this->tokoTidakAktifTerbuka = true;
+    }
+
+    public function tutupTokoTidakAktif(): void
+    {
+        $this->tokoTidakAktifTerbuka = false;
+        $this->reset(['filterSalesTidakAktif', 'cariTokoTidakAktif']);
+    }
+
+    /**
+     * Toko yang menjadi tanggungan sales bulan ini (Penugasan Toko) tapi
+     * belum punya pesanan SELESAI dalam 1 bulan terakhir, dikelompokkan
+     * per sales. Dasar hitung "1 bulan"-nya jendela bergulir dari hari ini
+     * (`selesai_at >= sebulan lalu`), bukan batas bulan kalender — toko
+     * yang terakhir pesanannya tuntas 29 hari lalu tetap dianggap aktif
+     * walau sudah berganti bulan kalender.
+     *
+     * Tidak disaring lewat filterSalesTidakAktif/cariTokoTidakAktif di
+     * sini — itu tugas tokoTidakAktif() di bawah — supaya badge jumlah
+     * pada tombol selalu menunjukkan angka SEBENARNYA, tidak terpengaruh
+     * filter yang kebetulan masih tersisa dari sesi sebelumnya.
+     *
+     * @return Collection<int, array{sales: User, tokos: Collection<int, Toko>}>
+     */
+    #[Computed]
+    public function tokoTidakAktifSemua(): Collection
+    {
+        $bulanIni = CarbonImmutable::today()->startOfMonth()->toDateString();
+        $batasWaktu = CarbonImmutable::now()->subMonth();
+
+        $penugasan = PenugasanSales::query()
+            ->whereDate('bulan', $bulanIni)
+            ->with(['toko:id,nama,kode,wilayah_id', 'toko.wilayah:id,nama', 'sales:id,name'])
+            ->get();
+
+        if ($penugasan->isEmpty()) {
+            return collect();
+        }
+
+        $tokoAktifIds = Pesanan::query()
+            ->where('status', StatusPesanan::Selesai)
+            ->where('selesai_at', '>=', $batasWaktu)
+            ->whereIn('toko_id', $penugasan->pluck('toko_id'))
+            ->distinct()
+            ->pluck('toko_id');
+
+        return $penugasan
+            ->reject(fn (PenugasanSales $p) => $tokoAktifIds->contains($p->toko_id))
+            ->groupBy('sales_id')
+            ->map(fn (Collection $grup) => [
+                'sales' => $grup->first()->sales,
+                'tokos' => $grup->pluck('toko')->sortBy('nama')->values(),
+            ])
+            ->sortBy(fn (array $g) => $g['sales']->name)
+            ->values();
+    }
+
+    /** @return Collection<int, array{sales: User, tokos: Collection<int, Toko>}> */
+    #[Computed]
+    public function tokoTidakAktif(): Collection
+    {
+        $kata = mb_strtolower(trim($this->cariTokoTidakAktif));
+
+        return $this->tokoTidakAktifSemua
+            ->when($this->filterSalesTidakAktif !== '', fn (Collection $c) => $c
+                ->filter(fn (array $g) => (string) $g['sales']->id === $this->filterSalesTidakAktif))
+            ->map(fn (array $g) => [
+                'sales' => $g['sales'],
+                'tokos' => $kata === ''
+                    ? $g['tokos']
+                    : $g['tokos']->filter(fn ($t) => str_contains(mb_strtolower($t->nama), $kata)
+                        || str_contains(mb_strtolower($t->kode), $kata))->values(),
+            ])
+            ->filter(fn (array $g) => $g['tokos']->isNotEmpty())
+            ->values();
+    }
+
+    #[Computed]
+    public function totalTokoTidakAktif(): int
+    {
+        return (int) $this->tokoTidakAktifSemua->sum(fn (array $g) => $g['tokos']->count());
+    }
+
+    /** Membedakan "belum ada penugasan sama sekali" dari "semua toko tanggungan sudah aktif". */
+    #[Computed]
+    public function adaPenugasanBulanIni(): bool
+    {
+        return PenugasanSales::query()
+            ->whereDate('bulan', CarbonImmutable::today()->startOfMonth()->toDateString())
+            ->exists();
     }
 
     public function render()

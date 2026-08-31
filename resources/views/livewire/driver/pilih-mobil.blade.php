@@ -14,7 +14,13 @@
                             <p class="text-sm text-gray-500">{{ $k->wilayah->nama }}</p>
                         @endif
                     </div>
-                    @if ($k->driver_id === auth()->id())
+                    @if (auth()->user()->isAdmin())
+                        @if ($k->driver)
+                            <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ $k->driver->name }}</span>
+                        @else
+                            <span class="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{{ __('driver.belum_diambil') }}</span>
+                        @endif
+                    @elseif ($k->driver_id === auth()->id())
                         <span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{{ __('driver.mobil_anda') }}</span>
                     @endif
                 </div>
@@ -47,7 +53,11 @@
                 @endif
 
                 <p class="mt-3 text-sm font-medium text-blue-600">
-                    {{ $k->driver_id === auth()->id() ? __('driver.lanjutkan') : __('driver.ambil_mobil') }}
+                    @if (auth()->user()->isAdmin())
+                        {{ __('driver.lihat_kendaraan') }}
+                    @else
+                        {{ $k->driver_id === auth()->id() ? __('driver.lanjutkan') : __('driver.ambil_mobil') }}
+                    @endif
                 </p>
             </button>
         @empty

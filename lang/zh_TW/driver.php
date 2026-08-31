@@ -7,6 +7,8 @@ return [
     'selesai_dari' => '已完成 :selesai / :total',
     'ambil_mobil' => '領取這輛車 →',
     'lanjutkan' => '繼續配送 →',
+    'lihat_kendaraan' => '查看車輛 →',
+    'belum_diambil' => '尚未領取',
     'belum_ada_mobil' => '尚無可出發的車輛',
     'belum_ada_mobil_ket' => '管理員核准今日路線後，車輛會出現在這裡。',
     'riwayat_anda' => '您的配送記錄',

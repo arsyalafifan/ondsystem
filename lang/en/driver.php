@@ -7,6 +7,8 @@ return [
     'selesai_dari' => ':selesai / :total done',
     'ambil_mobil' => 'Take this vehicle →',
     'lanjutkan' => 'Continue deliveries →',
+    'lihat_kendaraan' => 'View vehicle →',
+    'belum_diambil' => 'Not taken yet',
     'belum_ada_mobil' => 'No vehicles are ready yet',
     'belum_ada_mobil_ket' => 'Vehicles appear here once an admin approves today’s routing.',
     'riwayat_anda' => 'Your delivery history',
