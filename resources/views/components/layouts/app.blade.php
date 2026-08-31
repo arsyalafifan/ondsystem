@@ -16,6 +16,9 @@
             ['rute' => 'pembayaran.belum-lunas', 'label' => __('nav.belum_lunas'), 'ikon' => 'exclamation-circle'],
             ['rute' => 'pembayaran.pendapatan', 'label' => __('nav.pendapatan'), 'ikon' => 'chart-bar'],
         ]],
+        ['label' => __('nav.insentif'), 'ikon' => 'trophy', 'anak' => [
+            ['rute' => 'insentif.sales', 'label' => __('nav.insentif_sales'), 'ikon' => 'user-group'],
+        ]],
         ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
             ['rute' => 'master.toko', 'label' => __('nav.master_toko'), 'ikon' => 'building-storefront'],
             ['rute' => 'master.produk', 'label' => __('nav.master_produk'), 'ikon' => 'cube'],

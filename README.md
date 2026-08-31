@@ -888,10 +888,24 @@ Tiga aturan yang sengaja beda dari pesanan biasa:
   pesanan aktif per toko" (yang ada untuk mencegah konflik rute) tidak
   berlaku.
 
-Pembayarannya langsung diminta saat itu juga (rincian cash/transfer, pola
-input yang sama dengan Pelunasan — lihat di atas) dan disimpan dalam
-transaksi yang sama dengan pesanannya, bukan lewat `PelunasanService`
-terpisah belakangan.
+Pembayarannya langsung diminta saat itu juga dan disimpan dalam transaksi
+yang sama dengan pesanannya, bukan lewat `PelunasanService` terpisah
+belakangan. Untuk sekarang **hanya cash** (`Kasir::$nominalCash`) — opsi
+transfer sengaja belum ada karena belum dibutuhkan operasional; kolom
+`nominal_transfer` di basis data tetap ada dan selalu dikirim `0` dari
+kasir, jadi menambahkannya kembali nanti tidak perlu migrasi baru, cukup
+menambah opsi di layar. Nominalnya diketik manual (tombol "Isi Total
+Belanja" cuma bantuan awal, tetap bisa diubah) dan harus persis sama
+dengan total belanja sebelum tombol Simpan aktif — pola yang sama dengan
+Pelunasan (lihat di atas), lengkap dengan pesan pas/kurang/lebih dan
+format titik ribuan sambil mengetik.
+
+Sempat dicoba versi dua kolom nominal terpisah (cash & transfer, sama
+seperti Pelunasan) untuk kasir, tapi itu memungkinkan kedua kolom terisi
+bersamaan dan JUMLAHNYA kebetulan pas dengan tagihan padahal maksudnya
+bukan pembayaran campuran — membingungkan untuk transaksi yang seharusnya
+satu metode saja. Dibatalkan sebelum opsi transfer sempat dipakai
+siapa pun, jadi tidak ada riwayat/migrasi yang perlu disesuaikan.
 
 ### Barcode: siap dipakai, belum wajib dipakai
 
@@ -956,14 +970,76 @@ state Alpine lokal.
 
 ---
 
+## Insentif
+
+Menu **Insentif** (header baru di navigasi admin) — dasar hitung insentif
+per akun, dipecah per peran karena cara menghitungnya beda:
+
+- **Insentif Sales** (`/insentif/sales`, sudah ada) — berapa dus yang
+  berhasil terantar per akun sales, dihitung dari siapa yang MENGINPUT
+  pesanannya (`Pesanan::dibuat_oleh`).
+- **Insentif Driver** (menyusul) — akan dihitung dari kunjungan yang
+  diselesaikan driver di lapangan, bukan dari siapa yang menginput
+  pesanan. Header menu dan strukturnya sudah disiapkan supaya
+  menambahkannya nanti tinggal menambah satu route + satu item menu, tidak
+  perlu mengubah yang sudah ada.
+
+### Insentif Sales
+
+Tiga aturan yang menentukan dus mana yang dihitung:
+
+- **Hanya pesanan berstatus SELESAI** — pesanan yang masih ORDER/PROCESS/
+  DELIVERY belum jadi apa-apa buat sales, dan yang CANCEL memang tidak
+  jadi terkirim.
+- **Dus yang dihitung adalah yang BENAR-BENAR terkirim**
+  (`PesananItem::terkirim`, sudah memperhitungkan koreksi nota dicoret),
+  bukan `jumlah_dus` mentah — toko yang cuma mengambil sebagian tidak
+  boleh dihitung penuh sebagai insentif.
+- **Hanya pesanan yang penginputnya berperan Sales** — dicek lewat
+  `whereHas('pembuat', fn ($q) => $q->where('role', PeranPengguna::Sales))`,
+  bukan lewat `jenis` pesanannya. Ini otomatis menyingkirkan dua kasus
+  tanpa perlu pengecualian eksplisit: pesanan **kampas** dibuat DRIVER
+  (`dibuat_oleh` = id driver, bukan sales) jadi otomatis tidak ikut — itu
+  akan jadi bagian Insentif Driver nanti; dan penjualan **POS** yang
+  diinput ADMIN sengaja tidak dihitung sebagai insentif sales, sementara
+  POS yang diinput sales sendiri tetap ikut — insentif ini soal siapa yang
+  menjual, bukan soal jalur penjualannya (driver vs POS).
+
+Tanggalnya mengikuti `Pesanan::selesai_at` (kapan pesanan SUNGGUH tuntas),
+bukan `tanggal` (target awal) atau `created_at` (waktu diinput) —
+konsisten dengan Pelunasan/Pendapatan yang juga memakai patokan yang sama.
+Empat mode penyaring seperti Pendapatan (Harian/Bulanan/Rentang/Semua),
+tapi **default-nya Bulanan** (Pendapatan default-nya Harian) — insentif
+memang lazimnya direkap bulanan.
+
+Tabelnya terurut dus terbanyak dulu (papan peringkat), dilengkapi grafik
+batang HORIZONTAL (`resources/js/insentif-chart.js`, bukan tegak seperti
+grafik Pendapatan) — batang mendatar membiarkan nama sales terbaca penuh
+di sumbu tanpa terpotong atau diputar miring, sengaja dipisah jadi modul
+sendiri dari `pendapatan-chart.js` karena datasetnya beda konsep (dus per
+orang, bukan uang per hari).
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-424 tes, mencakup:
+439 tes, mencakup:
 
+- **[`tests/Feature/InsentifSalesTest.php`](tests/Feature/InsentifSalesTest.php)** —
+  hanya admin yang bisa akses, mode default Bulanan; dus dihitung dari yang
+  BENAR-BENAR terkirim (bukan jumlah pesanan mentah, dites lewat nota yang
+  dicoret); pesanan yang belum/tidak SELESAI tidak dihitung; pesanan kampas
+  tidak ikut karena penginputnya driver bukan sales (tanpa pengecualian
+  eksplisit lewat `jenis`); POS yang diinput sales terhitung, POS yang
+  diinput admin tidak; jumlah toko dihitung UNIK per sales, bukan jumlah
+  pesanan; keempat mode penyaring (hari/bulan/rentang/semua) menyaring
+  `selesai_at` dengan benar; dan halaman tampil dengan BEBERAPA sales
+  sekaligus tanpa lazy load — pelajaran yang sama seperti
+  `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`.
 - **[`tests/Feature/PendapatanRiwayatTest.php`](tests/Feature/PendapatanRiwayatTest.php)** —
   penyaring tabel riwayat lewat kode pesanan, nama toko, kategori (`pos`
   vs `driver` — termasuk memastikan rute biasa DAN kampas sama-sama masuk
@@ -981,7 +1057,10 @@ php artisan test
   yang tidak pas; layar Kasir menyelesaikan penjualan dari awal sampai
   akhir, menambah baris dari barcode (termasuk memindai kode yang sama dua
   kali menambah jumlah, bukan baris baru) dan menolak barcode yang tidak
-  dikenali; penjualan POS dan pesanan pengantaran biasa yang lunas
+  dikenali; tombol Simpan terkunci sampai nominal cash persis sama dengan
+  total belanja, dan nominal yang diubah manual SETELAH tombol "Isi Total
+  Belanja" ditekan tetap yang tersimpan (bukan otomatis kembali ke total);
+  penjualan POS dan pesanan pengantaran biasa yang lunas
   terkategori benar di Pendapatan (`pos` vs `driver`), termasuk lewat blade
   yang sungguhan dirender dengan BEBERAPA pesanan sekaligus — pelajaran
   yang sama seperti pengujian `rute:perbaiki-geometry` dan

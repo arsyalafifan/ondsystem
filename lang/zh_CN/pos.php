@@ -19,9 +19,8 @@ return [
     'notif_tersimpan' => '销售单 :kode 已保存，库存已扣减并标记为已付款。',
     'lihat_riwayat' => '查看收入记录',
     'ditolak' => '销售被拒绝，请检查下方说明。',
-    'bayar_cash_penuh' => '全部现金',
-    'bayar_transfer_penuh' => '全部转账',
-    'halangan_nominal_belum_pas' => '现金 + 转账金额必须与总金额完全一致。',
-    'periksa_nominal' => '现金 + 转账与总金额一致',
+    'isi_total_belanja' => '填入总金额',
+    'halangan_nominal_belum_pas' => '现金金额必须与总金额完全一致。',
+    'periksa_nominal' => '现金金额与总金额一致',
     'catatan_simpan' => '此销售立即记为已完成并已付款，登记人为 :nama。',
 ];

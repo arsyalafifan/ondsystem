@@ -176,7 +176,7 @@ it('menyelesaikan penjualan lewat layar kasir dari awal sampai akhir', function 
         ->call('pilihToko', $toko->id)
         ->set('baris.0.produk_id', $this->produk->id)
         ->set('baris.0.jumlah_dus', 2)
-        ->call('bayarCashPenuh')
+        ->call('isiTotalBelanja')
         ->call('simpan')
         ->assertHasNoErrors()
         ->assertSet('tokoId', null);
@@ -186,6 +186,8 @@ it('menyelesaikan penjualan lewat layar kasir dari awal sampai akhir', function 
     expect($pesanan)->not->toBeNull()
         ->and($pesanan->jenis)->toBe(JenisPesanan::Pos)
         ->and($pesanan->status)->toBe(StatusPesanan::Selesai)
+        ->and((float) $pesanan->nominal_cash)->toEqualWithDelta(40_000, 0.01)
+        ->and((float) $pesanan->nominal_transfer)->toBe(0.0)
         ->and($this->produk->fresh()->stok)->toBe(48);
 });
 
@@ -224,7 +226,7 @@ it('barcode yang tidak dikenali menampilkan notifikasi, bukan menambah baris', f
     expect($test->get('baris.0.produk_id'))->toBe('');
 });
 
-it('tombol simpan terkunci kalau nominal belum pas dengan total belanja', function () {
+it('tombol simpan terkunci kalau nominal cash belum pas dengan total belanja', function () {
     $toko = buatTokoPos();
 
     $test = Livewire::actingAs($this->sales)
@@ -235,6 +237,36 @@ it('tombol simpan terkunci kalau nominal belum pas dengan total belanja', functi
         ->set('nominalCash', '10000');
 
     expect($test->instance()->adaHalangan('nominal'))->toBeTrue();
+
+    $test->call('isiTotalBelanja');
+
+    expect($test->instance()->adaHalangan('nominal'))->toBeFalse();
+});
+
+/**
+ * Opsi transfer sengaja dihilangkan sementara (belum dibutuhkan
+ * operasional) — POS sekarang cuma cash, diketik manual. Tombol
+ * "Isi Total Belanja" cuma bantuan awal; nominalnya tetap boleh diubah
+ * sesudahnya, dan yang benar-benar tersimpan adalah angka TERAKHIR yang
+ * ada di kolom saat Simpan ditekan, bukan otomatis total belanja.
+ */
+it('nominal cash yang diubah manual setelah Isi Total Belanja, itu yang tersimpan', function () {
+    $toko = buatTokoPos();
+
+    Livewire::actingAs($this->sales)
+        ->test(Kasir::class)
+        ->call('pilihToko', $toko->id)
+        ->set('baris.0.produk_id', $this->produk->id)
+        ->set('baris.0.jumlah_dus', 2)
+        ->call('isiTotalBelanja')
+        ->set('nominalCash', '40000')
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    $pesanan = Pesanan::where('toko_id', $toko->id)->first();
+
+    expect((float) $pesanan->nominal_cash)->toEqualWithDelta(40_000, 0.01)
+        ->and((float) $pesanan->nominal_transfer)->toBe(0.0);
 });
 
 // --- Riwayat pendapatan: kategori driver vs POS ------------------------
@@ -409,7 +441,7 @@ it('kasir bisa memilih produk lewat pemilih yang bisa dicari, lalu menyimpan', f
         ->set('baris.0.produk_id', $this->produk->id)
         ->set('baris.0.jumlah_dus', 1)
         ->assertSee($this->produk->nama)
-        ->call('bayarCashPenuh')
+        ->call('isiTotalBelanja')
         ->call('simpan')
         ->assertHasNoErrors();
 

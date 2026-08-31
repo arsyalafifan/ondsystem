@@ -43,9 +43,14 @@ class Kasir extends Component
      */
     public string $cariBarcode = '';
 
+    /**
+     * Hanya cash untuk sekarang — opsi transfer sengaja belum ada (belum
+     * dibutuhkan operasional). Diketik manual, bukan otomatis diisi penuh:
+     * dus yang benar-benar dibayar kadang tidak sama persis dengan total
+     * belanja di layar (mis. pembulatan uang fisik), jadi admin/sales yang
+     * menentukan angkanya sendiri, sama seperti pola Pelunasan.
+     */
     public string $nominalCash = '';
-
-    public string $nominalTransfer = '';
 
     public ?string $kodeTerakhir = null;
 
@@ -132,16 +137,9 @@ class Kasir extends Component
         $this->dispatch('notifikasi', pesan: __('pos.notif_barcode_ditambah', ['nama' => $produk->nama]));
     }
 
-    public function bayarCashPenuh(): void
+    public function isiTotalBelanja(): void
     {
         $this->nominalCash = (string) round($this->totalNilai, 2);
-        $this->nominalTransfer = '0';
-    }
-
-    public function bayarTransferPenuh(): void
-    {
-        $this->nominalTransfer = (string) round($this->totalNilai, 2);
-        $this->nominalCash = '0';
     }
 
     /**
@@ -211,15 +209,13 @@ class Kasir extends Component
     }
 
     /**
-     * Selisih antara total belanja dan jumlah cash+transfer yang diisi.
-     * Nol berarti pas, dipakai mengunci tombol Simpan.
+     * Selisih antara total belanja dan nominal cash yang diisi. Nol berarti
+     * pas, dipakai mengunci tombol Simpan.
      */
     #[Computed]
     public function selisihNominal(): float
     {
-        $terisi = (float) ($this->nominalCash ?: 0) + (float) ($this->nominalTransfer ?: 0);
-
-        return round($this->totalNilai - $terisi, 2);
+        return round($this->totalNilai - (float) ($this->nominalCash ?: 0), 2);
     }
 
     /**
@@ -309,7 +305,7 @@ class Kasir extends Component
                 items: $this->baris,
                 penjual: auth()->user(),
                 nominalCash: (float) ($this->nominalCash ?: 0),
-                nominalTransfer: (float) ($this->nominalTransfer ?: 0),
+                nominalTransfer: 0.0,
                 catatan: $this->catatan ?: null,
             );
         } catch (ValidationException $e) {
@@ -324,7 +320,7 @@ class Kasir extends Component
 
         $this->kodeTerakhir = $pesanan->kode;
 
-        $this->reset(['tokoId', 'catatan', 'baris', 'cariToko', 'nominalCash', 'nominalTransfer', 'cariBarcode']);
+        $this->reset(['tokoId', 'catatan', 'baris', 'cariToko', 'nominalCash', 'cariBarcode']);
         $this->tambahBaris();
 
         $this->dispatch('notifikasi', pesan: __('pos.notif_tersimpan', ['kode' => $pesanan->kode]));

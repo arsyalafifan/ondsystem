@@ -143,50 +143,35 @@
                 @error('baris') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
             </x-kartu>
 
-            {{-- Langkah 3: pembayaran --}}
+            {{-- Langkah 3: pembayaran — cash saja untuk sekarang, opsi
+                 transfer sengaja belum ada (belum dibutuhkan operasional).
+                 Nominalnya diketik manual, bukan otomatis diisi penuh —
+                 tombol "Isi Total Belanja" cuma bantuan awal, tetap bisa
+                 diubah sesudahnya. --}}
             <x-kartu :judul="__('pos.langkah_pembayaran')">
                 <div class="space-y-3 p-4">
-                    <div class="flex gap-2">
-                        <button type="button" wire:click="bayarCashPenuh"
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_cash') }}</label>
+                        <button type="button" wire:click="isiTotalBelanja"
                                 class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
-                            {{ __('pos.bayar_cash_penuh') }}
-                        </button>
-                        <button type="button" wire:click="bayarTransferPenuh"
-                                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
-                            {{ __('pos.bayar_transfer_penuh') }}
+                            {{ __('pos.isi_total_belanja') }}
                         </button>
                     </div>
 
                     {{-- Titik ribuan cuma tampilan (mis. 1.500.000) — nilai yang
                          dikirim ke Livewire tetap angka bersih tanpa titik. --}}
-                    <div class="grid grid-cols-2 gap-3"
-                         x-data="{
+                    <div x-data="{
                             cash: formatRibuan(@js($nominalCash)),
-                            transfer: formatRibuan(@js($nominalTransfer)),
                             perbaruiCash(e) {
                                 const angka = e.target.value.replace(/\D/g, '');
                                 this.cash = formatRibuan(angka);
                                 $wire.set('nominalCash', angka);
                             },
-                            perbaruiTransfer(e) {
-                                const angka = e.target.value.replace(/\D/g, '');
-                                this.transfer = formatRibuan(angka);
-                                $wire.set('nominalTransfer', angka);
-                            },
                          }"
-                         x-effect="cash = formatRibuan(@js($nominalCash)); transfer = formatRibuan(@js($nominalTransfer))">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_cash') }}</label>
-                            <input type="text" inputmode="numeric" x-model="cash" @input="perbaruiCash($event)"
-                                   placeholder="0"
-                                   class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_transfer') }}</label>
-                            <input type="text" inputmode="numeric" x-model="transfer" @input="perbaruiTransfer($event)"
-                                   placeholder="0"
-                                   class="mt-1 block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                        </div>
+                         x-effect="cash = formatRibuan(@js($nominalCash))">
+                        <input type="text" inputmode="numeric" x-model="cash" @input="perbaruiCash($event)"
+                               placeholder="0"
+                               class="block w-full tabular-nums rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
 
                     @if ($this->selisihNominal === 0.0 && $this->totalNilai > 0)

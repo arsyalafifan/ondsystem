@@ -19,9 +19,8 @@ return [
     'notif_tersimpan' => 'Penjualan :kode tersimpan. Stok sudah berkurang dan tercatat lunas.',
     'lihat_riwayat' => 'Lihat riwayat pendapatan',
     'ditolak' => 'Penjualan ditolak. Periksa keterangan di bawah.',
-    'bayar_cash_penuh' => 'Semua Cash',
-    'bayar_transfer_penuh' => 'Semua Transfer',
-    'halangan_nominal_belum_pas' => 'Jumlah cash + transfer harus persis sama dengan total belanja.',
-    'periksa_nominal' => 'Cash + transfer sama dengan total belanja',
+    'isi_total_belanja' => 'Isi Total Belanja',
+    'halangan_nominal_belum_pas' => 'Nominal cash harus persis sama dengan total belanja.',
+    'periksa_nominal' => 'Nominal cash sama dengan total belanja',
     'catatan_simpan' => 'Penjualan tercatat SELESAI dan LUNAS seketika, atas nama :nama.',
 ];
