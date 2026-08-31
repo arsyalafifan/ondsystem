@@ -49,4 +49,11 @@ return [
     'galat_koreksi_melebihi' => 'The amount for :produk cannot exceed the original order (max :maks boxes).',
     'galat_koreksi_tanpa_perubahan' => 'The entered amount matches what is already recorded — nothing to correct.',
     'mutasi_koreksi' => 'Correction of received amount on order :kode',
+    'galat_tidak_ada_sisa_kampas' => 'There is no leftover stock that needs to be returned to the warehouse.',
+    'mutasi_selesaikan_kendaraan' => 'Admin returned leftover stock of vehicle :nama to the warehouse',
+    'tombol_selesaikan_kendaraan' => 'Close Out Vehicle',
+    'judul_selesaikan_kendaraan' => 'Close Out Vehicle — :nama',
+    'ket_selesaikan_kendaraan' => 'Leftover stock not yet resold to any store (:dus boxes) will be returned to warehouse stock. Use this once the driver is done trying to resell the remaining load for the day.',
+    'notif_selesai_kendaraan' => ':dus boxes returned to warehouse stock.',
+    'mode_lihat_admin' => 'You are viewing this as an admin. Driver actions (upload note, cancel, resell leftover) are not available here — only the driver can perform them.',
 ];

@@ -164,19 +164,63 @@ setelah seluruh produk terisi.
 Stok dipisah menjadi dua angka supaya pembatalan tidak pernah merusak catatan
 gudang:
 
-- **`stok`** — barang yang benar-benar ada di rak. Baru berkurang saat driver
-  mengunggah foto nota.
-- **`stok_reserved`** — barang yang sudah dijanjikan ke pesanan berjalan. Naik
-  begitu pesanan dibuat, turun saat pesanan batal atau terkirim.
+- **`stok`** — barang yang benar-benar ada di rak. Baru berkurang saat dus itu
+  benar-benar keluar mobil untuk selamanya (diterima toko, atau diampaskan).
+- **`stok_reserved`** — barang yang sudah dijanjikan (masih di gudang MAUPUN
+  masih di dalam mobil). Naik begitu pesanan dibuat, turun hanya saat dus itu
+  benar-benar kembali ke gudang atau benar-benar keluar untuk selamanya.
 
-Yang bisa dipesan adalah selisih keduanya. Setiap pergerakan tercatat di tabel
-`stok_mutasis`.
+Yang bisa dipesan adalah selisih keduanya (`stok_tersedia`). Setiap
+pergerakan tercatat di tabel `stok_mutasis`.
 
 Aturan yang mengikat ketiga tindakan lapangan: **`stok` hanya berkurang
-sebanyak dus yang benar-benar diterima toko.** Dus yang dibatalkan, dicoret,
-atau tidak jadi dikampaskan pulang bersama mobilnya, jadi kunciannya dilepas
-tapi angka stoknya utuh. Kampas memotong `stok` tanpa menyentuh
-`stok_reserved`, karena barangnya sudah lepas kunci sejak pembatalan.
+sebanyak dus yang benar-benar diterima toko atau diampaskan — dan
+`stok_reserved` mengikuti aturan yang SAMA persis, bukan aturan sendiri.**
+
+Ini memperbaiki bug nyata yang dilaporkan pengguna: versi sebelumnya melepas
+`stok_reserved` SEKETIKA sebuah toko dibatalkan atau dicoret notanya —
+padahal dus-nya sendiri belum pulang ke gudang, masih fisik di dalam mobil,
+kampas-eligible. `stok_tersedia` (stok dikurangi reservasi) jadi naik seolah
+barangnya sudah ada di rak, padahal masih di jalan — toko lain bisa
+dijanjikan barang yang secara fisik belum bisa diambil, menciptakan selisih
+antara stok sistem dan stok aktual di gudang. Aturan yang benar:
+
+- **Batal di lapangan** — kuncian SENGAJA TIDAK dilepas sama sekali. Dus-nya
+  masih di mobil, kampas-eligible, jadi tetap terkunci.
+- **Coret nota** — `stok` dan `stok_reserved` sama-sama berkurang HANYA
+  sebesar yang benar-benar diterima toko. Sisanya (dipesan dikurangi
+  diterima) tetap terkunci, sama seperti batal.
+- **Kampas** — di sinilah kuncian yang tertunda dari batal/coret akhirnya
+  lepas, karena barulah saat inilah dus itu benar-benar meninggalkan mobil
+  untuk selamanya (ke toko kampas, bukan ke toko tujuan pesanan semula).
+  `stok` dan `stok_reserved` berkurang bersamaan, sebesar yang diampaskan.
+
+Lihat `PengirimanService::keluarkanStok()` — sekarang cuma satu angka
+(`$jumlah`) yang dipakai untuk keduanya, bukan dua parameter terpisah seperti
+sebelumnya, persis karena keduanya SELALU sama besar sejak perbaikan ini.
+
+### Menutup sisa kampas yang tidak habis (admin/superadmin)
+
+Sisa yang terkunci itu ("masih di mobil, kampas-eligible") tidak otomatis
+pernah lepas kalau driver tidak menghabiskannya lewat kampas hari itu juga.
+**Admin dan superadmin bisa melihat layar kunjungan kendaraan mana pun**
+(`/driver/mobil/{kendaraan}`, tautan "👁" di kartu kendaraan pada Generate
+Routing setelah rute disetujui) — tapi hanya untuk memantau. Semua tindakan
+driver (unggah nota, batalkan, kampas) dikunci di sisi SERVER lewat
+`DaftarKunjungan::pastikanBisaBertindak()`, bukan cuma disembunyikan di
+tampilan — tombol yang tersembunyi tetap bisa dipicu langsung lewat
+panggilan komponen kalau cuma disembunyikan di Blade saja.
+
+Satu-satunya tindakan yang boleh dilakukan admin/superadmin di layar ini
+adalah **Selesaikan Mobil** (`PengirimanService::selesaikanKendaraan()`):
+mengembalikan seluruh sisa kampas yang belum diampaskan ke stok gudang,
+dipakai kalau driver sudah tidak akan menghabiskan sisa muatannya lagi hari
+itu. Aman dijalankan berulang kali — mutasinya ditandai `kendaraan_id`
+(bukan `pesanan_id`, karena sisa satu kendaraan biasanya berasal dari
+beberapa toko yang batal/dicoret sekaligus) dan `PengirimanService::jatahKampas()`
+mengurangkan jumlah yang sudah dikembalikan lewat mutasi ini, jadi sisa yang
+sudah "ditutup buku"-nya tidak akan ditawarkan lagi ke driver maupun
+dikembalikan dua kali kalau admin menjalankannya lagi nanti.
 
 ---
 
@@ -1027,7 +1071,24 @@ orang, bukan uang per hari).
 php artisan test
 ```
 
-439 tes, mencakup:
+456 tes, mencakup:
+
+- **[`tests/Feature/PengirimanLapanganTest.php`](tests/Feature/PengirimanLapanganTest.php)**
+  (ditambah, bukan baru) — bug nyata: `stok_reserved` TIDAK dilepas begitu
+  toko dibatalkan atau dicoret notanya (dus-nya masih di mobil, bukan
+  kembali ke gudang); coret nota hanya melepas kuncian sebesar yang
+  benar-benar diterima, sisanya tetap terkunci; kampas-lah yang akhirnya
+  melepaskan kuncian yang tertunda itu; dan `selesaikanKendaraan()`
+  (admin) mengembalikan sisa yang belum diampaskan ke gudang, aman
+  dijalankan berulang (hanya mengembalikan sisa yang BELUM pernah
+  dikembalikan), mencatat mutasi bertanda `kendaraan_id` bukan
+  `pesanan_id`, dan setelahnya `jatahKampas()`/`kampas()` menolak sisa
+  yang sudah ditutup buku. Ditambah: admin/superadmin bisa membuka
+  kendaraan siapa pun di layar kunjungan driver tapi ditolak (403) kalau
+  mencoba memicu tindakan driver LANGSUNG lewat panggilan komponen
+  (bukan cuma tombolnya yang disembunyikan di tampilan), sales sama
+  sekali tidak bisa membuka layar ini, dan driver (bukan admin) ditolak
+  memicu `selesaikanKendaraan()`.
 
 - **[`tests/Feature/InsentifSalesTest.php`](tests/Feature/InsentifSalesTest.php)** —
   hanya admin yang bisa akses, mode default Bulanan; dus dihitung dari yang

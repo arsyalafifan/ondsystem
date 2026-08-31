@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'produk_id', 'pesanan_id', 'tipe', 'jumlah', 'stok_sesudah',
+    'produk_id', 'pesanan_id', 'kendaraan_id', 'tipe', 'jumlah', 'stok_sesudah',
     'reserved_sesudah', 'keterangan', 'user_id',
 ])]
 class StokMutasi extends Model
@@ -25,6 +25,12 @@ class StokMutasi extends Model
     public function pesanan(): BelongsTo
     {
         return $this->belongsTo(Pesanan::class);
+    }
+
+    /** @return BelongsTo<Kendaraan, $this> */
+    public function kendaraan(): BelongsTo
+    {
+        return $this->belongsTo(Kendaraan::class);
     }
 
     /** @return BelongsTo<User, $this> */

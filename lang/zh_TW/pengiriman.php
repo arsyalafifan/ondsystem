@@ -49,4 +49,11 @@ return [
     'galat_koreksi_melebihi' => ':produk 的數量不能超過原訂單（最多 :maks 箱）。',
     'galat_koreksi_tanpa_perubahan' => '輸入的數量與已記錄的相同，沒有需要更正的內容。',
     'mutasi_koreksi' => '更正訂單 :kode 的實收數量',
+    'galat_tidak_ada_sisa_kampas' => '沒有需要歸還倉庫的剩餘庫存。',
+    'mutasi_selesaikan_kendaraan' => '管理員將車輛 :nama 的剩餘庫存歸還倉庫',
+    'tombol_selesaikan_kendaraan' => '結束車輛',
+    'judul_selesaikan_kendaraan' => '結束車輛 — :nama',
+    'ket_selesaikan_kendaraan' => '尚未賣給任何商店的剩餘庫存（:dus 箱）將歸還倉庫庫存。當司機當天不再處理剩餘貨物時使用此功能。',
+    'notif_selesai_kendaraan' => '已將 :dus 箱歸還倉庫庫存。',
+    'mode_lihat_admin' => '您正以管理員身分檢視。司機操作（上傳單據、取消、處理剩餘庫存）在此不可用——只有司機才能執行這些操作。',
 ];

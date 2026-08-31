@@ -79,14 +79,41 @@ class DaftarKunjungan extends Component
 
     public string $catatanKampas = '';
 
+    // --- Selesaikan kendaraan (admin) ---
+    public bool $konfirmasiSelesaikanKendaraan = false;
+
     public function mount(Kendaraan $kendaraan): void
     {
-        // Driver hanya boleh membuka mobil yang dia ambil sendiri.
-        if ($kendaraan->driver_id !== null && $kendaraan->driver_id !== auth()->id()) {
+        // Driver hanya boleh membuka mobil yang dia ambil sendiri. Admin
+        // dan superadmin boleh membuka kendaraan siapa pun — tapi hanya
+        // untuk memantau, lihat pastikanBisaBertindak() di bawah yang
+        // mengunci semua tindakan driver untuk peran selain driver.
+        if (auth()->user()->isDriver()
+            && $kendaraan->driver_id !== null
+            && $kendaraan->driver_id !== auth()->id()) {
             abort(403, __('driver.mobil_dibawa_lain'));
         }
 
         $this->kendaraan = $kendaraan;
+    }
+
+    /** Layar ini bisa dilihat admin/superadmin, tapi tindakan driver bukan urusan mereka. */
+    #[Computed]
+    public function melihatSebagaiAdmin(): bool
+    {
+        return ! auth()->user()->isDriver();
+    }
+
+    /**
+     * Menjaga semua tindakan driver (batal, unggah nota, kampas) supaya
+     * tidak bisa dipicu peran lain — admin/superadmin cuma boleh memantau
+     * dan menjalankan selesaikanKendaraan(). Dipanggil di awal tiap method
+     * yang mengubah data, bukan cuma disembunyikan di tampilan: tombol yang
+     * disembunyikan tetap bisa dipicu langsung lewat panggilan komponen.
+     */
+    private function pastikanBisaBertindak(): void
+    {
+        abort_unless(auth()->user()->isDriver(), 403);
     }
 
     #[Computed]
@@ -266,6 +293,8 @@ class DaftarKunjungan extends Component
 
     public function bukaBatal(int $stopId): void
     {
+        $this->pastikanBisaBertindak();
+
         $this->stopDibatalkan = $stopId;
         $this->alasanBatal = '';
         $this->catatanBatal = '';
@@ -274,6 +303,8 @@ class DaftarKunjungan extends Component
 
     public function batalkanToko(PengirimanService $service): void
     {
+        $this->pastikanBisaBertindak();
+
         $this->validate(
             ['alasanBatal' => 'required|string'],
             ['alasanBatal.required' => __('pesanan.alasan_wajib')],
@@ -304,6 +335,8 @@ class DaftarKunjungan extends Component
 
     public function bukaKonfirmasi(int $stopId): void
     {
+        $this->pastikanBisaBertindak();
+
         $stop = $this->stopMilikMobil($stopId);
         $stop->loadMissing('pesanan.items');
 
@@ -359,6 +392,8 @@ class DaftarKunjungan extends Component
      */
     public function simpanKonfirmasi(PesananService $pesananService, PengirimanService $pengirimanService): void
     {
+        $this->pastikanBisaBertindak();
+
         if (! $this->semuaTercekKonfirmasi) {
             $this->dispatch('notifikasi', pesan: __('driver.galat_belum_tercek'), jenis: 'error');
 
@@ -410,6 +445,8 @@ class DaftarKunjungan extends Component
 
     public function bukaKampas(): void
     {
+        $this->pastikanBisaBertindak();
+
         $this->kampasTerbuka = true;
         $this->reset(['tokoKampasId', 'cariToko', 'jumlahKampas', 'lewatJatah', 'catatanKampas', 'fotoNota']);
         $this->caraPilihToko = 'ketik';
@@ -536,6 +573,8 @@ class DaftarKunjungan extends Component
 
     public function simpanKampas(PengirimanService $service): void
     {
+        $this->pastikanBisaBertindak();
+
         if ($this->tokoKampasId === null) {
             $this->dispatch('notifikasi', pesan: __('pesanan.pilih_toko_dulu'), jenis: 'error');
 
@@ -581,6 +620,46 @@ class DaftarKunjungan extends Component
         $this->dispatch('notifikasi', pesan: __('pengiriman.notif_kampas', [
             'toko' => $nama,
             'dus' => $pesanan->total_dus,
+        ]));
+    }
+
+    // ------------------------------------------------------------------
+    // Selesaikan kendaraan (admin/superadmin)
+    // ------------------------------------------------------------------
+
+    public function bukaKonfirmasiSelesaikanKendaraan(): void
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $this->konfirmasiSelesaikanKendaraan = true;
+    }
+
+    /**
+     * Satu-satunya tindakan yang boleh dilakukan admin/superadmin di
+     * layar ini: mengembalikan sisa kampas yang belum diampaskan driver
+     * ke stok gudang, dipakai kalau driver sudah tidak akan menghabiskan
+     * sisa muatannya lagi hari itu.
+     */
+    public function selesaikanKendaraan(PengirimanService $service): void
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $dus = $this->totalJatahKampas;
+
+        try {
+            $service->selesaikanKendaraan($this->kendaraan, auth()->user());
+        } catch (RuntimeException $e) {
+            $this->konfirmasiSelesaikanKendaraan = false;
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
+        $this->konfirmasiSelesaikanKendaraan = false;
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('pengiriman.notif_selesai_kendaraan', [
+            'dus' => Bahasa::angka($dus),
         ]));
     }
 

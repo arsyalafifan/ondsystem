@@ -49,4 +49,11 @@ return [
     'galat_koreksi_melebihi' => 'Jumlah untuk :produk tidak boleh melebihi pesanan semula (maks :maks dus).',
     'galat_koreksi_tanpa_perubahan' => 'Jumlah yang dimasukkan sama dengan yang sudah tercatat, tidak ada yang dikoreksi.',
     'mutasi_koreksi' => 'Koreksi jumlah diterima pada pesanan :kode',
+    'galat_tidak_ada_sisa_kampas' => 'Tidak ada sisa kampas yang perlu dikembalikan ke gudang.',
+    'mutasi_selesaikan_kendaraan' => 'Admin mengembalikan sisa kampas kendaraan :nama ke gudang',
+    'tombol_selesaikan_kendaraan' => 'Selesaikan Mobil',
+    'judul_selesaikan_kendaraan' => 'Selesaikan Mobil — :nama',
+    'ket_selesaikan_kendaraan' => 'Sisa muatan yang belum diampaskan ke toko mana pun (:dus dus) akan dikembalikan ke stok gudang. Gunakan ini kalau driver sudah tidak akan menghabiskan sisa muatannya lagi hari ini.',
+    'notif_selesai_kendaraan' => ':dus dus dikembalikan ke stok gudang.',
+    'mode_lihat_admin' => 'Anda melihat sebagai admin. Tindakan driver (unggah nota, batalkan, kampas) tidak tersedia di sini — hanya driver yang bisa melakukannya.',
 ];
