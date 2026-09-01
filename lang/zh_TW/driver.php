@@ -40,4 +40,6 @@ return [
     'galat_belum_tercek' => '請先勾選所有產品行以確認已核對。',
     'kolom_cek' => '核對',
     'peta_rute' => '路線地圖',
+    'unduh_kml' => '下載 KML',
+    'ket_unduh_kml' => '下載本路線的商店座標為 KML 檔案——路上訊號中斷時可用離線地圖應用程式（如 Map Marker）開啟查看。',
 ];

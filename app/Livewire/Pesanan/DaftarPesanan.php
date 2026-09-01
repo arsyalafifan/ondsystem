@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Pesanan;
 
+use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Models\PenugasanSales;
 use App\Models\Pesanan;
+use App\Models\Produk;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
@@ -12,6 +14,7 @@ use App\Services\PesananService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -51,6 +54,16 @@ class DaftarPesanan extends Component
 
     /** Pesanan yang sedang dilihat rinciannya. */
     public ?int $pesananDilihat = null;
+
+    // --- Order ulang (pesanan yang dibatalkan driver di lapangan) ---
+    public ?int $pesananOrderUlang = null;
+
+    /** @var array<int, array{produk_id: int|string, jumlah_dus: int|string}> */
+    public array $barisOrderUlang = [];
+
+    public ?int $salesOrderUlang = null;
+
+    public string $catatanOrderUlang = '';
 
     // --- Toko yang belum pesan 1 bulan ---
     public bool $tokoTidakAktifTerbuka = false;
@@ -272,6 +285,160 @@ class DaftarPesanan extends Component
         }
 
         $this->pesananDibatalkan = null;
+        unset($this->pesanans, $this->ringkasan);
+    }
+
+    // ------------------------------------------------------------------
+    // Order ulang (pesanan yang dibatalkan driver di lapangan)
+    // ------------------------------------------------------------------
+
+    #[Computed]
+    public function pesananOrderUlangModel(): ?Pesanan
+    {
+        return $this->pesananOrderUlang === null
+            ? null
+            : Pesanan::with(['items.produk:id,nama,kode', 'toko', 'pembuat', 'stop'])->find($this->pesananOrderUlang);
+    }
+
+    /** @return Collection<int, Produk> */
+    #[Computed]
+    public function produkOrderUlang(): Collection
+    {
+        return Produk::aktif()->orderBy('nama')->get();
+    }
+
+    /** @return Collection<int, User> */
+    #[Computed]
+    public function salesListOrderUlang(): Collection
+    {
+        return User::sales()->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function bukaOrderUlang(int $id): void
+    {
+        if (! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $pesanan = Pesanan::with(['items', 'pembuat', 'stop'])->findOrFail($id);
+
+        if (! $pesanan->bisa_order_ulang) {
+            $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');
+
+            return;
+        }
+
+        $this->pesananOrderUlang = $id;
+        $this->barisOrderUlang = $pesanan->items->map(fn ($i) => [
+            'produk_id' => $i->produk_id,
+            'jumlah_dus' => $i->jumlah_dus,
+        ])->all();
+        // Kalau pesanan aslinya diinput sales sendiri, atas nama sales-nya
+        // otomatis diwariskan — admin tinggal ganti kalau memang perlu.
+        $this->salesOrderUlang = $pesanan->pembuat->role === PeranPengguna::Sales ? $pesanan->pembuat->id : null;
+        $this->catatanOrderUlang = __('pesanan.catatan_order_ulang', ['kode' => $pesanan->kode]);
+        $this->resetValidation();
+    }
+
+    public function tutupOrderUlang(): void
+    {
+        $this->reset(['pesananOrderUlang', 'barisOrderUlang', 'salesOrderUlang', 'catatanOrderUlang']);
+    }
+
+    public function tambahBarisOrderUlang(): void
+    {
+        $this->barisOrderUlang[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBarisOrderUlang(int $indeks): void
+    {
+        unset($this->barisOrderUlang[$indeks]);
+        $this->barisOrderUlang = array_values($this->barisOrderUlang);
+
+        if ($this->barisOrderUlang === []) {
+            $this->tambahBarisOrderUlang();
+        }
+    }
+
+    /**
+     * Membuat pesanan baru dengan item yang sama seperti pesanan yang
+     * dibatalkan driver — lewat PesananService::buat() apa adanya, supaya
+     * seluruh aturan biasa (stok tersedia, minimal dus, toko tidak lagi
+     * punya pesanan aktif lain) tetap berlaku sama persis seperti Input
+     * Pesanan. Kalau stoknya kurang, galatnya muncul di modal ini juga —
+     * admin tinggal menunggu stok tersedia atau mengubah baris produknya
+     * langsung di sini, tanpa perlu pindah layar.
+     */
+    public function simpanOrderUlang(PesananService $service): void
+    {
+        if (! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // Galat dari percobaan SEBELUMNYA (mis. stok kurang) harus bersih
+        // dulu — tanpa ini, percobaan yang berhasil setelah baris produknya
+        // diperbaiki tetap menampilkan galat lama yang sudah tidak relevan.
+        $this->resetValidation();
+
+        $pesananAsli = Pesanan::with(['toko', 'stop'])->findOrFail($this->pesananOrderUlang);
+
+        if (! $pesananAsli->bisa_order_ulang) {
+            $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');
+            $this->tutupOrderUlang();
+            unset($this->pesanans, $this->ringkasan);
+
+            return;
+        }
+
+        try {
+            $baru = $service->buat(
+                toko: $pesananAsli->toko,
+                items: $this->barisOrderUlang,
+                pembuat: auth()->user(),
+                catatan: $this->catatanOrderUlang ?: null,
+                atasNamaSales: $this->salesOrderUlang !== null ? User::find($this->salesOrderUlang) : null,
+            );
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $kolom => $pesan) {
+                $kolomTampil = match ($kolom) {
+                    'items' => 'barisOrderUlang',
+                    'atasNamaSales' => 'salesOrderUlang',
+                    default => $kolom,
+                };
+
+                $this->addError($kolomTampil, $pesan[0]);
+            }
+
+            $this->dispatch('notifikasi', pesan: __('pesanan.ditolak'), jenis: 'error');
+
+            return;
+        }
+
+        $this->tutupOrderUlang();
+        unset($this->pesanans, $this->ringkasan);
+
+        $this->dispatch('notifikasi', pesan: __('pesanan.notif_order_ulang', ['kode' => $baru->kode]));
+    }
+
+    /**
+     * Menandai final pesanan yang dibatalkan driver di lapangan sebagai
+     * batal karena toko — dipakai admin ketika memutuskan TIDAK akan
+     * order ulang lagi. Lihat PesananService::tandaiBatalKarenaToko(): ini
+     * cuma mengubah catatan alasannya, TIDAK menyentuh stok sama sekali.
+     */
+    public function tandaiBatalKarenaToko(int $id, PesananService $service): void
+    {
+        if (! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        try {
+            $service->tandaiBatalKarenaToko(Pesanan::findOrFail($id), auth()->user());
+            $this->dispatch('notifikasi', pesan: __('pesanan.notif_batal_final'));
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+        }
+
         unset($this->pesanans, $this->ringkasan);
     }
 

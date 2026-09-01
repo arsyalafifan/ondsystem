@@ -269,8 +269,8 @@
             <table>
                 <tr><td>No. Faktur</td><td>: {{ $pesanan->kode }}</td></tr>
                 <tr><td>Tanggal</td><td>: {{ $pesanan->tanggal->format('d/m/Y') }}</td></tr>
-                <tr><td>Sales</td><td>: {{ $pesanan->pembuat->name }}</td></tr>
-                <tr><td>No. HP Sales</td><td>: {{ $pesanan->pembuat->no_hp ?? '—' }}</td></tr>
+                <tr><td>Sales</td><td>: {{ ($pesanan->sales ?? $pesanan->pembuat)->name }}</td></tr>
+                <tr><td>No. HP Sales</td><td>: {{ ($pesanan->sales ?? $pesanan->pembuat)->no_hp ?? '—' }}</td></tr>
             </table>
         </div>
     </div>
@@ -316,7 +316,7 @@
                     <td class="num">{{ number_format($item->terkirim, 0, ',', '.') }}</td>
                     <td>DUS</td>
                     <td class="num">{{ number_format((float) $item->harga_satuan, 0, ',', '.') }}</td>
-                    <td class="num">0</td>
+                    <td class="num">{{ $item->is_bonus ? '100' : '0' }}</td>
                     <td class="num">{{ number_format($item->terkirim * (float) $item->harga_satuan, 0, ',', '.') }}</td>
                 </tr>
             @endforeach

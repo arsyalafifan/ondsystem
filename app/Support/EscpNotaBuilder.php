@@ -49,8 +49,9 @@ final class EscpNotaBuilder
         $b .= self::ESC.'Q'.chr(self::MARGIN_KIRI + self::LEBAR);
 
         $b .= self::header($pesanan);
-        $b .= self::garis().self::crlf();
+        // $b .= self::garis().self::crlf();
         $b .= self::baris(self::pusat($pesanan->toko->asset_id ?? '-', self::LEBAR)).self::crlf().self::crlf();
+        $b .= self::garis().self::crlf();
         $b .= self::tabelItem($pesanan);
         $b .= self::ringkasan($pesanan);
         $b .= self::crlf().self::crlf();
@@ -99,12 +100,14 @@ final class EscpNotaBuilder
             ...self::pecahBaris($pesanan->toko->alamatLengkap ?: '-', $lebarKepada),
         ];
 
+        $sales = $pesanan->sales ?? $pesanan->pembuat;
+
         $faktur = [
             self::BOLD_ON.'FAKTUR PENJUALAN'.self::BOLD_OFF,
             'No. Faktur : '.$pesanan->kode,
             'Tanggal    : '.$pesanan->tanggal->format('d/m/Y'),
-            ...self::pecahBaris('Sales      : '.$pesanan->pembuat->name, $lebarFaktur),
-            ...self::pecahBaris('No. HP     : '.($pesanan->pembuat->no_hp ?? '-'), $lebarFaktur),
+            ...self::pecahBaris('Sales      : '.$sales->name, $lebarFaktur),
+            ...self::pecahBaris('No. HP     : '.($sales->no_hp ?? '-'), $lebarFaktur),
         ];
 
         return self::gabungKolom([$perusahaan, $kepada, $faktur], [$lebarPerusahaan, $lebarKepada, $lebarFaktur]);
@@ -130,8 +133,10 @@ final class EscpNotaBuilder
         // ditagihkan. Qty dan total memakai jumlah yang benar-benar
         // diterima, bukan pesanan semula.
         $itemDicetak = $pesanan->items->filter(fn ($i) => $i->terkirim > 0)->values();
+        $totalDus = 0;
 
         foreach ($itemDicetak as $i => $item) {
+            $totalDus += $item->terkirim;
             // Nama barang panjang turun ke baris berikutnya, tidak dipotong
             // hilang — kolom lain dikosongkan di baris lanjutannya.
             $barisNama = self::pecahBaris($item->produk->nama, $lebar['nama']);
@@ -142,7 +147,7 @@ final class EscpNotaBuilder
                 self::kanan(number_format($item->terkirim, 0, ',', '.'), $lebar['qty']),
                 self::kiri('DUS', $lebar['satuan']),
                 self::kanan(number_format((float) $item->harga_satuan, 0, ',', '.'), $lebar['harga']),
-                self::kanan('0', $lebar['disc']),
+                self::kanan($item->is_bonus ? '100' : '0', $lebar['disc']),
                 self::kanan(number_format($item->terkirim * (float) $item->harga_satuan, 0, ',', '.'), $lebar['total']),
             ]).self::crlf();
 
@@ -160,6 +165,22 @@ final class EscpNotaBuilder
         }
 
         $b .= self::garis().self::crlf();
+
+        // Total dus keseluruhan, sejajar dengan kolom Qty di atas — supaya
+        // langsung terlihat tanpa perlu dijumlah manual tiap baris, sama
+        // seperti versi HTML/PDF (nota-pesanan.blade.php) yang sudah
+        // menampilkannya di posisi yang sama.
+        $b .= self::BOLD_ON;
+        $b .= self::gabung([
+            self::kiri('', $lebar['no']),
+            self::kiri('Total', $lebar['nama']),
+            self::kanan(number_format($totalDus, 0, ',', '.'), $lebar['qty']),
+            self::kiri('', $lebar['satuan']),
+            self::kanan('', $lebar['harga']),
+            self::kanan('', $lebar['disc']),
+            self::kanan('', $lebar['total']),
+        ]);
+        $b .= self::BOLD_OFF.self::crlf();
 
         return $b;
     }

@@ -40,4 +40,6 @@ return [
     'galat_belum_tercek' => 'Check every product row first to confirm it has been reviewed.',
     'kolom_cek' => 'Check',
     'peta_rute' => 'Route Map',
+    'unduh_kml' => 'Download KML',
+    'ket_unduh_kml' => 'Download this route\'s store points as a KML file — open it in an offline map app (e.g. Map Marker) if you lose signal on the road.',
 ];

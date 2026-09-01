@@ -153,6 +153,30 @@ it('mengunduh nota sebagai perintah ESC/P mentah', function () {
         ->and(str_ends_with($isi, "\x0C"))->toBeTrue(); // form feed di akhir
 });
 
+it('menampilkan total qty keseluruhan sejajar kolom Qty, bukan cuma per baris', function () {
+    // 6 produk, 1 dus tiap baris — totalnya harus 6, ditampilkan sekali di
+    // bawah tabel item, bukan cuma jumlah per baris yang berbeda-beda.
+    $items = [];
+    for ($i = 1; $i <= 6; $i++) {
+        $produk = Produk::create(['kode' => "PU-QTY{$i}", 'nama' => "Produk Qty {$i}", 'stok' => 1000, 'harga' => 50_000]);
+        $items[] = ['produk_id' => $produk->id, 'jumlah_dus' => 1];
+    }
+
+    $pesanan = $this->pesananService->buat($this->toko, $items, $this->sales);
+    $this->pesananService->setujui($pesanan, $this->admin);
+
+    $isi = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+    $isi = iconv('CP437', 'UTF-8//IGNORE', $isi) ?: $isi;
+
+    // Baris ringkasan qty ("Total" di kolom Nama, diikuti angka 6 di posisi
+    // kolom Qty yang sama seperti baris-baris item di atasnya) muncul
+    // persis sekali, terpisah dari "Total Harga" (header) dan
+    // "Total Invoice" (ringkasan nominal) yang sama-sama mengandung kata
+    // "Total" tapi bukan baris qty ini.
+    preg_match_all('/Total {2,}6(\s|$)/', $isi, $cocok);
+    expect($cocok[0])->toHaveCount(1);
+});
+
 it('membungkus nama barang yang panjang ke baris baru, bukan memotongnya', function () {
     $namaPanjang = 'Es Krim Cokelat Premium Kemasan Baru Ukuran Besar Sekali 900ml';
     $produk = Produk::create(['kode' => 'PU-PJG', 'nama' => $namaPanjang, 'stok' => 1000, 'harga' => 50_000]);
@@ -273,5 +297,65 @@ describe('rendering EscpNotaBuilder untuk pesanan kurang_kirim', function () {
 
         expect($hasil)->not->toContain($itemDihapus->produk->nama)
             ->and($hasil)->toContain(number_format((float) $pesanan->tagihan, 0, ',', '.'));
+    });
+});
+
+// =====================================================================
+describe('faktur untuk pesanan dengan bonus', function () {
+    it('menampilkan disc 100% dan harga 0 untuk baris bonus, tetap terpisah dari baris normal', function () {
+        $produk = Produk::create(['kode' => 'PU-BONUS', 'nama' => 'Produk Bonus Uji', 'stok' => 1000, 'harga' => 50_000]);
+
+        $pesanan = $this->pesananService->buat(
+            toko: $this->toko,
+            items: [['produk_id' => $produk->id, 'jumlah_dus' => 4]],
+            pembuat: $this->admin,
+            bonusItems: [['produk_id' => $produk->id, 'jumlah_dus' => 2]],
+            atasNamaSales: $this->sales,
+        );
+        $this->pesananService->setujui($pesanan, $this->admin);
+
+        $html = $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))->getContent();
+
+        // Dua baris terpisah untuk produk yang sama: satu harga normal
+        // (Rp 50.000), satu lagi baris bonus berharga 0 dengan disc 100.
+        expect(substr_count($html, 'Produk Bonus Uji'))->toBe(2);
+
+        preg_match_all('#<tr>\s*<td>\d+</td>.*?</tr>#s', $html, $cocok);
+        $barisNormal = $cocok[0][0];
+        $barisBonus = $cocok[0][1];
+
+        expect($barisNormal)->toContain('Produk Bonus Uji')
+            ->and($barisBonus)->toContain('Produk Bonus Uji')
+            // Baris normal: harga 50.000, disc 0. Baris bonus: harga & total
+            // 0, disc 100 — persis satu-satunya baris dengan disc 100.
+            ->and($barisNormal)->toContain('50.000')
+            ->and(substr_count($html, '<td class="num">100</td>'))->toBe(1)
+            ->and($barisBonus)->toContain('<td class="num">100</td>');
+
+        $isiEscp = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+        $isiEscp = iconv('CP437', 'UTF-8//IGNORE', $isiEscp) ?: $isiEscp;
+
+        expect(substr_count($isiEscp, 'Produk Bonus Uji'))->toBe(2);
+    });
+
+    it('menampilkan nama sales atas nama, bukan admin yang menginput', function () {
+        $this->sales->update(['name' => 'Sales Ditunjuk']);
+        $this->admin->update(['name' => 'Admin Penginput']);
+
+        $produk = Produk::create(['kode' => 'PU-ATAS-NAMA', 'nama' => 'Produk Atas Nama', 'stok' => 1000, 'harga' => 50_000]);
+
+        $pesanan = $this->pesananService->buat(
+            toko: $this->toko,
+            items: [['produk_id' => $produk->id, 'jumlah_dus' => 5]],
+            pembuat: $this->admin,
+            bonusItems: [],
+            atasNamaSales: $this->sales,
+        );
+        $this->pesananService->setujui($pesanan, $this->admin);
+
+        $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
+            ->assertOk()
+            ->assertSee('Sales Ditunjuk')
+            ->assertDontSee('Admin Penginput');
     });
 });

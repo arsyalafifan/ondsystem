@@ -170,6 +170,21 @@
                                             {{ __('pesanan.batalkan') }}
                                         </button>
                                     @endif
+
+                                    {{-- Dibatalkan DRIVER di lapangan (bukan oleh admin), dengan
+                                         alasan selain "toko membatalkan pesanan" — masih perlu
+                                         ditindaklanjuti: dicoba lagi, atau ditandai final. --}}
+                                    @if (auth()->user()->isAdmin() && $p->bisa_order_ulang)
+                                        <button type="button" wire:click="bukaOrderUlang({{ $p->id }})"
+                                                class="rounded-md border border-blue-300 bg-white px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">
+                                            {{ __('pesanan.tombol_order_ulang') }}
+                                        </button>
+                                        <button type="button" wire:click="tandaiBatalKarenaToko({{ $p->id }})"
+                                                wire:confirm="{{ __('pesanan.konfirmasi_batal_final', ['kode' => $p->kode]) }}"
+                                                class="rounded-md border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50">
+                                            {{ __('pesanan.tombol_batalkan_final') }}
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -355,6 +370,92 @@
                 <button type="button" wire:click="batalkan" wire:loading.attr="disabled"
                         class="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
                     {{ __('pesanan.tombol_batalkan') }}
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- Order ulang: pesanan yang dibatalkan driver di lapangan (bukan
+         karena toko menolak) — item-nya sudah diisi apa adanya dari
+         pesanan lama, tinggal disesuaikan kalau perlu. --}}
+    @if ($this->pesananOrderUlangModel)
+        @php $po = $this->pesananOrderUlangModel; @endphp
+        <x-modal :judul="__('pesanan.judul_order_ulang', ['kode' => $po->kode])" lebar="max-w-2xl" tutup="tutupOrderUlang">
+            <div class="space-y-4 p-5">
+                <p class="text-sm text-gray-600">{{ __('pesanan.ket_order_ulang', ['toko' => $po->toko->nama, 'alasan' => $po->alasan_cancel]) }}</p>
+
+                <div class="overflow-hidden rounded-lg border border-gray-200">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2 font-medium">{{ __('umum.produk') }}</th>
+                                <th class="w-32 px-3 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
+                                <th class="w-10 px-3 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @php
+                                $opsiProdukOrderUlang = $this->produkOrderUlang->map(fn ($pr) => ['value' => $pr->id, 'label' => $pr->nama.' ('.$pr->kode.')'])->all();
+                            @endphp
+                            @foreach ($barisOrderUlang as $i => $b)
+                                <tr wire:key="baris-order-ulang-{{ $i }}">
+                                    <td class="px-3 py-2">
+                                        <x-pilih-cari :opsi="$opsiProdukOrderUlang" :nilai="$b['produk_id']"
+                                                       set="barisOrderUlang.{{ $i }}.produk_id"
+                                                       placeholder="{{ __('pesanan.pilih_produk') }}" />
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <input type="number" min="1" wire:model.live.debounce.400ms="barisOrderUlang.{{ $i }}.jumlah_dus"
+                                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        <button type="button" wire:click="hapusBarisOrderUlang({{ $i }})"
+                                                class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                            <x-heroicon-o-trash class="size-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button" wire:click="tambahBarisOrderUlang"
+                        class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                    {{ __('pesanan.tambah_baris') }}
+                </button>
+                @error('barisOrderUlang') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('pesanan.label_sales') }}</label>
+                    <select wire:model="salesOrderUlang"
+                            class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">{{ __('pesanan.pilih_sales_bonus') }}</option>
+                        @foreach ($this->salesListOrderUlang as $s)
+                            <option value="{{ $s->id }}">{{ $s->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('salesOrderUlang') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('umum.catatan') }}</label>
+                    <textarea wire:model="catatanOrderUlang" rows="2"
+                              class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
+                </div>
+
+                @error('items') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('toko_id') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="tutupOrderUlang"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.kembali') }}
+                </button>
+                <button type="button" wire:click="simpanOrderUlang" wire:loading.attr="disabled"
+                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                    {{ __('pesanan.tombol_order_ulang') }}
                 </button>
             </x-slot:aksi>
         </x-modal>

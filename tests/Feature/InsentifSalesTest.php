@@ -296,6 +296,34 @@ it('halaman tampil dengan beberapa sales sekaligus tanpa lazy load', function ()
         ->assertOk();
 });
 
+/**
+ * Item bonus (langkah 3 admin/superadmin di Input Pesanan) secara
+ * struktural sudah tidak mungkin lolos whereHas('pembuat', role Sales) di
+ * atas — cuma admin yang bisa menginputnya. Baris ini menguji lapis
+ * pertahanan KEDUA di perSales(): dus is_bonus=true tetap dikecualikan
+ * sekalipun (secara hipotetis) muncul pada pesanan yang penginputnya
+ * berperan sales.
+ */
+it('dus bonus tidak pernah ikut terhitung, bahkan pada pesanan yang penginputnya sales', function () {
+    $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
+
+    $pesanan = buatPesananSelesai($sales, totalDus: 10);
+    $pesanan->items()->create([
+        'produk_id' => $this->produk->id,
+        'jumlah_dus' => 999,
+        'harga_satuan' => 0,
+        'subtotal' => 0,
+        'is_bonus' => true,
+    ]);
+
+    $perSales = Livewire::actingAs($this->admin)
+        ->test(InsentifSales::class)
+        ->set('mode', 'semua')
+        ->instance()->perSales();
+
+    expect($perSales[0]['total_dus'])->toBe(10);
+});
+
 it('halaman /insentif/sales memuat lewat HTTP sungguhan', function () {
     $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
     buatPesananSelesai($sales, totalDus: 10);

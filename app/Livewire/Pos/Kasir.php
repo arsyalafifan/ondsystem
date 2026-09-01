@@ -34,6 +34,28 @@ class Kasir extends Component
     public array $baris = [];
 
     /**
+     * Khusus admin/superadmin: item bonus untuk toko yang berhak — harganya
+     * SELALU 0 di layar ini (lihat totalDusBonus()/simpan()), sama seperti
+     * langkah bonus di Input Pesanan. Bedanya dari sana, POS tidak butuh
+     * "atas nama sales" karena tidak ada faktur bercetak yang perlu
+     * menampilkan nama sales untuk transaksi POS.
+     *
+     * @var array<int, array{produk_id: int|string, jumlah_dus: int|string}>
+     */
+    public array $barisBonus = [];
+
+    /**
+     * Khusus admin/superadmin: transaksi tidak diikat ke toko sungguhan
+     * mana pun. BUKAN jenis transaksi khusus — produk, bonus, maupun
+     * pembayarannya tetap persis sama seperti transaksi POS biasa,
+     * satu-satunya beda toko tidak wajib diisi. Toko-nya memakai
+     * Toko::internal() — satu baris toko semu yang tersembunyi dari
+     * pencarian toko biasa (lihat dokumentasi Toko::internal()), bukan
+     * toko_id yang benar-benar NULL.
+     */
+    public bool $tanpaToko = false;
+
+    /**
      * Barcode diketik atau dipindai lewat alat pemindai USB/Bluetooth, yang
      * bagi peramban tidak beda dari mengetik cepat lalu menekan Enter — jadi
      * tidak perlu kamera untuk sudah bisa dipakai. Kolom `produks.barcode`
@@ -57,6 +79,40 @@ class Kasir extends Component
     public function mount(): void
     {
         $this->tambahBaris();
+
+        if ($this->bisaInputBonus()) {
+            $this->tambahBarisBonus();
+        }
+    }
+
+    /** Hanya admin/superadmin yang punya langkah bonus — sales sama sekali tidak melihatnya. */
+    public function bisaInputBonus(): bool
+    {
+        return auth()->user()->isAdmin();
+    }
+
+    /** Hanya admin/superadmin yang punya opsi "Tanpa Toko" — sales sama sekali tidak melihatnya. */
+    public function bisaTanpaToko(): bool
+    {
+        return auth()->user()->isAdmin();
+    }
+
+    public function aktifkanTanpaToko(): void
+    {
+        if (! $this->bisaTanpaToko()) {
+            return;
+        }
+
+        $this->tanpaToko = true;
+        $this->tokoId = Toko::internal()->id;
+        $this->cariToko = '';
+        $this->resetValidation();
+    }
+
+    public function nonaktifkanTanpaToko(): void
+    {
+        $this->tanpaToko = false;
+        $this->tokoId = null;
     }
 
     public function tambahBaris(): void
@@ -74,9 +130,25 @@ class Kasir extends Component
         }
     }
 
+    public function tambahBarisBonus(): void
+    {
+        $this->barisBonus[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBarisBonus(int $indeks): void
+    {
+        unset($this->barisBonus[$indeks]);
+        $this->barisBonus = array_values($this->barisBonus);
+
+        if ($this->barisBonus === []) {
+            $this->tambahBarisBonus();
+        }
+    }
+
     public function pilihToko(int $id): void
     {
         $this->tokoId = $id;
+        $this->tanpaToko = false;
         $this->cariToko = '';
         $this->resetValidation();
     }
@@ -84,6 +156,7 @@ class Kasir extends Component
     public function batalPilihToko(): void
     {
         $this->tokoId = null;
+        $this->tanpaToko = false;
     }
 
     /**
@@ -191,6 +264,17 @@ class Kasir extends Component
         return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->baris));
     }
 
+    /**
+     * Dus bonus tetap dus fisik yang sungguh keluar dari rak — dihitung
+     * terpisah dari totalDus() supaya panel tetap jelas mana yang
+     * ditagihkan dan mana yang bonus.
+     */
+    #[Computed]
+    public function totalDusBonus(): int
+    {
+        return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->barisBonus));
+    }
+
     #[Computed]
     public function totalNilai(): float
     {
@@ -238,7 +322,13 @@ class Kasir extends Component
         $produks = $this->produks->keyBy('id');
         $diminta = [];
 
-        foreach ($this->baris as $b) {
+        // Sama seperti BuatPesanan::halangan(): stok diperiksa atas
+        // permintaan GABUNGAN biasa+bonus per produk, bukan dua kali
+        // terpisah — produk yang sama boleh muncul di kedua daftar dan
+        // keduanya berbagi rak yang sama.
+        $sumberBaris = $this->bisaInputBonus() ? [...$this->baris, ...$this->barisBonus] : $this->baris;
+
+        foreach ($sumberBaris as $b) {
             $id = (int) $b['produk_id'];
             $jumlah = (int) ($b['jumlah_dus'] ?: 0);
 
@@ -299,14 +389,27 @@ class Kasir extends Component
             return;
         }
 
+        // Bonus dan "Tanpa Toko" TIDAK PERNAH dikirim ke service kalau
+        // penggunanya bukan admin/superadmin — bukan sekadar disembunyikan
+        // di tampilan. State komponen ($barisBonus/$tanpaToko) tidak pernah
+        // dipercaya begitu saja; siapa yang benar-benar login itulah yang
+        // menentukan, sama seperti BuatPesanan::simpan().
+        $bisaBonus = $this->bisaInputBonus();
+        $tanpaToko = $this->bisaTanpaToko() && $this->tanpaToko;
+
         try {
             $pesanan = $service->buatPos(
-                toko: Toko::findOrFail($this->tokoId),
+                // "Tanpa Toko" cuma menentukan tokonya, bukan mengubah
+                // apa pun yang lain — produk, bonus, dan pembayaran tetap
+                // persis sama seperti transaksi POS yang memilih toko
+                // sungguhan.
+                toko: $tanpaToko ? Toko::internal() : Toko::findOrFail($this->tokoId),
                 items: $this->baris,
                 penjual: auth()->user(),
                 nominalCash: (float) ($this->nominalCash ?: 0),
                 nominalTransfer: 0.0,
                 catatan: $this->catatan ?: null,
+                bonusItems: $bisaBonus ? $this->barisBonus : [],
             );
         } catch (ValidationException $e) {
             foreach ($e->errors() as $kolom => $pesan) {
@@ -320,8 +423,12 @@ class Kasir extends Component
 
         $this->kodeTerakhir = $pesanan->kode;
 
-        $this->reset(['tokoId', 'catatan', 'baris', 'cariToko', 'nominalCash', 'cariBarcode']);
+        $this->reset(['tokoId', 'catatan', 'baris', 'barisBonus', 'tanpaToko', 'cariToko', 'nominalCash', 'cariBarcode']);
         $this->tambahBaris();
+
+        if ($bisaBonus) {
+            $this->tambahBarisBonus();
+        }
 
         $this->dispatch('notifikasi', pesan: __('pos.notif_tersimpan', ['kode' => $pesanan->kode]));
     }

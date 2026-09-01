@@ -14,6 +14,32 @@
             {{-- Langkah 1: toko --}}
             <x-kartu :judul="__('pos.langkah_toko')">
                 <div class="p-4">
+                    {{-- Khusus admin/superadmin: pilihan "Tanpa Toko" — sama
+                         persis dengan transaksi POS biasa (produk, bonus,
+                         pembayaran semuanya tetap sama), cuma toko tidak
+                         wajib diisi. --}}
+                    @if ($this->bisaTanpaToko())
+                        <div class="mb-3 inline-flex rounded-lg border border-gray-300 p-0.5 bg-gray-50">
+                            <button type="button" wire:click="nonaktifkanTanpaToko"
+                                    @class([
+                                        'rounded-md px-3 py-2 text-sm font-medium transition-all',
+                                        'bg-white text-blue-600 shadow-sm ring-1 ring-gray-200' => ! $tanpaToko,
+                                        'text-gray-500 hover:text-gray-900' => $tanpaToko,
+                                    ])>
+                                {{ __('pos.tab_toko') }}
+                            </button>
+                            <button type="button" wire:click="aktifkanTanpaToko"
+                                    @class([
+                                        'rounded-md px-3 py-2 text-sm font-medium transition-all',
+                                        'bg-white text-blue-600 shadow-sm ring-1 ring-gray-200' => $tanpaToko,
+                                        'text-gray-500 hover:text-gray-900' => ! $tanpaToko,
+                                    ])>
+                                {{ __('pos.tab_tanpa_toko') }}
+                            </button>
+                        </div>
+                        {{-- <p class="mb-3 text-xs text-gray-500">{{ __('pos.ket_tanpa_toko') }}</p> --}}
+                    @endif
+
                     @if ($this->toko)
                         <div class="flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
                             <div class="min-w-0">
@@ -143,12 +169,84 @@
                 @error('baris') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
             </x-kartu>
 
-            {{-- Langkah 3: pembayaran — cash saja untuk sekarang, opsi
+            {{-- Langkah 3 (khusus admin/superadmin): bonus produk — sama
+                 persis seperti langkah bonus di Input Pesanan, cuma tanpa
+                 "Pilih Sales" karena tidak ada faktur bercetak untuk POS.
+                 Tetap tampil apa adanya baik toko dipilih maupun "Tanpa
+                 Toko" — keduanya sama saja. --}}
+            @if ($this->bisaInputBonus())
+                <x-kartu :judul="__('pesanan.langkah_bonus')">
+                    <x-slot:aksi>
+                        <button type="button" wire:click="tambahBarisBonus"
+                                class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                            {{ __('pesanan.tambah_baris_bonus') }}
+                        </button>
+                    </x-slot:aksi>
+
+                    <p class="px-4 pt-3 text-xs text-gray-500">{{ __('pesanan.ket_bonus') }}</p>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                                <tr>
+                                    <th class="px-4 py-2 font-medium">{{ __('umum.produk') }}</th>
+                                    <th class="w-32 px-4 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
+                                    <th class="w-28 px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
+                                    <th class="w-32 px-4 py-2 text-right font-medium">{{ __('umum.subtotal') }}</th>
+                                    <th class="w-10 px-4 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($barisBonus as $i => $b)
+                                    @php $produkBonus = $this->produks->firstWhere('id', (int) $b['produk_id']); @endphp
+                                    <tr wire:key="baris-bonus-{{ $i }}">
+                                        <td class="px-4 py-2">
+                                            <x-pilih-cari :opsi="$opsiProduk" :nilai="$b['produk_id']"
+                                                           set="barisBonus.{{ $i }}.produk_id"
+                                                           placeholder="{{ __('pesanan.pilih_produk') }}" />
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="number" min="1" wire:model.live.debounce.400ms="barisBonus.{{ $i }}.jumlah_dus"
+                                                   class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                        </td>
+                                        <td class="px-4 py-2 text-right {{ $produkBonus && (int) ($b['jumlah_dus'] ?: 0) > $produkBonus->stok ? 'font-semibold text-red-600' : 'text-gray-500' }}">
+                                            {{ $produkBonus ? \App\Support\Bahasa::angka($produkBonus->stok) : '—' }}
+                                        </td>
+                                        <td class="px-4 py-2 text-right tabular-nums text-gray-700">
+                                            @rupiah(0)
+                                        </td>
+                                        <td class="px-4 py-2 text-right">
+                                            <button type="button" wire:click="hapusBarisBonus({{ $i }})"
+                                                    class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                                <x-heroicon-o-trash class="size-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-gray-50 font-medium">
+                                <tr>
+                                    <td class="px-4 py-2 text-right">{{ __('umum.total') }}</td>
+                                    <td class="px-4 py-2 tabular-nums">@angka($this->totalDusBonus) {{ __('umum.satuan_dus') }}</td>
+                                    <td></td>
+                                    <td class="px-4 py-2 text-right tabular-nums">@rupiah(0)</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </x-kartu>
+            @endif
+
+            {{-- Langkah pembayaran — cash saja untuk sekarang, opsi
                  transfer sengaja belum ada (belum dibutuhkan operasional).
                  Nominalnya diketik manual, bukan otomatis diisi penuh —
                  tombol "Isi Total Belanja" cuma bantuan awal, tetap bisa
-                 diubah sesudahnya. --}}
-            <x-kartu :judul="__('pos.langkah_pembayaran')">
+                 diubah sesudahnya. Tetap wajib diisi apa adanya baik untuk
+                 toko sungguhan maupun "Tanpa Toko" — keduanya sama saja,
+                 kecuali memang semua produknya dipilih lewat langkah bonus
+                 di atas (harga 0). --}}
+            <x-kartu :judul="$this->bisaInputBonus() ? __('pos.langkah_pembayaran_admin') : __('pos.langkah_pembayaran')">
                 <div class="space-y-3 p-4">
                     <div class="flex items-center justify-between">
                         <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_cash') }}</label>
@@ -190,7 +288,7 @@
                 </div>
             </x-kartu>
 
-            <x-kartu :judul="__('pos.langkah_catatan')">
+            <x-kartu :judul="$this->bisaInputBonus() ? __('pos.langkah_catatan_admin') : __('pos.langkah_catatan')">
                 <div class="p-4">
                     <textarea wire:model="catatan" rows="2" placeholder="{{ __('pesanan.catatan_contoh') }}"
                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>

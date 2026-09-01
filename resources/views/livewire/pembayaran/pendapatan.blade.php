@@ -157,7 +157,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($this->riwayat as $p)
                         <tr class="hover:bg-gray-50">
-                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->tanggal_lunas?->isoFormat('ll') }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->tanggal_pendapatan?->isoFormat('ll') }}</td>
                             <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">{{ $p->kode }}</td>
                             <td class="px-4 py-2 text-gray-600">{{ $p->toko->nama }}</td>
                             <td class="whitespace-nowrap px-4 py-2">

@@ -80,6 +80,44 @@ Dua kolom tambahan pada tabel:
   pembatal, dilunasiOleh) lebih dulu; mode ketat model melempar galat kalau
   belum, alih-alih memicu kueri N+1 diam-diam untuk tiap baris tabel.
 
+### Order Ulang / Batalkan — pesanan yang dibatalkan driver di lapangan
+
+Ketika driver membatalkan kunjungan di lapangan (lihat "Tiga keputusan
+driver di lapangan" di bawah) dengan alasan **selain** "Toko membatalkan
+pesanan" — mis. toko tutup, stok tidak mencukupi, alamat tidak
+ditemukan — situasinya masih ambigu, bukan penolakan final dari toko.
+Baris pesanan itu di Daftar Pesanan menampilkan dua tombol tambahan:
+
+- **Order Ulang** — membuka modal berisi produk & jumlah dus yang SAMA
+  seperti pesanan lama (toko-nya tetap sama, tidak perlu dipilih ulang),
+  siap disesuaikan. Menyimpannya memanggil `PesananService::buat()` apa
+  adanya — aturan yang sama seperti Input Pesanan biasa berlaku penuh
+  (stok tersedia, minimal dus, toko tidak lagi punya pesanan aktif lain).
+  Kalau ada produk yang stoknya tidak mencukupi, galatnya tampil DI DALAM
+  modal yang sama (bukan notifikasi lalu hilang) — admin tinggal
+  menunggu stok tersedia, atau langsung mengubah jumlah/produknya di
+  sana sampai berhasil, tanpa perlu pindah layar. "Atas nama sales"
+  otomatis terisi dari sales yang menginput pesanan lama (kalau memang
+  sales, bukan admin lain) — tinggal diganti kalau memang perlu.
+- **Batalkan** — menandai FINAL bahwa pesanan ini tidak akan di-order
+  ulang lagi, lewat `PesananService::tandaiBatalKarenaToko()`. Cuma
+  mengubah `alasan_cancel` jadi "Toko membatalkan pesanan" (alasan
+  aslinya dari driver disalin ke `catatan_cancel` supaya tidak hilang)
+  — **sama sekali tidak menyentuh stok atau siapa yang sungguh
+  membatalkan** (`dibatalkan_oleh`/`dibatalkan_at` tetap driver &
+  waktu aslinya, bukan diganti admin yang cuma menandai final). Dus
+  yang masih fisik di mobil driver tetap sepenuhnya mengikuti alur
+  kampas/`selesaikanKendaraan()` yang sudah ada — lepas total dari
+  tindakan ini.
+
+Kedua tombol ini HANYA muncul untuk pesanan yang dibatalkan **driver**
+lewat `PengirimanService::batalkanDiLapangan()`, bukan yang dibatalkan
+admin sendiri lewat tombol "Batalkan" biasa di atas. Tidak ada kolom
+baru untuk membedakan keduanya — cukup lewat keberadaan `stop`-nya:
+pembatalan driver membiarkan baris `KendaraanStop` tetap ada berstatus
+`Dibatalkan` (dus-nya masih perlu terlihat driver untuk diampaskan),
+sedangkan pembatalan admin MENGHAPUSNYA sekalian (`Pesanan::bisa_order_ulang`).
+
 ### Tiga keputusan driver di lapangan
 
 Rencana di kantor jarang selamat bertemu kenyataan di jalan. Selain navigasi,
@@ -142,6 +180,33 @@ membatalkan separuh rutenya akan terlihat 100% padahal separuh muatannya
 pulang lagi. Menghitung berdasarkan jumlah toko punya cacat yang sama —
 toko batal terhitung tuntas, sehingga kekurangan kiriman tersembunyi.
 
+### Unduh KML — titik toko untuk peta offline saat sinyal hilang
+
+Tombol **"Unduh KML"** di panel Peta Rute layar driver (`/driver/mobil/{kendaraan}`)
+mengunduh seluruh titik toko pada rute kendaraan itu sebagai berkas `.kml`
+standar — dipakai kalau driver kehilangan sinyal di jalan dan tidak bisa
+lagi membuka aplikasi ini sama sekali (Peta Rute bawaan butuh koneksi untuk
+memuat ubin peta dari server). Berkasnya bisa dibuka lewat aplikasi peta
+offline apa pun yang mendukung impor KML, termasuk **Map Marker** — makanya
+sengaja diunduh SEBELUM berangkat, bukan saat sudah tidak ada sinyal.
+
+Dibentuk oleh [`App\Support\KmlRuteBuilder`](app/Support/KmlRuteBuilder.php)
+(pola yang sama dengan `EscpNotaBuilder`/`EscpPackingListBuilder`: satu
+`build()` statis, dipanggil dari `DaftarKunjungan::unduhKml()` lewat
+`response()->streamDownload()` — pola Livewire native yang sama dengan
+`GenerateRouting::unduhCsv()`, bukan lewat controller/route terpisah karena
+seluruh datanya sudah ada di komponen). Setiap titik toko jadi satu
+`Placemark` berwarna sesuai status kunjungannya (`StatusStop::warna()`,
+dikonversi ke format warna KML `aabbggrr`) supaya driver tetap bisa
+membedakan yang sudah selesai/dibatalkan/belum dikunjungi lewat aplikasi
+peta apa pun yang membaca `styleUrl` standar KML — bukan meniru format
+`ExtendedData`/`piniconcode` milik Map Marker sendiri, karena KML standar
+saja sudah cukup dan bisa diimpor aplikasi peta offline mana pun, tidak
+terikat satu merek tertentu. Toko tanpa koordinat dilewati apa adanya, sama
+seperti Peta Rute di layar ini sendiri. Urutan koordinat KML SELALU
+longitude dulu baru latitude — kebalikan dari kebiasaan "lat,lng" di
+tempat lain pada aplikasi ini.
+
 ### Memilih toko saat input pesanan
 
 Dua jalan, dan keduanya melewati pemeriksaan yang sama — toko harus aktif dan
@@ -158,6 +223,49 @@ belum punya pesanan berjalan:
 
 Toko yang masih punya pesanan berjalan ditolak **sejak pemindaian**, bukan
 setelah seluruh produk terisi.
+
+### Bonus produk (admin/superadmin)
+
+Khusus akun admin/superadmin, Input Pesanan punya langkah tambahan **"3.
+Pilih Bonus Produk & Jumlah Dus"** di antara Pilih Produk dan Catatan (yang
+untuk admin/superadmin ikut bergeser jadi nomor 4). Sales sama sekali tidak
+melihat langkah ini — tidak ada perubahan apa pun di layarnya.
+
+- **Fungsinya sama seperti Pilih Produk biasa**, tapi harganya **SELALU
+  Rp 0** — apa pun produknya dan berapa pun jumlah dusnya. Ini perlakuan
+  khusus untuk toko yang berhak mendapat bonus, bukan produk yang kebetulan
+  gratis. Stok tetap berkurang sesuai logic mutasi stok yang sama seperti
+  item biasa (dikunci saat pesanan dibuat, keluar saat terkirim).
+- **Wajib memilih "Sales"** di bawah tabel bonus — karena admin sendiri yang
+  menginput (bukan sales), faktur tetap perlu tahu sales mana yang
+  bertanggung jawab. Nama ini yang tercetak di kolom Sales pada faktur,
+  bukan nama admin yang mengetik (`Pesanan::sales()`, kolom `sales_id`;
+  faktur jatuh kembali ke `pembuat` kalau `sales_id` kosong, mis. pesanan
+  yang diinput sales sendiri).
+- **Produk yang sama boleh dipilih di kedua tabel.** Item A 1 dus di Pilih
+  Produk dan item A 1 dus lagi di Pilih Bonus tersimpan sebagai **dua baris
+  terpisah** (`pesanan_items.is_bonus`) — di faktur keduanya tercetak sendiri
+  sendiri, satu harga normal, satu lagi Disc% 100 dan harga 0. Batasan unik
+  pada `pesanan_items` sengaja mencakup `is_bonus` (`pesanan_id, produk_id,
+  is_bonus`) supaya kombinasi ini tidak ditolak basis data.
+- **Dus bonus ikut dihitung ke total dus** (termasuk batas minimal per
+  toko) dan ke pemeriksaan stok — permintaan biasa dan bonus untuk produk
+  yang sama diperiksa **gabungan**, bukan dua kali terpisah.
+- **Tidak pernah dihitung sebagai Insentif Sales** — pesanan bonus dibuat
+  admin (`dibuat_oleh`), bukan sales, jadi otomatis tersaring lewat
+  penyaring peran yang sudah ada di `InsentifSales::pesanans()`. Lapis
+  pertahanan kedua ada di `perSales()`: dus dengan `is_bonus = true`
+  dikecualikan eksplisit dari jumlahnya, sekalipun asumsi di atas berubah.
+- **Di Pendapatan tetap terhitung Rp 0** — tidak ada kode khusus yang
+  diperlukan di sana: `harga_satuan = 0` pada item bonus mengalir apa
+  adanya lewat `PesananItem::terkirim()`/`Pesanan::tagihan()`, yang memang
+  sudah digerakkan oleh harga produk, bukan bercabang berdasarkan jenis
+  item.
+- Keamanan: state komponen (`barisBonus`, `salesId`) tidak pernah dipercaya
+  langsung dari sisi klien — `BuatPesanan::simpan()` selalu mengecek ulang
+  `auth()->user()->isAdmin()` sebelum mengirim keduanya ke
+  `PesananService::buat()`; sales yang memaksa mengisi properti ini tetap
+  tidak tersimpan sebagai bonus.
 
 ### Toko Belum Pesan 1 Bulan
 
@@ -223,6 +331,28 @@ antara stok sistem dan stok aktual di gudang. Aturan yang benar:
 Lihat `PengirimanService::keluarkanStok()` — sekarang cuma satu angka
 (`$jumlah`) yang dipakai untuk keduanya, bukan dua parameter terpisah seperti
 sebelumnya, persis karena keduanya SELALU sama besar sejak perbaikan ini.
+
+### Riwayat Mutasi — menelusuri kenapa stok sebuah produk berubah
+
+Tombol **"Riwayat Mutasi"** di Master Produk (`DaftarProduk`, satu per baris
+produk) membuka daftar seluruh baris `stok_mutasis` produk itu — terurut
+paling baru dulu, bisa disaring per **jenis mutasi** dan **rentang
+tanggal**. Tiap baris menunjukkan jumlah perubahan (hijau untuk
+positif/masuk, merah untuk negatif/keluar), stok fisik & terkunci
+SESUDAH mutasi itu, keterangannya, kolom **Terkait** (kode pesanan atau
+nama kendaraan yang memicunya — kosong untuk penyesuaian manual), dan
+siapa yang melakukannya.
+
+Kolom `tipe` sendiri sebelumnya cuma kolom `enum` DB polos tanpa padanan
+label — ditambah `App\Enums\JenisMutasiStok` (lima kasus: `Reserve`,
+`Release`, `Keluar`, `Masuk`, `Penyesuaian`, persis nilai yang sudah
+dipakai di seluruh `PesananService`/`PengirimanService`/`DaftarProduk`
+sebelumnya) dengan `label()`/`badge()`, mengikuti pola yang sama dengan
+`StatusStop`/`StatusPesanan`. Perubahan ini AMAN terhadap kode lama:
+setiap `StokMutasi::create(['tipe' => 'masuk', ...])` yang sudah ada di
+seluruh basis kode tetap jalan apa adanya — cast enum Eloquent menerima
+string mentah saat ditulis, cuma sisi baca (`$mutasi->tipe`) yang berubah
+dari string polos jadi instance enum.
 
 ### Menutup sisa kampas yang tidak habis (admin/superadmin)
 
@@ -401,6 +531,10 @@ printer — lihat komentar di `NotaPesananController`/`PackingListController`
 untuk alasan lengkap kenapa ESC/P mentah dipakai, bukan hasil rasterisasi):
 
 - **Nota** — dari Daftar Pesanan, untuk pesanan berstatus PROCESS/DELIVERY.
+  Total qty (jumlah dus keseluruhan) tercetak sejajar kolom Qty tepat di
+  bawah tabel item, di kedua jalur (HTML/PDF via `nota-pesanan.blade.php`
+  maupun ESC/P via `EscpNotaBuilder`) — sebelumnya versi ESC/P tidak
+  pernah menghitungnya sama sekali, cuma versi PDF yang punya baris ini.
 - **Packing list** — dari detail batch (Riwayat Routing → Lihat, atau layar
   Generate Routing setelah disetujui), satu per kendaraan. Berisi kop
   perusahaan, ringkasan (nama mobil, jumlah faktur/toko, jumlah dus, dan
@@ -1000,6 +1134,64 @@ bukan pembayaran campuran — membingungkan untuk transaksi yang seharusnya
 satu metode saja. Dibatalkan sebelum opsi transfer sempat dipakai
 siapa pun, jadi tidak ada riwayat/migrasi yang perlu disesuaikan.
 
+### Bonus produk (admin/superadmin)
+
+Sama seperti langkah bonus di Input Pesanan: khusus admin/superadmin, ada
+langkah tambahan **"Pilih Bonus Produk & Jumlah Dus"** (di antara Pilih
+Produk dan Pembayaran, yang untuk admin/superadmin ikut bergeser nomornya —
+Catatan pun ikut bergeser). Sales tidak melihat langkah ini sama sekali —
+tidak ada perubahan apa pun di layarnya.
+
+Fungsi dan perlakuannya identik dengan bonus di Input Pesanan — harga
+SELALU Rp 0 apa pun produk/jumlahnya, produk yang sama boleh dipilih di
+kedua daftar dan tetap tersimpan sebagai dua baris terpisah, stok diperiksa
+gabungan (biasa+bonus) per produk, dan nominal cash cuma perlu mengikuti
+total item biasa (bonus tidak pernah ikut ditagihkan). Satu-satunya beda:
+**tidak ada "Pilih Sales"** — POS tidak pernah lewat rute pengantaran
+driver dan pesanannya langsung SELESAI seketika, jadi tidak pernah lolos
+`bisaDicetak()` (yang hanya mengizinkan status PROCESS/DELIVERY); tidak ada
+faktur bercetak untuk transaksi POS yang perlu atribusi nama sales.
+
+Karena stok POS memang sudah keluar fisik seketika (bukan direservasi lalu
+dilepas saat pengiriman seperti pesanan biasa), item bonus di sini langsung
+memakai `keluarkanStok()` yang sama dengan item biasa — tidak ada langkah
+tambahan apa pun untuk "melepas" nanti.
+
+### Tanpa Toko — transaksi yang tidak diikat ke toko tertentu (admin/superadmin)
+
+Pilihan **"Tanpa Toko"** di langkah 1 (tab di sebelah "Toko", khusus
+admin/superadmin) dipakai untuk transaksi yang tidak perlu diikat ke
+toko/perusahaan pelanggan tertentu — pembeli perorangan, atau pemberian ke
+karyawan, misalnya. **Bukan jenis transaksi khusus**: produk, langkah bonus,
+maupun pembayarannya tetap PERSIS SAMA seperti transaksi POS yang memilih
+toko sungguhan — nominal cash tetap wajib pas dengan total belanja seperti
+biasa. Satu-satunya beda adalah toko tidak wajib diisi. Kalau transaksinya
+memang perlu cuma-cuma, pakai langkah bonus yang sudah ada (harga 0,
+independen dari Tanpa Toko) — Tanpa Toko dan bonus adalah dua sumbu yang
+lepas satu sama lain, boleh dipakai salah satu, keduanya, atau tidak
+keduanya sama sekali.
+
+**Diimplementasikan lewat `Toko::internal()`**, satu baris `Toko` semu
+(kode `INTERNAL-POS`, dibuat otomatis saat pertama dipakai lewat
+`firstOrCreate`) — bukan `toko_id` yang benar-benar `NULL`. Alasannya:
+puluhan tempat di aplikasi (faktur, Daftar Pesanan, Pendapatan, peta
+dashboard, dsb.) mengandalkan `$pesanan->toko` selalu ada; mengaudit
+semuanya satu per satu untuk null-safety jauh lebih berisiko daripada
+menyediakan satu baris toko sungguhan yang aman didereferensi di mana pun.
+Baris ini sengaja `aktif = false` supaya otomatis tersembunyi dari SEMUA
+pencarian/listing toko biasa (`Toko::aktif()` dipakai di pencarian toko POS
+maupun Input Pesanan, kandidat routing, peta) — satu-satunya tempat ia bisa
+sengaja terlihat adalah Master Toko, yang memang menampilkan toko nonaktif
+juga. Karena statusnya sengaja nonaktif, `PesananService::buatPos()`
+mengecualikannya secara eksplisit (`Toko::isInternal()`) dari pemeriksaan
+"toko harus aktif" yang berlaku untuk toko sungguhan.
+
+Mengaktifkan tab-nya cuma mengisi `tokoId` ke toko semu ini — sales tidak
+diberi UI untuk mengaktifkannya sama sekali, dan `tokoId` mereka tidak
+pernah otomatis terisi ke toko semu ini, jadi memaksa properti komponen
+`tanpaToko=true` lewat `$wire.set()` tidak membuat toko jadi opsional bagi
+mereka (tokoId kosong tetap ditolak seperti biasa).
+
 ### Barcode: siap dipakai, belum wajib dipakai
 
 Kolom `produks.barcode` (nullable, unik) dan input pindai di layar Kasir
@@ -1038,6 +1230,45 @@ kueri dasarnya. Yang ditambahkan:
   Metode bayar menjawab "transaksi ini ada unsur cash/transfer-nya?", bukan
   "metode tunggalnya apa" — pembayaran campuran (sebagian cash, sebagian
   transfer, seperti yang diizinkan Pelunasan/POS) muncul di KEDUA penyaring.
+
+### Tanggal pendapatan kategori driver mengikuti tanggal keberangkatan, bukan tanggal lunas
+
+Toko yang kendaraannya berangkat tanggal 20 tapi baru dilunasi tanggal 22
+tetap terhitung sebagai pendapatan tanggal **20** — bukan 22. Dus-nya
+memang sudah keluar gudang tanggal 20; kapan tagihannya kebetulan
+dilunasi belakangan tidak seharusnya menggeser hari mana yang "menjual"
+dus itu. Ini cuma berlaku untuk kategori **driver** (rute biasa & kampas,
+keduanya lewat kendaraan) — kategori **pos** tidak pernah lewat kendaraan
+sama sekali (langsung lunas seketika saat dibuat, `tanggal_lunas`-nya
+memang satu-satunya tanggal yang bermakna), jadi tetap memakai
+`tanggal_lunas` seperti sebelumnya.
+
+Dipusatkan lewat accessor `Pesanan::tanggal_pendapatan` — untuk kategori
+driver mengambil `stop->kendaraan->batch->tanggal` (`RoutingBatch::tanggal`,
+tanggal keberangkatan yang sama dengan bagian
+[Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)),
+jatuh kembali ke `tanggal_lunas` kalau rantai relasinya ternyata putus
+(mis. data lama yang tidak lengkap), supaya layar ini tidak pernah pecah
+gara-gara satu baris yang datanya tidak biasa. Dipakai di tiga tempat:
+pengelompokan `ringkasanHarian()`/grafik, pengurutan tabel riwayat, dan
+kolom Tanggal pada tabel riwayat itu sendiri — ketiganya sekarang
+konsisten menunjukkan tanggal yang sama, bukan tanggal_lunas di tabel tapi
+tanggal keberangkatan di grafik.
+
+Penyaring "hari/bulan/rentang" pada `pesanans()` ikut disesuaikan
+lewat `whereHas('stop.kendaraan.batch', ...)` untuk kategori driver
+(digabung `orWhere` dengan `tanggal_lunas` untuk kategori pos) —
+dibandingkan lewat `whereDate()`, BUKAN `whereBetween()` dengan string
+tanggal polos. Ini bukan sekadar gaya penulisan: kolom `date` di Eloquent
+bisa saja tersimpan dengan sisa waktu `00:00:00` di baliknya tergantung
+driver basis data (SQLite yang dipakai pengujian menyimpannya apa adanya
+sebagai `'2026-08-20 00:00:00'`, sedangkan MySQL asli memotongnya bersih
+jadi `'2026-08-20'` karena tipe kolom `DATE` fisik tidak bisa menyimpan
+komponen waktu sama sekali) — `whereBetween(['2026-08-20', '2026-08-20'])`
+gagal mencocokkan nilai yang punya sisa waktu itu (secara leksikografis
+dianggap LEBIH BESAR dari batas atasnya), sedangkan `whereDate()`
+mengekstrak bagian tanggalnya lewat SQL sebelum dibandingkan sehingga
+kebal dari perbedaan format penyimpanan antar driver basis data.
 
 ### Pemilih produk yang bisa dicari (`<x-pilih-cari>`)
 
@@ -1120,7 +1351,7 @@ orang, bukan uang per hari).
 php artisan test
 ```
 
-480 tes, mencakup:
+553 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1161,7 +1392,10 @@ php artisan test
   pesanan; keempat mode penyaring (hari/bulan/rentang/semua) menyaring
   `selesai_at` dengan benar; dan halaman tampil dengan BEBERAPA sales
   sekaligus tanpa lazy load — pelajaran yang sama seperti
-  `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`.
+  `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`; dan dus dari item
+  bonus (`is_bonus = true`) tetap dikecualikan dari jumlahnya sebagai
+  pertahanan lapis kedua, sekalipun secara hipotetis muncul pada pesanan
+  yang penginputnya berperan sales.
 - **[`tests/Feature/PendapatanRiwayatTest.php`](tests/Feature/PendapatanRiwayatTest.php)** —
   penyaring tabel riwayat lewat kode pesanan, nama toko, kategori (`pos`
   vs `driver` — termasuk memastikan rute biasa DAN kampas sama-sama masuk
@@ -1171,6 +1405,23 @@ php artisan test
   transaksi; tombol Bersihkan mengembalikan seluruh transaksi; dan
   penyaring riwayat sengaja tidak mengubah kartu ringkasan kategori di
   atasnya.
+- **[`tests/Feature/PendapatanTanggalKeberangkatanTest.php`](tests/Feature/PendapatanTanggalKeberangkatanTest.php)** —
+  pesanan kategori driver yang kendaraannya berangkat tanggal 20 tapi baru
+  lunas tanggal 22 tetap terhitung sebagai pendapatan tanggal 20:
+  `Pesanan::tanggal_pendapatan` mengambil tanggal keberangkatan
+  (`RoutingBatch::tanggal`) bukan `tanggal_lunas`; mode "hari" pada tanggal
+  keberangkatan menemukannya, mode "hari" pada tanggal pelunasan TIDAK
+  (tidak terhitung dua kali); `ringkasanHarian()`/grafik mengelompokkannya
+  ke tanggal keberangkatan; mode "rentang" yang mencakup tanggal
+  keberangkatan menemukannya walau tanggal lunasnya di luar rentang; dan
+  pesanan POS (tidak pernah lewat kendaraan) tidak terpengaruh sama
+  sekali, tetap memakai `tanggal_lunas` seperti sebelumnya. Regresi nyata
+  yang ditemukan sambil membangun ini: `whereBetween()` dengan string
+  tanggal polos gagal mencocokkan kolom `date` yang tersimpan dengan sisa
+  waktu `00:00:00` (kebiasaan SQLite yang dipakai pengujian, beda dari
+  MySQL asli yang memotongnya bersih karena tipe kolom `DATE` fisik) —
+  diperbaiki jadi `whereDate()`, yang kebal dari perbedaan format
+  penyimpanan antar driver basis data.
 - **[`tests/Feature/PosTest.php`](tests/Feature/PosTest.php)** —
   `PesananService::buatPos()` langsung SELESAI+LUNAS tanpa membuat
   `KendaraanStop`, stok fisik berkurang seketika (bukan lewat reservasi),
@@ -1192,6 +1443,53 @@ php artisan test
   sama-sama belum punya barcode; dan `<x-pilih-cari>` bisa memilih produk
   lewat `$wire.set()` end-to-end sampai tersimpan di kedua layar (Kasir
   maupun Input Pesanan), termasuk menampilkan label yang sudah terpilih.
+- **[`tests/Feature/RiwayatMutasiStokTest.php`](tests/Feature/RiwayatMutasiStokTest.php)** —
+  `JenisMutasiStok`: tiap kasus punya `label()`/`badge()`, dan
+  `StokMutasi::tipe` otomatis ter-cast jadi instance enum (bukan string
+  polos) sementara baris mentahnya di DB tetap tersimpan sebagai string
+  biasa; tombol "Riwayat Mutasi" pada Master Produk membuka modal untuk
+  produk yang tepat; riwayatnya hanya berisi mutasi milik produk itu
+  (bukan produk lain), terurut paling baru dulu; bisa disaring per jenis
+  mutasi maupun rentang tanggal; membuka riwayat produk LAIN membersihkan
+  penyaring yang tersisa dari produk sebelumnya; tombol Bersihkan
+  mengembalikan seluruh riwayat; kolom Terkait menampilkan kode pesanan
+  sungguhan untuk mutasi `reserve` yang berasal dari `PesananService::buat()`;
+  penyesuaian manual lewat modal "± Stok" yang sudah ada langsung muncul
+  di riwayat; dan `tutupRiwayat()` membersihkan seluruh state modal
+  (produk yang dipilih maupun penyaringnya).
+- **[`tests/Feature/PosBonusTest.php`](tests/Feature/PosBonusTest.php)** —
+  langkah bonus admin/superadmin di POS: item bonus tersimpan dengan harga
+  0 tapi stok fisik tetap berkurang SEKETIKA (`keluarkanStok()`, sama
+  seperti item biasa, bukan lewat reservasi); nominal cash cukup mengikuti
+  total item biasa saja, bonus tidak pernah ikut ditagihkan; produk yang
+  sama di kedua daftar tersimpan sebagai DUA baris terpisah; pemeriksaan
+  stok GABUNGAN (biasa+bonus per produk) terhadap stok fisik penuh; bonus
+  saja tanpa item biasa tetap sah; visibilitas langkah bonus di komponen
+  `Kasir` (tersembunyi total untuk sales, termasuk penomoran ulang langkah
+  Pembayaran/Catatan untuk admin/superadmin — tanpa "Pilih Sales" sama
+  sekali, beda dari Input Pesanan, karena POS tidak pernah mencetak
+  faktur); dan tes keamanan yang sama seperti `PesananBonusTest`: sales
+  yang memaksa mengisi `barisBonus` lewat `$wire.set()` langsung tetap
+  TIDAK tersimpan sebagai bonus.
+- **[`tests/Feature/PosTanpaTokoTest.php`](tests/Feature/PosTanpaTokoTest.php)** —
+  opsi "Tanpa Toko" admin/superadmin: `Toko::internal()` membuat satu baris
+  toko semu yang idempoten (dipanggil dua kali menghasilkan id yang sama)
+  dan tidak pernah muncul di pencarian toko biasa karena `aktif=false`;
+  mengaktifkannya otomatis mengisi `tokoId` ke toko semu itu TANPA mengubah
+  apa pun yang lain — langkah Pilih Bonus dan Pembayaran tetap tampil dan
+  berfungsi persis seperti biasa; admin bisa menyimpan transaksi Tanpa Toko
+  yang BERBAYAR (harga normal, nominal cash tetap wajib pas) sama seperti
+  transaksi bertoko; tetap ditolak kalau nominal cash tidak pas atau stok
+  fisik kurang; admin bisa mengombinasikan Tanpa Toko dengan langkah bonus
+  sekaligus (baris biasa berbayar + baris bonus gratis, toko_id ke toko
+  semu); kembali ke tab "Toko" atau memilih toko sungguhan membersihkan
+  status `tanpaToko`; `PesananService::buatPos()` sengaja mengecualikan
+  toko semu ini dari pemeriksaan "toko harus aktif" (`Toko::isInternal()`)
+  yang berlaku untuk toko sungguhan; dan tes keamanan: sales yang memaksa
+  `tanpaToko=true` lewat komponen TETAP wajib memilih toko sungguhan
+  (`tokoId` mereka tidak pernah otomatis terisi ke toko semu, jadi
+  `tokoId` kosong tetap ditolak), dan `aktifkanTanpaToko()` yang dipanggil
+  langsung oleh non-admin tidak berefek sama sekali.
 - **[`tests/Feature/DaftarPesananFilterTest.php`](tests/Feature/DaftarPesananFilterTest.php)** —
   penyaring penginput membatasi tabel dan ringkasan status pada satu sales;
   daftar pilihannya hanya berisi user yang pernah menginput pesanan; kolom
@@ -1228,6 +1526,18 @@ php artisan test
   string `'selesai'` padahal kolomnya di-cast ke enum `StatusStop` —
   perbandingan itu selalu salah, jadi penanda centang di peta admin tidak
   pernah muncul walau kunjungannya sungguh selesai.
+- **[`tests/Feature/KmlRuteTest.php`](tests/Feature/KmlRuteTest.php)** —
+  `KmlRuteBuilder::build()` menghasilkan XML/KML yang benar-benar valid
+  (diverifikasi lewat `DOMDocument::loadXML()`) dengan urutan koordinat
+  longitude-lalu-latitude yang benar; melewati toko tanpa koordinat, tidak
+  ikut jadi Placemark; `styleUrl` tiap Placemark mengikuti warna status
+  kunjungannya (pending/selesai/dibatalkan); nama toko yang mengandung
+  karakter XML khusus (`&`, `<`, `"`) tetap menghasilkan KML valid dan
+  ternormalisasi balik dengan benar lewat `DOMXPath`; dan
+  `DaftarKunjungan::unduhKml()` — baik driver maupun admin yang memantau
+  bisa mengunduhnya (`assertFileDownloaded()`), isinya persis sama dengan
+  yang dihasilkan builder secara langsung, dan nama berkas/content-type-nya
+  benar.
 - **[`tests/Feature/CetakPackingListTest.php`](tests/Feature/CetakPackingListTest.php)** —
   hanya bisa dicetak setelah routing disetujui (ditolak untuk sales, driver,
   dan draft), kop menampilkan nama mobil/jumlah faktur/jumlah dus/tanggal
@@ -1241,7 +1551,14 @@ php artisan test
   pola yang sama untuk nota pesanan, termasuk token sekali pakai yang sama,
   dan rendering `EscpNotaBuilder` untuk pesanan `kurang_kirim` (dites
   langsung lepas dari gerbang rute, karena kombinasi statusnya saat ini
-  tidak pernah tercapai lewat rute cetak).
+  tidak pernah tercapai lewat rute cetak); dan faktur pesanan dengan bonus:
+  produk yang sama di baris biasa dan baris bonus tercetak sebagai DUA
+  baris terpisah (HTML maupun ESC/P), baris bonus menampilkan Disc% 100
+  dan harga 0, dan kolom Sales menampilkan akun atas nama yang dipilih
+  admin, bukan admin yang mengetik; dan total qty (jumlah dus keseluruhan)
+  tercetak sejajar kolom Qty tepat di bawah tabel item ESC/P, terpisah
+  dari "Total Harga" (header) dan "Total Invoice" (ringkasan nominal) yang
+  kebetulan sama-sama mengandung kata "Total".
 - **[`tests/Feature/RincianPesananTest.php`](tests/Feature/RincianPesananTest.php)** —
   modal "Rincian Pesanan" menyembunyikan produk yang dikoreksi jadi 0 dus
   diterima, menampilkan jumlah terkirim sebagian apa adanya, menampilkan
@@ -1259,6 +1576,43 @@ php artisan test
   saat OSRM mati.
 - **[`tests/Feature/AlurPesananTest.php`](tests/Feature/AlurPesananTest.php)** —
   aturan minimal dus, satu pesanan aktif per toko, dan pengembalian stok.
+- **[`tests/Feature/OrderUlangTest.php`](tests/Feature/OrderUlangTest.php)** —
+  "Order Ulang"/"Batalkan" untuk pesanan yang dibatalkan driver di
+  lapangan: `Pesanan::bisa_order_ulang` benar HANYA untuk pembatalan
+  driver dengan alasan selain "toko membatalkan pesanan" (salah untuk
+  alasan yang sudah final, salah untuk pembatalan ADMIN karena stop-nya
+  terhapus, salah untuk pesanan yang belum dibatalkan sama sekali);
+  `PesananService::tandaiBatalKarenaToko()` mengubah alasan_cancel TANPA
+  menyentuh stok maupun siapa yang sungguh membatalkan (`dibatalkan_oleh`
+  tetap driver), dan menolak dipanggil dua kali atau untuk pembatalan
+  admin; tombol Order Ulang/Batalkan di Daftar Pesanan hanya tampil untuk
+  baris yang eligible; membuka modal Order Ulang mengisi baris produk dan
+  sales sesuai pesanan lama; menyimpannya membuat pesanan baru dengan item
+  yang sama; ditolak dengan galat DI DALAM modal (bukan cuma notifikasi)
+  kalau stok tidak mencukupi, modal tetap terbuka untuk disesuaikan, dan
+  percobaan susulan yang berhasil TIDAK lagi membawa galat lama yang
+  sudah tidak relevan (regresi nyata: `simpanOrderUlang()` awalnya lupa
+  `resetValidation()`, jadi galat dari percobaan gagal sebelumnya tetap
+  menempel walau percobaan berikutnya sukses); dan sales tidak bisa
+  memicu `bukaOrderUlang()`/`tandaiBatalKarenaToko()` sama sekali (403).
+- **[`tests/Feature/PesananBonusTest.php`](tests/Feature/PesananBonusTest.php)** —
+  langkah bonus produk admin/superadmin di Input Pesanan: item bonus
+  tersimpan dengan harga 0 tapi stok tetap dikunci; admin wajib memilih
+  akun sales atas nama (ditolak kalau kosong atau bukan akun berperan
+  sales); sales yang menginput sendiri tidak perlu mengisinya; dus bonus
+  ikut dihitung ke batas minimal dan ke pemeriksaan stok GABUNGAN
+  (biasa+bonus per produk, bukan dua kali terpisah); produk yang sama di
+  kedua daftar tersimpan sebagai DUA baris terpisah, bukan digabung;
+  visibilitas langkah bonus di komponen Livewire (tersembunyi total untuk
+  sales, termasuk penomoran ulang Catatan jadi langkah 4 untuk
+  admin/superadmin); dan tes keamanan yang memastikan sales yang memaksa
+  mengisi `barisBonus`/`salesId` lewat `$wire.set()` langsung tetap TIDAK
+  tersimpan sebagai bonus — pertahanannya di server (`isAdmin()` dicek
+  ulang saat `simpan()`), bukan sekadar disembunyikan di tampilan. Ditambah:
+  SELURUH pesanan yang diinput admin (baris biasa maupun bonus di
+  dalamnya, sekalipun sudah terkirim tuntas sampai SELESAI) sama sekali
+  tidak masuk Insentif Sales — penyaringnya memakai peran PENGINPUT
+  (`dibuat_oleh`/`pembuat`), bukan menyaring per baris item.
 - **[`tests/Feature/PemindaiQrTampilTest.php`](tests/Feature/PemindaiQrTampilTest.php)** —
   penjaga kerusakan yang gagal tanpa jejak: wadah pemindai tidak disembunyikan
   lewat kelas dari server, `video.play()` tidak pernah dipanggil tanpa
