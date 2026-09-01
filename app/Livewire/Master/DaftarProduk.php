@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Master;
 
+use App\Enums\JenisMutasiStok;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,15 @@ class DaftarProduk extends Component
     public int $jumlahPenyesuaian = 0;
 
     public string $keteranganPenyesuaian = '';
+
+    // --- Riwayat mutasi stok ---
+    public ?int $produkRiwayat = null;
+
+    public string $riwayatTipe = '';
+
+    public string $riwayatDari = '';
+
+    public string $riwayatSampai = '';
 
     public function updatedCari(): void
     {
@@ -193,6 +203,64 @@ class DaftarProduk extends Component
         unset($this->produks);
 
         $this->dispatch('notifikasi', pesan: __('master.stok_diperbarui'));
+    }
+
+    public function updated(string $kolom): void
+    {
+        if (in_array($kolom, ['riwayatTipe', 'riwayatDari', 'riwayatSampai'], true)) {
+            $this->resetPage('mutasiPage');
+        }
+    }
+
+    #[Computed]
+    public function produkRiwayatModel(): ?Produk
+    {
+        return $this->produkRiwayat === null ? null : Produk::find($this->produkRiwayat);
+    }
+
+    /** @return array<int, JenisMutasiStok> */
+    #[Computed]
+    public function tipeMutasiCases(): array
+    {
+        return JenisMutasiStok::cases();
+    }
+
+    public function bukaRiwayat(int $id): void
+    {
+        $this->produkRiwayat = $id;
+        $this->reset(['riwayatTipe', 'riwayatDari', 'riwayatSampai']);
+        $this->resetPage('mutasiPage');
+    }
+
+    public function tutupRiwayat(): void
+    {
+        $this->reset(['produkRiwayat', 'riwayatTipe', 'riwayatDari', 'riwayatSampai']);
+    }
+
+    public function bersihkanFilterRiwayat(): void
+    {
+        $this->reset(['riwayatTipe', 'riwayatDari', 'riwayatSampai']);
+        $this->resetPage('mutasiPage');
+    }
+
+    /**
+     * Riwayat keluar-masuk satu produk, terurut yang paling baru dulu —
+     * bisa disaring per jenis mutasi dan rentang tanggal. Memuat relasi
+     * pesanan/kendaraan/user sekaligus supaya tiap baris bisa menunjukkan
+     * KENAPA stoknya berubah (pesanan mana, kendaraan mana, siapa),
+     * bukan cuma angkanya saja.
+     */
+    #[Computed]
+    public function riwayatMutasi()
+    {
+        return StokMutasi::query()
+            ->where('produk_id', $this->produkRiwayat)
+            ->with(['pesanan:id,kode', 'kendaraan:id,nama', 'user:id,name'])
+            ->when($this->riwayatTipe !== '', fn ($q) => $q->where('tipe', $this->riwayatTipe))
+            ->when($this->riwayatDari !== '', fn ($q) => $q->whereDate('created_at', '>=', $this->riwayatDari))
+            ->when($this->riwayatSampai !== '', fn ($q) => $q->whereDate('created_at', '<=', $this->riwayatSampai))
+            ->latest('id')
+            ->paginate(15, ['*'], 'mutasiPage');
     }
 
     public function render()

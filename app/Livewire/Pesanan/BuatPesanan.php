@@ -6,6 +6,7 @@ use App\Enums\StatusPesanan;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
+use App\Models\User;
 use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PesananService;
 use Illuminate\Support\Collection;
@@ -27,11 +28,38 @@ class BuatPesanan extends Component
     /** @var array<int, array{produk_id: int|string, jumlah_dus: int|string}> */
     public array $baris = [];
 
+    /**
+     * Langkah 3, khusus admin/superadmin: item bonus untuk toko yang
+     * berhak — harganya SELALU 0 di layar ini (lihat totalNilaiBonus()),
+     * bukan cuma nol karena kebetulan produknya gratis. Sales sama sekali
+     * tidak melihat langkah ini; lihat bisaInputBonus().
+     *
+     * @var array<int, array{produk_id: int|string, jumlah_dus: int|string}>
+     */
+    public array $barisBonus = [];
+
+    /**
+     * "Atas nama sales siapa" — wajib diisi untuk admin/superadmin karena
+     * merekalah yang mengetik, bukan sales, tapi faktur tetap perlu
+     * menampilkan nama sales yang sebenarnya bertanggung jawab.
+     */
+    public ?int $salesId = null;
+
     public ?string $kodeTerakhir = null;
 
     public function mount(): void
     {
         $this->tambahBaris();
+
+        if ($this->bisaInputBonus()) {
+            $this->tambahBarisBonus();
+        }
+    }
+
+    /** Hanya admin/superadmin yang punya langkah bonus — sales sama sekali tidak melihatnya. */
+    public function bisaInputBonus(): bool
+    {
+        return auth()->user()->isAdmin();
     }
 
     public function tambahBaris(): void
@@ -46,6 +74,21 @@ class BuatPesanan extends Component
 
         if ($this->baris === []) {
             $this->tambahBaris();
+        }
+    }
+
+    public function tambahBarisBonus(): void
+    {
+        $this->barisBonus[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBarisBonus(int $indeks): void
+    {
+        unset($this->barisBonus[$indeks]);
+        $this->barisBonus = array_values($this->barisBonus);
+
+        if ($this->barisBonus === []) {
+            $this->tambahBarisBonus();
         }
     }
 
@@ -222,6 +265,25 @@ class BuatPesanan extends Component
     }
 
     /**
+     * Dus bonus tetap dus fisik yang sungguh dimuat ke mobil — dihitung
+     * terpisah dari totalDus() (bukan digabung) supaya panel tetap jelas
+     * mana yang ditagihkan dan mana yang bonus, tapi tetap ikut dihitung
+     * ke batas minimal pesanan lewat halangan() di bawah.
+     */
+    #[Computed]
+    public function totalDusBonus(): int
+    {
+        return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->barisBonus));
+    }
+
+    /** Daftar sales untuk "atas nama sales" — cuma dipakai kalau bisaInputBonus(). */
+    #[Computed]
+    public function salesList(): Collection
+    {
+        return User::sales()->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
      * Semua yang menghalangi pesanan disimpan, dikumpulkan jadi satu daftar
      * agar sales melihat semuanya sekaligus, bukan satu per satu tiap
      * menekan simpan.
@@ -254,17 +316,31 @@ class BuatPesanan extends Component
             ];
         }
 
-        if ($this->totalDus < $minDus) {
+        // Dus bonus tetap dus fisik yang sungguh dimuat ke mobil, jadi ikut
+        // dihitung ke batas minimal — sama seperti PesananService::buat().
+        $totalDusGabungan = $this->totalDus + ($this->bisaInputBonus() ? $this->totalDusBonus : 0);
+
+        if ($totalDusGabungan < $minDus) {
             $masalah[] = [
                 'jenis' => 'min_dus',
-                'pesan' => __('pesanan.halangan_min_dus', ['min' => $minDus, 'sekarang' => $this->totalDus]),
+                'pesan' => __('pesanan.halangan_min_dus', ['min' => $minDus, 'sekarang' => $totalDusGabungan]),
             ];
         }
 
+        if ($this->bisaInputBonus() && $this->salesId === null) {
+            $masalah[] = ['jenis' => 'sales', 'pesan' => __('pesanan.halangan_sales_wajib')];
+        }
+
         $produks = $this->produks->keyBy('id');
+        // Sama seperti PesananService::buat(): stok diperiksa atas
+        // permintaan GABUNGAN biasa+bonus per produk, bukan dua kali
+        // terpisah — produk yang sama boleh muncul di kedua daftar, dan
+        // keduanya berbagi rak yang sama.
         $diminta = [];
 
-        foreach ($this->baris as $b) {
+        $sumberBaris = $this->bisaInputBonus() ? [...$this->baris, ...$this->barisBonus] : $this->baris;
+
+        foreach ($sumberBaris as $b) {
             $id = (int) $b['produk_id'];
             $jumlah = (int) ($b['jumlah_dus'] ?: 0);
 
@@ -319,16 +395,32 @@ class BuatPesanan extends Component
             return;
         }
 
+        // Bonus dan "atas nama sales" TIDAK PERNAH dikirim ke service kalau
+        // penggunanya bukan admin/superadmin — bukan sekadar disembunyikan
+        // di tampilan. State komponen ($barisBonus/$salesId) tidak pernah
+        // dipercaya begitu saja; siapa yang benar-benar login itulah yang
+        // menentukan, sama seperti pastikanBisaBertindak() di
+        // DaftarKunjungan untuk kasus yang serupa.
+        $bisaBonus = $this->bisaInputBonus();
+
         try {
             $pesanan = $service->buat(
                 toko: Toko::findOrFail($this->tokoId),
                 items: $this->baris,
                 pembuat: auth()->user(),
                 catatan: $this->catatan ?: null,
+                bonusItems: $bisaBonus ? $this->barisBonus : [],
+                atasNamaSales: $bisaBonus && $this->salesId !== null ? User::find($this->salesId) : null,
             );
         } catch (ValidationException $e) {
             foreach ($e->errors() as $kolom => $pesan) {
-                $this->addError($kolom === 'items' ? 'baris' : $kolom, $pesan[0]);
+                $kolomTampil = match ($kolom) {
+                    'items' => 'baris',
+                    'atasNamaSales' => 'salesId',
+                    default => $kolom,
+                };
+
+                $this->addError($kolomTampil, $pesan[0]);
             }
 
             $this->dispatch('notifikasi', pesan: __('pesanan.ditolak'), jenis: 'error');
@@ -338,8 +430,12 @@ class BuatPesanan extends Component
 
         $this->kodeTerakhir = $pesanan->kode;
 
-        $this->reset(['tokoId', 'catatan', 'baris', 'cariToko']);
+        $this->reset(['tokoId', 'catatan', 'baris', 'barisBonus', 'salesId', 'cariToko']);
         $this->tambahBaris();
+
+        if ($bisaBonus) {
+            $this->tambahBarisBonus();
+        }
 
         $this->dispatch('notifikasi', pesan: __('pesanan.notif_tersimpan', ['kode' => $pesanan->kode]));
     }

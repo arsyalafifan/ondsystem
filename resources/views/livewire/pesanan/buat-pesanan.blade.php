@@ -205,7 +205,85 @@
                 @error('baris') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
             </x-kartu>
 
-            <x-kartu :judul="__('pesanan.langkah_catatan')">
+            {{-- Langkah 3 (khusus admin/superadmin): bonus produk --}}
+            @if ($this->bisaInputBonus())
+                <x-kartu :judul="__('pesanan.langkah_bonus')">
+                    <x-slot:aksi>
+                        <button type="button" wire:click="tambahBarisBonus"
+                                class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                            {{ __('pesanan.tambah_baris_bonus') }}
+                        </button>
+                    </x-slot:aksi>
+
+                    <p class="px-4 pt-3 text-xs text-gray-500">{{ __('pesanan.ket_bonus') }}</p>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                                <tr>
+                                    <th class="px-4 py-2 font-medium">{{ __('umum.produk') }}</th>
+                                    <th class="w-32 px-4 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
+                                    <th class="w-28 px-4 py-2 text-right font-medium">{{ __('pesanan.tersedia') }}</th>
+                                    <th class="w-32 px-4 py-2 text-right font-medium">{{ __('umum.subtotal') }}</th>
+                                    <th class="w-10 px-4 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($barisBonus as $i => $b)
+                                    @php $produkBonus = $this->produks->firstWhere('id', (int) $b['produk_id']); @endphp
+                                    <tr wire:key="baris-bonus-{{ $i }}">
+                                        <td class="px-4 py-2">
+                                            <x-pilih-cari :opsi="$opsiProduk" :nilai="$b['produk_id']"
+                                                           set="barisBonus.{{ $i }}.produk_id"
+                                                           placeholder="{{ __('pesanan.pilih_produk') }}" />
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <input type="number" min="1" wire:model.live.debounce.400ms="barisBonus.{{ $i }}.jumlah_dus"
+                                                   class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                        </td>
+                                        <td class="px-4 py-2 text-right {{ $produkBonus && (int) ($b['jumlah_dus'] ?: 0) > $produkBonus->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
+                                            {{ $produkBonus ? \App\Support\Bahasa::angka($produkBonus->stok_tersedia) : '—' }}
+                                        </td>
+                                        <td class="px-4 py-2 text-right tabular-nums text-gray-700">
+                                            @rupiah(0)
+                                        </td>
+                                        <td class="px-4 py-2 text-right">
+                                            <button type="button" wire:click="hapusBarisBonus({{ $i }})"
+                                                    class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                                <x-heroicon-o-trash class="size-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-gray-50 font-medium">
+                                <tr>
+                                    <td class="px-4 py-2 text-right">{{ __('umum.total') }}</td>
+                                    <td class="px-4 py-2 tabular-nums">@angka($this->totalDusBonus) {{ __('umum.satuan_dus') }}</td>
+                                    <td></td>
+                                    <td class="px-4 py-2 text-right tabular-nums">@rupiah(0)</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="border-t border-gray-100 p-4">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">{{ __('pesanan.label_sales') }}</label>
+                        <select wire:model.live="salesId"
+                                class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">{{ __('pesanan.pilih_sales_bonus') }}</option>
+                            @foreach ($this->salesList as $s)
+                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1.5 text-xs text-gray-500">{{ __('pesanan.ket_sales_bonus') }}</p>
+                        @error('salesId') <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </x-kartu>
+            @endif
+
+            <x-kartu :judul="$this->bisaInputBonus() ? __('pesanan.langkah_catatan_admin') : __('pesanan.langkah_catatan')">
                 <div class="p-4">
                     <textarea wire:model="catatan" rows="2" placeholder="{{ __('pesanan.catatan_contoh') }}"
                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
@@ -224,6 +302,9 @@
                             ['lulus' => ! $this->adaHalangan('stok'), 'teks' => __('pesanan.periksa_stok')],
                             ['lulus' => ! $this->adaHalangan('toko') && ! $this->adaHalangan('pesanan_aktif'), 'teks' => __('pesanan.periksa_pesanan_aktif')],
                         ];
+                        if ($this->bisaInputBonus()) {
+                            $periksa[] = ['lulus' => ! $this->adaHalangan('sales'), 'teks' => __('pesanan.periksa_sales')];
+                        }
                     @endphp
 
                     @foreach ($periksa as $p)

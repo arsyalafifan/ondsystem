@@ -40,4 +40,6 @@ return [
     'galat_belum_tercek' => 'Centang dulu semua baris produk untuk menandai sudah diperiksa.',
     'kolom_cek' => 'Cek',
     'peta_rute' => 'Peta Rute',
+    'unduh_kml' => 'Unduh KML',
+    'ket_unduh_kml' => 'Unduh titik-titik toko rute ini sebagai berkas KML — buka lewat aplikasi peta offline (mis. Map Marker) kalau nanti kehilangan sinyal di jalan.',
 ];

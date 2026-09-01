@@ -10,12 +10,14 @@ use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Support\Bahasa;
+use App\Support\KmlRuteBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Layar kerja driver di lapangan: daftar toko sesuai urutan kunjungan,
@@ -254,6 +256,23 @@ class DaftarKunjungan extends Component
             ],
             'bisaDiklik' => true,
         ];
+    }
+
+    /**
+     * Berkas KML berisi seluruh titik toko pada rute ini, diunduh SEBELUM
+     * berangkat — supaya kalau driver kehilangan sinyal di jalan dan tidak
+     * bisa membuka aplikasi ini, dia tetap bisa melihat titik-titik
+     * tujuannya lewat aplikasi peta offline (mis. Map Marker) yang sudah
+     * dipasang lebih dulu di ponselnya.
+     */
+    public function unduhKml(): StreamedResponse
+    {
+        $isi = KmlRuteBuilder::build($this->kendaraan, $this->stops);
+        $namaBerkas = 'Rute-'.str_replace(['/', ' '], '-', $this->kendaraan->nama).'-'.now()->format('Ymd').'.kml';
+
+        return response()->streamDownload(function () use ($isi) {
+            echo $isi;
+        }, $namaBerkas, ['Content-Type' => 'application/vnd.google-earth.kml+xml']);
     }
 
     #[Computed]

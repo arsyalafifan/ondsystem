@@ -25,6 +25,53 @@ class Toko extends Model
     use HasFactory;
 
     /**
+     * Kode toko semu untuk transaksi POS "Tanpa Toko" — dipakai saat
+     * transaksi tidak perlu diikat ke toko/perusahaan pelanggan tertentu
+     * (mis. pembeli perorangan, atau pemberian ke karyawan). Bukan jenis
+     * transaksi khusus: produk, bonus, maupun pembayarannya tetap persis
+     * sama seperti transaksi POS yang memilih toko sungguhan — satu-satunya
+     * beda adalah toko tidak wajib diisi.
+     */
+    public const KODE_INTERNAL = 'INTERNAL-POS';
+
+    /**
+     * Toko semu untuk transaksi POS "Tanpa Toko". Sengaja tetap berupa satu
+     * baris Toko sungguhan (bukan `toko_id` yang benar-benar NULL) supaya
+     * SELURUH kode di aplikasi yang mengandalkan `$pesanan->toko` selalu ada
+     * (faktur, Daftar Pesanan, Pendapatan, peta dashboard, dsb.) tidak perlu
+     * diaudit ulang satu per satu untuk null-safety. `aktif = false`
+     * membuatnya otomatis tersembunyi dari SEMUA pencarian/listing toko
+     * biasa yang sudah men-scope `Toko::aktif()` (pencarian toko di POS
+     * maupun Input Pesanan, kandidat routing, peta, dsb.) — satu-satunya
+     * tempat ia bisa muncul secara sengaja adalah Master Toko (yang memang
+     * menampilkan toko nonaktif juga).
+     */
+    public static function internal(): self
+    {
+        return static::firstOrCreate(
+            ['kode' => self::KODE_INTERNAL],
+            [
+                'nama' => 'Tanpa Toko',
+                'alamat' => '-',
+                'wilayah_id' => Wilayah::query()->value('id'),
+                'aktif' => false,
+            ],
+        );
+    }
+
+    /**
+     * Apakah ini toko semu "Tanpa Toko" — dipakai `PesananService::buatPos()`
+     * untuk mengecualikannya dari pemeriksaan "toko harus aktif" yang
+     * berlaku untuk toko sungguhan. Ia memang SENGAJA dibuat `aktif=false`
+     * (lihat internal()) supaya tersembunyi dari pencarian toko biasa, jadi
+     * pemeriksaan itu perlu tahu untuk tidak menolaknya.
+     */
+    public function isInternal(): bool
+    {
+        return $this->kode === self::KODE_INTERNAL;
+    }
+
+    /**
      * Disamakan dengan nilai bawaan kolomnya. Tanpa ini, model yang baru
      * dibuat tanpa menyebut kolom tersebut akan membacanya sebagai null
      * sampai diambil ulang dari basis data.

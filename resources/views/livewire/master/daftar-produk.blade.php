@@ -59,6 +59,10 @@
                                             class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                         {{ __('master.sesuaikan_stok') }}
                                     </button>
+                                    <button type="button" wire:click="bukaRiwayat({{ $p->id }})"
+                                            class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
+                                        {{ __('master.riwayat_mutasi') }}
+                                    </button>
                                     <button type="button" wire:click="sunting({{ $p->id }})"
                                             class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                         {{ __('umum.sunting') }}
@@ -166,6 +170,105 @@
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
                 <button type="button" wire:click="simpanPenyesuaian"
                         class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">{{ __('umum.simpan') }}</button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- Riwayat mutasi stok --}}
+    @if ($this->produkRiwayatModel)
+        <x-modal :judul="__('master.judul_riwayat_mutasi', ['nama' => $this->produkRiwayatModel->nama])" lebar="max-w-4xl" tutup="tutupRiwayat">
+            <div class="border-b border-gray-200 p-4">
+                <p class="text-sm text-gray-600">{{ __('master.ket_riwayat_mutasi') }}</p>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('master.filter_tipe_mutasi') }}</label>
+                    <select wire:model.live="riwayatTipe"
+                            class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">{{ __('master.semua_tipe_mutasi') }}</option>
+                        @foreach ($this->tipeMutasiCases as $tipe)
+                            <option value="{{ $tipe->value }}">{{ $tipe->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('pembayaran.dari_tanggal') }}</label>
+                    <input type="date" wire:model.live="riwayatDari"
+                           class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('pembayaran.sampai_tanggal') }}</label>
+                    <input type="date" wire:model.live="riwayatSampai"
+                           class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+                <button type="button" wire:click="bersihkanFilterRiwayat"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.bersihkan') }}
+                </button>
+            </div>
+
+            <div class="max-h-[60vh] overflow-y-auto">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="sticky top-0 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                            <tr>
+                                <th class="px-4 py-2 font-medium">{{ __('umum.tanggal') }}</th>
+                                <th class="px-4 py-2 font-medium">{{ __('master.filter_tipe_mutasi') }}</th>
+                                <th class="px-4 py-2 text-right font-medium">{{ __('master.jumlah') }}</th>
+                                <th class="px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
+                                <th class="px-4 py-2 text-right font-medium">{{ __('master.dikunci') }}</th>
+                                <th class="px-4 py-2 font-medium">{{ __('umum.keterangan') }}</th>
+                                <th class="px-4 py-2 font-medium">{{ __('master.terkait') }}</th>
+                                <th class="px-4 py-2 font-medium">{{ __('master.oleh') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse ($this->riwayatMutasi as $m)
+                                <tr>
+                                    <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                        {{ $m->created_at->isoFormat('ll') }}
+                                        <span class="block text-xs text-gray-400">{{ $m->created_at->format('H:i') }}</span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-2">
+                                        <span class="rounded px-2 py-0.5 text-xs font-medium {{ $m->tipe->badge() }}">{{ $m->tipe->label() }}</span>
+                                    </td>
+                                    <td class="px-4 py-2 text-right font-semibold tabular-nums {{ $m->jumlah >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                                        {{ $m->jumlah >= 0 ? '+' : '' }}@angka($m->jumlah)
+                                    </td>
+                                    <td class="px-4 py-2 text-right tabular-nums">@angka($m->stok_sesudah)</td>
+                                    <td class="px-4 py-2 text-right tabular-nums text-amber-700">@angka($m->reserved_sesudah)</td>
+                                    <td class="px-4 py-2 text-gray-600">{{ $m->keterangan ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                        {{ $m->pesanan?->kode ?? $m->kendaraan?->nama ?? '—' }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $m->user?->name ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8">
+                                        @if ($riwayatTipe !== '' || $riwayatDari !== '' || $riwayatSampai !== '')
+                                            <x-kosong ikon="magnifying-glass" :judul="__('master.kosong_riwayat_mutasi_filter')" />
+                                        @else
+                                            <x-kosong ikon="archive-box" :judul="__('master.kosong_riwayat_mutasi')" />
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($this->riwayatMutasi->hasPages())
+                    <div class="border-t border-gray-200 px-4 py-3">{{ $this->riwayatMutasi->links() }}</div>
+                @endif
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="tutupRiwayat"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.tutup') }}
+                </button>
             </x-slot:aksi>
         </x-modal>
     @endif

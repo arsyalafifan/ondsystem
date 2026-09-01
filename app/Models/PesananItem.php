@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['pesanan_id', 'produk_id', 'jumlah_dus', 'jumlah_dus_terkirim', 'harga_satuan', 'subtotal'])]
+#[Fillable(['pesanan_id', 'produk_id', 'jumlah_dus', 'jumlah_dus_terkirim', 'harga_satuan', 'subtotal', 'is_bonus'])]
 class PesananItem extends Model
 {
     use HasFactory;
@@ -20,6 +20,7 @@ class PesananItem extends Model
             'jumlah_dus_terkirim' => 'integer',
             'harga_satuan' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'is_bonus' => 'boolean',
         ];
     }
 

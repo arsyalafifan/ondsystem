@@ -83,6 +83,11 @@
 
         <div x-show="terbuka" x-cloak class="border-t border-gray-200">
             <div class="flex justify-end gap-2 border-b border-gray-100 px-3 py-2">
+                <button type="button" wire:click="unduhKml" wire:loading.attr="disabled" wire:target="unduhKml"
+                        title="{{ __('driver.ket_unduh_kml') }}"
+                        class="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60">
+                    <x-heroicon-o-arrow-down-tray class="size-4" /> {{ __('driver.unduh_kml') }}
+                </button>
                 <x-tombol-lokasi-saya callback="pusatkanLokasiSayaDriver" />
             </div>
             <div wire:ignore id="peta-kunjungan" class="peta h-[360px]"></div>

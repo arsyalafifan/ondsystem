@@ -109,7 +109,16 @@ class InsentifSales extends Component
                 return [
                     'user_id' => $pembuat->id,
                     'nama' => $pembuat->name,
-                    'total_dus' => (int) $grup->sum(fn (Pesanan $p) => $p->items->sum->terkirim),
+                    // is_bonus dikecualikan sebagai pertahanan berlapis: secara
+                    // struktural item bonus tidak seharusnya pernah muncul di
+                    // sini sama sekali (cuma admin/superadmin yang bisa
+                    // menginputnya, dan whereHas('pembuat', role Sales) di atas
+                    // sudah menyaring pesanan yang dibuat admin), tapi baris ini
+                    // memastikan dus bonus TETAP tidak ikut terhitung sekalipun
+                    // asumsi itu suatu saat berubah.
+                    'total_dus' => (int) $grup->sum(
+                        fn (Pesanan $p) => $p->items->where('is_bonus', false)->sum->terkirim
+                    ),
                     'total_pesanan' => $grup->count(),
                     'total_toko' => $grup->pluck('toko_id')->unique()->count(),
                 ];

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\JenisPesanan;
+use App\Enums\PeranPengguna;
 use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
@@ -29,22 +30,58 @@ use RuntimeException;
 class PesananService
 {
     /**
-     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items  item biasa, harga penuh
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $bonusItems  item bonus — harga SELALU 0
+     *                                                                          berapa pun jumlah dus-nya,
+     *                                                                          dan tidak pernah digabung
+     *                                                                          dengan item biasa untuk
+     *                                                                          produk yang sama (dua baris
+     *                                                                          terpisah, bukan satu baris
+     *                                                                          bertambah)
+     * @param  ?User  $atasNamaSales  wajib diisi kalau $pembuat admin/superadmin — dicatat di
+     *                                Pesanan::sales_id supaya faktur tetap menampilkan nama sales
+     *                                yang sebenarnya, bukan nama admin yang mengetik
      *
      * @throws ValidationException
      */
-    public function buat(Toko $toko, array $items, User $pembuat, ?string $catatan = null): Pesanan
-    {
+    public function buat(
+        Toko $toko,
+        array $items,
+        User $pembuat,
+        ?string $catatan = null,
+        array $bonusItems = [],
+        ?User $atasNamaSales = null,
+    ): Pesanan {
         $items = $this->bersihkanItems($items);
+        $bonusItems = $this->bersihkanItems($bonusItems);
 
-        if ($items === []) {
+        if ($items === [] && $bonusItems === []) {
             throw ValidationException::withMessages([
                 'items' => __('pesanan.galat_minimal_satu'),
             ]);
         }
 
+        // Admin/superadmin mengetik pesanan ini, bukan sales — faktur tetap
+        // perlu menampilkan nama sales yang sebenarnya bertanggung jawab,
+        // jadi field ini wajib diisi untuk mereka. Sales yang menginput
+        // pesanannya sendiri tidak perlu mengisi apa-apa di sini.
+        if ($pembuat->isAdmin() && $atasNamaSales === null) {
+            throw ValidationException::withMessages([
+                'atasNamaSales' => __('pesanan.galat_sales_wajib'),
+            ]);
+        }
+
+        if ($atasNamaSales !== null && $atasNamaSales->role !== PeranPengguna::Sales) {
+            throw ValidationException::withMessages([
+                'atasNamaSales' => __('pesanan.galat_bukan_sales'),
+            ]);
+        }
+
         $minDus = (int) config('ond.min_dus_per_toko');
-        $totalDus = array_sum(array_column($items, 'jumlah_dus'));
+        // Dus bonus tetap dus fisik yang sungguh dimuat ke mobil — ikut
+        // dihitung ke batas minimal dan total_dus, walau harganya 0.
+        $totalDus = array_sum(array_column($items, 'jumlah_dus'))
+            + array_sum(array_column($bonusItems, 'jumlah_dus'));
 
         if ($totalDus < $minDus) {
             throw ValidationException::withMessages([
@@ -68,7 +105,7 @@ class PesananService
             ]);
         }
 
-        return DB::transaction(function () use ($toko, $items, $pembuat, $catatan, $totalDus): Pesanan {
+        return DB::transaction(function () use ($toko, $items, $bonusItems, $pembuat, $catatan, $totalDus, $atasNamaSales): Pesanan {
             // Dikunci di dalam transaksi supaya dua sales yang menekan simpan
             // bersamaan tidak sama-sama lolos pemeriksaan pesanan aktif.
             $adaPesananAktif = Pesanan::query()
@@ -83,14 +120,21 @@ class PesananService
                 ]);
             }
 
-            $produkIds = array_column($items, 'produk_id');
-            $produks = Produk::whereIn('id', $produkIds)->lockForUpdate()->get()->keyBy('id');
+            // Stok diperiksa atas permintaan GABUNGAN (biasa + bonus) per
+            // produk — produk yang sama boleh muncul di kedua daftar (lihat
+            // docblock method ini), dan totalnya tetap harus muat di stok
+            // yang tersedia, bukan diperiksa dua kali secara terpisah
+            // seolah-olah keduanya tidak berbagi rak yang sama.
+            $gabunganPermintaan = [];
 
-            $totalNilai = 0;
-            $baris = [];
+            foreach ([...$items, ...$bonusItems] as $item) {
+                $gabunganPermintaan[$item['produk_id']] = ($gabunganPermintaan[$item['produk_id']] ?? 0) + $item['jumlah_dus'];
+            }
 
-            foreach ($items as $item) {
-                $produk = $produks->get($item['produk_id']);
+            $produks = Produk::whereIn('id', array_keys($gabunganPermintaan))->lockForUpdate()->get()->keyBy('id');
+
+            foreach ($gabunganPermintaan as $produkId => $jumlahDiminta) {
+                $produk = $produks->get($produkId);
 
                 if ($produk === null || ! $produk->aktif) {
                     throw ValidationException::withMessages([
@@ -98,25 +142,15 @@ class PesananService
                     ]);
                 }
 
-                if ($item['jumlah_dus'] > $produk->stok_tersedia) {
+                if ($jumlahDiminta > $produk->stok_tersedia) {
                     throw ValidationException::withMessages([
                         'items' => __('pesanan.galat_stok_kurang', [
                             'nama' => $produk->nama,
-                            'diminta' => $item['jumlah_dus'],
+                            'diminta' => $jumlahDiminta,
                             'tersedia' => $produk->stok_tersedia,
                         ]),
                     ]);
                 }
-
-                $subtotal = (float) $produk->harga * $item['jumlah_dus'];
-                $totalNilai += $subtotal;
-
-                $baris[] = [
-                    'produk' => $produk,
-                    'jumlah_dus' => $item['jumlah_dus'],
-                    'harga_satuan' => (float) $produk->harga,
-                    'subtotal' => $subtotal,
-                ];
             }
 
             $pesanan = Pesanan::create([
@@ -124,23 +158,53 @@ class PesananService
                 'toko_id' => $toko->id,
                 'wilayah_id' => $toko->wilayah_id,
                 'dibuat_oleh' => $pembuat->id,
+                'sales_id' => $atasNamaSales?->id,
                 'status' => StatusPesanan::Order,
                 'tanggal' => today(),
                 'total_dus' => $totalDus,
-                'total_nilai' => $totalNilai,
+                'total_nilai' => 0,
                 'catatan' => $catatan,
             ]);
 
-            foreach ($baris as $b) {
+            $totalNilai = 0.0;
+
+            foreach ($items as $item) {
+                $produk = $produks->get($item['produk_id']);
+                $subtotal = (float) $produk->harga * $item['jumlah_dus'];
+                $totalNilai += $subtotal;
+
                 $pesanan->items()->create([
-                    'produk_id' => $b['produk']->id,
-                    'jumlah_dus' => $b['jumlah_dus'],
-                    'harga_satuan' => $b['harga_satuan'],
-                    'subtotal' => $b['subtotal'],
+                    'produk_id' => $produk->id,
+                    'jumlah_dus' => $item['jumlah_dus'],
+                    'harga_satuan' => (float) $produk->harga,
+                    'subtotal' => $subtotal,
+                    'is_bonus' => false,
                 ]);
 
-                $this->kunciStok($b['produk'], $b['jumlah_dus'], $pesanan, $pembuat);
+                $this->kunciStok($produk, $item['jumlah_dus'], $pesanan, $pembuat);
             }
+
+            // Item bonus: harga & subtotal SELALU 0, berapa pun jumlah
+            // dus-nya atau berapa pun harga produk sebenarnya — inilah
+            // "perlakuan khusus" bonus. Stoknya tetap dikunci sama seperti
+            // item biasa (baris kunciStok() di bawah tidak beda sama sekali
+            // dari baris biasa di atas): dus bonus tetap fisik keluar dari
+            // gudang saat pengiriman, cuma tidak ditagihkan.
+            foreach ($bonusItems as $item) {
+                $produk = $produks->get($item['produk_id']);
+
+                $pesanan->items()->create([
+                    'produk_id' => $produk->id,
+                    'jumlah_dus' => $item['jumlah_dus'],
+                    'harga_satuan' => 0,
+                    'subtotal' => 0,
+                    'is_bonus' => true,
+                ]);
+
+                $this->kunciStok($produk, $item['jumlah_dus'], $pesanan, $pembuat);
+            }
+
+            $pesanan->update(['total_nilai' => $totalNilai]);
 
             return $pesanan->fresh(['items.produk', 'toko']);
         });
@@ -164,7 +228,15 @@ class PesananService
      *    dilayani, karena POS tidak bersinggungan dengan routing sama
      *    sekali.
      *
-     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items
+     * Sama seperti buat(): admin/superadmin boleh menyertakan item bonus
+     * (harga & subtotal SELALU 0), stoknya tetap keluar fisik seketika
+     * seperti item biasa. Bedanya dari buat(), POS tidak butuh "atas nama
+     * sales" sama sekali — tidak ada faktur bercetak yang menampilkan nama
+     * sales untuk transaksi POS (statusnya langsung SELESAI, tidak pernah
+     * lolos `bisaDicetak()`), jadi tidak ada yang perlu diatribusikan.
+     *
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items  item biasa, harga penuh
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $bonusItems  item bonus — harga SELALU 0
      *
      * @throws ValidationException
      */
@@ -175,16 +247,21 @@ class PesananService
         float $nominalCash,
         float $nominalTransfer,
         ?string $catatan = null,
+        array $bonusItems = [],
     ): Pesanan {
         $items = $this->bersihkanItems($items);
+        $bonusItems = $this->bersihkanItems($bonusItems);
 
-        if ($items === []) {
+        if ($items === [] && $bonusItems === []) {
             throw ValidationException::withMessages([
                 'items' => __('pesanan.galat_minimal_satu'),
             ]);
         }
 
-        if (! $toko->aktif) {
+        // Toko::internal() (transaksi "Tanpa Toko") sengaja dibuat
+        // aktif=false supaya tersembunyi dari pencarian toko biasa —
+        // dikecualikan di sini, bukan dianggap toko nonaktif sungguhan.
+        if (! $toko->aktif && ! $toko->isInternal()) {
             throw ValidationException::withMessages([
                 'toko_id' => __('pesanan.galat_toko_nonaktif', ['nama' => $toko->nama]),
             ]);
@@ -202,16 +279,21 @@ class PesananService
             ]);
         }
 
-        return DB::transaction(function () use ($toko, $items, $penjual, $nominalCash, $nominalTransfer, $catatan): Pesanan {
-            $produkIds = array_column($items, 'produk_id');
-            $produks = Produk::whereIn('id', $produkIds)->lockForUpdate()->get()->keyBy('id');
+        return DB::transaction(function () use ($toko, $items, $bonusItems, $penjual, $nominalCash, $nominalTransfer, $catatan): Pesanan {
+            // Stok diperiksa atas permintaan GABUNGAN (biasa + bonus) per
+            // produk — sama seperti buat(), produk yang sama boleh muncul
+            // di kedua daftar dan totalnya harus muat di stok fisik yang
+            // sama, bukan diperiksa dua kali secara terpisah.
+            $gabunganPermintaan = [];
 
-            $totalDus = 0;
-            $totalNilai = 0.0;
-            $baris = [];
+            foreach ([...$items, ...$bonusItems] as $item) {
+                $gabunganPermintaan[$item['produk_id']] = ($gabunganPermintaan[$item['produk_id']] ?? 0) + $item['jumlah_dus'];
+            }
 
-            foreach ($items as $item) {
-                $produk = $produks->get($item['produk_id']);
+            $produks = Produk::whereIn('id', array_keys($gabunganPermintaan))->lockForUpdate()->get()->keyBy('id');
+
+            foreach ($gabunganPermintaan as $produkId => $jumlahDiminta) {
+                $produk = $produks->get($produkId);
 
                 if ($produk === null || ! $produk->aktif) {
                     throw ValidationException::withMessages([
@@ -219,26 +301,27 @@ class PesananService
                     ]);
                 }
 
-                if ($item['jumlah_dus'] > $produk->stok) {
+                if ($jumlahDiminta > $produk->stok) {
                     throw ValidationException::withMessages([
                         'items' => __('pesanan.galat_stok_kurang', [
                             'nama' => $produk->nama,
-                            'diminta' => $item['jumlah_dus'],
+                            'diminta' => $jumlahDiminta,
                             'tersedia' => $produk->stok,
                         ]),
                     ]);
                 }
+            }
 
-                $subtotal = (float) $produk->harga * $item['jumlah_dus'];
-                $totalDus += $item['jumlah_dus'];
-                $totalNilai += $subtotal;
+            // Dus bonus tetap dus fisik yang sungguh keluar dari rak, jadi
+            // ikut dihitung ke total_dus — tapi tidak pernah ke total_nilai
+            // (harganya selalu 0, lihat perulangan penyimpanan di bawah).
+            $totalDus = array_sum(array_column($items, 'jumlah_dus'))
+                + array_sum(array_column($bonusItems, 'jumlah_dus'));
 
-                $baris[] = [
-                    'produk' => $produk,
-                    'jumlah_dus' => $item['jumlah_dus'],
-                    'harga_satuan' => (float) $produk->harga,
-                    'subtotal' => $subtotal,
-                ];
+            $totalNilai = 0.0;
+
+            foreach ($items as $item) {
+                $totalNilai += (float) $produks->get($item['produk_id'])->harga * $item['jumlah_dus'];
             }
 
             // Toleransi 1 rupiah untuk pembulatan, sama seperti
@@ -272,16 +355,39 @@ class PesananService
                 'nominal_transfer' => $nominalTransfer,
             ]);
 
-            foreach ($baris as $b) {
+            foreach ($items as $item) {
+                $produk = $produks->get($item['produk_id']);
+                $subtotal = (float) $produk->harga * $item['jumlah_dus'];
+
                 $pesanan->items()->create([
-                    'produk_id' => $b['produk']->id,
-                    'jumlah_dus' => $b['jumlah_dus'],
-                    'jumlah_dus_terkirim' => $b['jumlah_dus'],
-                    'harga_satuan' => $b['harga_satuan'],
-                    'subtotal' => $b['subtotal'],
+                    'produk_id' => $produk->id,
+                    'jumlah_dus' => $item['jumlah_dus'],
+                    'jumlah_dus_terkirim' => $item['jumlah_dus'],
+                    'harga_satuan' => (float) $produk->harga,
+                    'subtotal' => $subtotal,
+                    'is_bonus' => false,
                 ]);
 
-                $this->keluarkanStok($b['produk'], $b['jumlah_dus'], $pesanan, $penjual);
+                $this->keluarkanStok($produk, $item['jumlah_dus'], $pesanan, $penjual);
+            }
+
+            // Item bonus: harga & subtotal SELALU 0 — sama seperti buat(),
+            // stoknya tetap keluar fisik seketika seperti item biasa (baris
+            // keluarkanStok() di bawah tidak beda sama sekali dari baris
+            // biasa di atas).
+            foreach ($bonusItems as $item) {
+                $produk = $produks->get($item['produk_id']);
+
+                $pesanan->items()->create([
+                    'produk_id' => $produk->id,
+                    'jumlah_dus' => $item['jumlah_dus'],
+                    'jumlah_dus_terkirim' => $item['jumlah_dus'],
+                    'harga_satuan' => 0,
+                    'subtotal' => 0,
+                    'is_bonus' => true,
+                ]);
+
+                $this->keluarkanStok($produk, $item['jumlah_dus'], $pesanan, $penjual);
             }
 
             return $pesanan->fresh(['items.produk', 'toko']);
@@ -398,6 +504,41 @@ class PesananService
                 'dibatalkan_at' => now(),
             ]);
         });
+    }
+
+    /**
+     * Menandai FINAL pesanan yang sebelumnya dibatalkan DRIVER di lapangan
+     * (lihat `Pesanan::bisa_order_ulang`) sebagai batal karena toko —
+     * dipakai admin ketika memutuskan TIDAK akan order ulang lagi.
+     *
+     * Cuma mengubah `alasan_cancel` (alasan aslinya dari driver disalin ke
+     * `catatan_cancel` supaya tidak hilang) — SENGAJA TIDAK menyentuh stok
+     * maupun `dibatalkan_oleh`/`dibatalkan_at` sama sekali. Dus yang masih
+     * fisik di mobil driver tetap mengikuti alur kampas/selesaikanKendaraan
+     * yang sudah ada (PengirimanService) — lepas sama sekali dari tindakan
+     * ini, yang murni soal pencatatan alasan akhir, bukan soal stok.
+     * Siapa yang sungguh membatalkan (driver, di lapangan) dan kapan tetap
+     * apa adanya, supaya jejak auditnya tidak berubah jadi seolah-olah
+     * admin sendiri yang membatalkan.
+     */
+    public function tandaiBatalKarenaToko(Pesanan $pesanan, User $admin): void
+    {
+        $pesanan->loadMissing('stop');
+
+        if (! $pesanan->bisa_order_ulang) {
+            throw new RuntimeException(__('pesanan.galat_bukan_batal_lapangan'));
+        }
+
+        $catatan = __('pesanan.catatan_alasan_awal', ['alasan' => $pesanan->alasan_cancel]);
+
+        if ($pesanan->catatan_cancel) {
+            $catatan .= "\n".$pesanan->catatan_cancel;
+        }
+
+        $pesanan->update([
+            'alasan_cancel' => __('pesanan.alasan_toko_batal'),
+            'catatan_cancel' => $catatan,
+        ]);
     }
 
     private function kunciStok(Produk $produk, int $jumlah, Pesanan $pesanan, User $user): void
