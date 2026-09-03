@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\JenisPesanan;
 use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
-use App\Enums\StatusStop;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -189,27 +188,27 @@ class Pesanan extends Model
     }
 
     /**
-     * Dibatalkan DRIVER di lapangan (bukan oleh admin dari Daftar Pesanan)
-     * dengan alasan SELAIN "toko membatalkan pesanan" — situasi yang masih
-     * bisa ditindaklanjuti admin lewat Order Ulang, atau ditandai final
-     * lewat tombol Batalkan.
+     * Dibatalkan dengan alasan SELAIN "toko membatalkan pesanan" — situasi
+     * yang masih ambigu (bukan penolakan final dari toko), jadi masih bisa
+     * ditindaklanjuti admin lewat Order Ulang, atau ditandai final lewat
+     * tombol Batalkan. Berlaku SAMA SAJA baik pesanan ini dibatalkan driver
+     * di lapangan (`PengirimanService::batalkanDiLapangan()`) maupun
+     * dibatalkan admin langsung dari Daftar Pesanan (`PesananService::batalkan()`)
+     * — keduanya sama-sama boleh dicoba lagi kalau alasannya belum final,
+     * SIAPA yang membatalkan tidak relevan bagi aturan ini.
      *
-     * Dibedakan dari pembatalan admin lewat keberadaan `stop`:
-     * `PesananService::batalkan()` (admin) MENGHAPUS baris stop-nya,
-     * sedangkan `PengirimanService::batalkanDiLapangan()` (driver)
-     * membiarkannya ada dengan status Dibatalkan — dus-nya masih fisik di
-     * mobil, jadi kunjungannya tetap perlu terlihat driver. Kalau
-     * alasannya sudah "toko membatalkan pesanan", dianggap sudah final —
-     * tidak ada lagi yang perlu ditindaklanjuti admin.
-     *
-     * Pemanggil wajib memuat relasi `stop` lebih dulu — mode ketat model
-     * melempar galat kalau belum, alih-alih memicu kueri N+1 diam-diam.
+     * Sengaja TIDAK mensyaratkan `stop` masih ada: `PesananService::batalkan()`
+     * (admin) menghapus baris stop-nya, sedangkan
+     * `PengirimanService::batalkanDiLapangan()` (driver) membiarkannya ada
+     * berstatus Dibatalkan — keduanya valid, dan Order Ulang/Batalkan cuma
+     * membuat pesanan baru atau mengubah catatan alasan (tidak pernah
+     * menyentuh stok), jadi aman dipakai untuk kedua jalur pembatalan
+     * tanpa perlu tahu yang mana yang terjadi.
      */
     protected function bisaOrderUlang(): Attribute
     {
         return Attribute::get(fn (): bool => $this->status === StatusPesanan::Cancel
-            && $this->stop !== null
-            && $this->stop->status === StatusStop::Dibatalkan
+            && $this->alasan_cancel !== null
             && $this->alasan_cancel !== __('pesanan.alasan_toko_batal'));
     }
 

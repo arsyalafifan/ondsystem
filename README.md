@@ -80,13 +80,17 @@ Dua kolom tambahan pada tabel:
   pembatal, dilunasiOleh) lebih dulu; mode ketat model melempar galat kalau
   belum, alih-alih memicu kueri N+1 diam-diam untuk tiap baris tabel.
 
-### Order Ulang / Batalkan — pesanan yang dibatalkan driver di lapangan
+### Order Ulang / Batalkan — pesanan yang dibatalkan dengan alasan selain toko menolak
 
-Ketika driver membatalkan kunjungan di lapangan (lihat "Tiga keputusan
-driver di lapangan" di bawah) dengan alasan **selain** "Toko membatalkan
-pesanan" — mis. toko tutup, stok tidak mencukupi, alamat tidak
-ditemukan — situasinya masih ambigu, bukan penolakan final dari toko.
-Baris pesanan itu di Daftar Pesanan menampilkan dua tombol tambahan:
+Kapan pun sebuah pesanan berakhir dibatalkan dengan alasan **selain**
+"Toko membatalkan pesanan" — mis. toko tutup, stok tidak mencukupi,
+alamat tidak ditemukan, atau "Lainnya" — situasinya masih ambigu, bukan
+penolakan final dari toko. Berlaku **apa pun jalur pembatalannya**: baik
+driver yang membatalkan kunjungan di lapangan (lihat "Tiga keputusan
+driver di lapangan" di bawah) MAUPUN admin yang membatalkan langsung dari
+Daftar Pesanan lewat tombol "Batalkan" biasa — SIAPA yang membatalkan
+tidak relevan, cuma ALASANNYA yang menentukan (`Pesanan::bisa_order_ulang`).
+Baris pesanan itu menampilkan dua tombol tambahan:
 
 - **Order Ulang** — membuka modal berisi produk & jumlah dus yang SAMA
   seperti pesanan lama (toko-nya tetap sama, tidak perlu dipilih ulang),
@@ -102,21 +106,26 @@ Baris pesanan itu di Daftar Pesanan menampilkan dua tombol tambahan:
 - **Batalkan** — menandai FINAL bahwa pesanan ini tidak akan di-order
   ulang lagi, lewat `PesananService::tandaiBatalKarenaToko()`. Cuma
   mengubah `alasan_cancel` jadi "Toko membatalkan pesanan" (alasan
-  aslinya dari driver disalin ke `catatan_cancel` supaya tidak hilang)
-  — **sama sekali tidak menyentuh stok atau siapa yang sungguh
-  membatalkan** (`dibatalkan_oleh`/`dibatalkan_at` tetap driver &
-  waktu aslinya, bukan diganti admin yang cuma menandai final). Dus
-  yang masih fisik di mobil driver tetap sepenuhnya mengikuti alur
-  kampas/`selesaikanKendaraan()` yang sudah ada — lepas total dari
-  tindakan ini.
+  aslinya disalin ke `catatan_cancel` supaya tidak hilang) — **sama
+  sekali tidak menyentuh stok atau siapa yang sungguh membatalkan**
+  (`dibatalkan_oleh`/`dibatalkan_at` tetap apa adanya, tidak diganti
+  admin yang cuma menandai final). Aman untuk kedua jalur pembatalan:
+  stok pesanan yang dibatalkan admin langsung sudah dilepas SEKETIKA saat
+  dibatalkan (`PesananService::batalkan()`), sedangkan dus dari
+  pembatalan driver di lapangan tetap sepenuhnya mengikuti alur
+  kampas/`selesaikanKendaraan()` yang sudah ada — kedua-duanya lepas
+  total dari tindakan "Batalkan" ini, yang murni soal pencatatan alasan.
 
-Kedua tombol ini HANYA muncul untuk pesanan yang dibatalkan **driver**
-lewat `PengirimanService::batalkanDiLapangan()`, bukan yang dibatalkan
-admin sendiri lewat tombol "Batalkan" biasa di atas. Tidak ada kolom
-baru untuk membedakan keduanya — cukup lewat keberadaan `stop`-nya:
-pembatalan driver membiarkan baris `KendaraanStop` tetap ada berstatus
-`Dibatalkan` (dus-nya masih perlu terlihat driver untuk diampaskan),
-sedangkan pembatalan admin MENGHAPUSNYA sekalian (`Pesanan::bisa_order_ulang`).
+**Bug nyata yang sempat terjadi**: `bisa_order_ulang` awalnya keliru
+mensyaratkan baris `KendaraanStop` masih ada — syarat yang cuma benar
+untuk jalur driver (`PengirimanService::batalkanDiLapangan()` membiarkan
+stop-nya ada berstatus `Dibatalkan`), sedangkan `PesananService::batalkan()`
+(admin) MENGHAPUS baris stop-nya sekalian. Akibatnya pesanan yang
+dibatalkan admin langsung dengan alasan selain "toko membatalkan
+pesanan" tetap tidak menampilkan Order Ulang — padahal alasannya sendiri
+sudah memenuhi syarat. Diperbaiki dengan melepas syarat `stop` itu sama
+sekali; sekarang cuma status `Cancel` + alasan yang diperiksa, seperti
+seharusnya.
 
 ### Tiga keputusan driver di lapangan
 
@@ -1351,7 +1360,7 @@ orang, bukan uang per hari).
 php artisan test
 ```
 
-553 tes, mencakup:
+561 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1577,24 +1586,30 @@ php artisan test
 - **[`tests/Feature/AlurPesananTest.php`](tests/Feature/AlurPesananTest.php)** —
   aturan minimal dus, satu pesanan aktif per toko, dan pengembalian stok.
 - **[`tests/Feature/OrderUlangTest.php`](tests/Feature/OrderUlangTest.php)** —
-  "Order Ulang"/"Batalkan" untuk pesanan yang dibatalkan driver di
-  lapangan: `Pesanan::bisa_order_ulang` benar HANYA untuk pembatalan
-  driver dengan alasan selain "toko membatalkan pesanan" (salah untuk
-  alasan yang sudah final, salah untuk pembatalan ADMIN karena stop-nya
-  terhapus, salah untuk pesanan yang belum dibatalkan sama sekali);
+  "Order Ulang"/"Batalkan" untuk pesanan yang dibatalkan dengan alasan
+  selain "toko membatalkan pesanan": `Pesanan::bisa_order_ulang` benar
+  untuk SEMUA keenam pilihan alasan (kecuali yang sudah final), diuji
+  lewat dataset gabungan pembatalan DRIVER di lapangan MAUPUN admin
+  langsung dari Daftar Pesanan — keduanya sama-sama harus eligible
+  (regresi nyata: awalnya `bisa_order_ulang` keliru mensyaratkan baris
+  `KendaraanStop` masih ada, syarat yang cuma benar untuk jalur driver,
+  membuat pesanan yang dibatalkan admin langsung dengan alasan yang sudah
+  memenuhi syarat tetap tidak menampilkan Order Ulang — dilaporkan
+  pengguna, diperbaiki dengan melepas syarat `stop` sama sekali); salah
+  untuk pesanan yang belum dibatalkan sama sekali;
   `PesananService::tandaiBatalKarenaToko()` mengubah alasan_cancel TANPA
   menyentuh stok maupun siapa yang sungguh membatalkan (`dibatalkan_oleh`
-  tetap driver), dan menolak dipanggil dua kali atau untuk pembatalan
-  admin; tombol Order Ulang/Batalkan di Daftar Pesanan hanya tampil untuk
-  baris yang eligible; membuka modal Order Ulang mengisi baris produk dan
-  sales sesuai pesanan lama; menyimpannya membuat pesanan baru dengan item
-  yang sama; ditolak dengan galat DI DALAM modal (bukan cuma notifikasi)
-  kalau stok tidak mencukupi, modal tetap terbuka untuk disesuaikan, dan
-  percobaan susulan yang berhasil TIDAK lagi membawa galat lama yang
-  sudah tidak relevan (regresi nyata: `simpanOrderUlang()` awalnya lupa
-  `resetValidation()`, jadi galat dari percobaan gagal sebelumnya tetap
-  menempel walau percobaan berikutnya sukses); dan sales tidak bisa
-  memicu `bukaOrderUlang()`/`tandaiBatalKarenaToko()` sama sekali (403).
+  tetap apa adanya) untuk KEDUA jalur pembatalan, dan menolak dipanggil
+  dua kali; tombol Order Ulang/Batalkan di Daftar Pesanan tampil untuk
+  baris yang eligible dari kedua jalur sekaligus; membuka modal Order
+  Ulang mengisi baris produk dan sales sesuai pesanan lama; menyimpannya
+  membuat pesanan baru dengan item yang sama, berhasil baik dari
+  pembatalan driver maupun admin; ditolak dengan galat DI DALAM modal
+  (bukan cuma notifikasi) kalau stok tidak mencukupi, modal tetap
+  terbuka untuk disesuaikan, dan percobaan susulan yang berhasil TIDAK
+  lagi membawa galat lama yang sudah tidak relevan (regresi nyata lain:
+  `simpanOrderUlang()` awalnya lupa `resetValidation()`); dan sales tidak
+  bisa memicu `bukaOrderUlang()`/`tandaiBatalKarenaToko()` sama sekali (403).
 - **[`tests/Feature/PesananBonusTest.php`](tests/Feature/PesananBonusTest.php)** —
   langkah bonus produk admin/superadmin di Input Pesanan: item bonus
   tersimpan dengan harga 0 tapi stok tetap dikunci; admin wajib memilih

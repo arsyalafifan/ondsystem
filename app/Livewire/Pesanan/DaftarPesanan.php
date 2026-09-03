@@ -297,7 +297,7 @@ class DaftarPesanan extends Component
     {
         return $this->pesananOrderUlang === null
             ? null
-            : Pesanan::with(['items.produk:id,nama,kode', 'toko', 'pembuat', 'stop'])->find($this->pesananOrderUlang);
+            : Pesanan::with(['items.produk:id,nama,kode', 'toko', 'pembuat'])->find($this->pesananOrderUlang);
     }
 
     /** @return Collection<int, Produk> */
@@ -320,7 +320,7 @@ class DaftarPesanan extends Component
             abort(403);
         }
 
-        $pesanan = Pesanan::with(['items', 'pembuat', 'stop'])->findOrFail($id);
+        $pesanan = Pesanan::with(['items', 'pembuat'])->findOrFail($id);
 
         if (! $pesanan->bisa_order_ulang) {
             $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');
@@ -362,12 +362,13 @@ class DaftarPesanan extends Component
 
     /**
      * Membuat pesanan baru dengan item yang sama seperti pesanan yang
-     * dibatalkan driver — lewat PesananService::buat() apa adanya, supaya
-     * seluruh aturan biasa (stok tersedia, minimal dus, toko tidak lagi
-     * punya pesanan aktif lain) tetap berlaku sama persis seperti Input
-     * Pesanan. Kalau stoknya kurang, galatnya muncul di modal ini juga —
-     * admin tinggal menunggu stok tersedia atau mengubah baris produknya
-     * langsung di sini, tanpa perlu pindah layar.
+     * dibatalkan (driver di lapangan MAUPUN admin langsung dari sini) —
+     * lewat PesananService::buat() apa adanya, supaya seluruh aturan biasa
+     * (stok tersedia, minimal dus, toko tidak lagi punya pesanan aktif
+     * lain) tetap berlaku sama persis seperti Input Pesanan. Kalau stoknya
+     * kurang, galatnya muncul di modal ini juga — admin tinggal menunggu
+     * stok tersedia atau mengubah baris produknya langsung di sini, tanpa
+     * perlu pindah layar.
      */
     public function simpanOrderUlang(PesananService $service): void
     {
@@ -380,7 +381,7 @@ class DaftarPesanan extends Component
         // diperbaiki tetap menampilkan galat lama yang sudah tidak relevan.
         $this->resetValidation();
 
-        $pesananAsli = Pesanan::with(['toko', 'stop'])->findOrFail($this->pesananOrderUlang);
+        $pesananAsli = Pesanan::with(['toko'])->findOrFail($this->pesananOrderUlang);
 
         if (! $pesananAsli->bisa_order_ulang) {
             $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');

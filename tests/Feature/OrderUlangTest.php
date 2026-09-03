@@ -14,13 +14,23 @@ use App\Services\RoutingService;
 use Livewire\Livewire;
 
 /**
- * "Order Ulang" / "Batalkan" untuk pesanan yang dibatalkan DRIVER di
- * lapangan (bukan oleh admin dari Daftar Pesanan) dengan alasan SELAIN
- * "toko membatalkan pesanan" — mis. toko tutup, stok tidak mencukupi,
- * alamat tidak ditemukan. Situasi ini masih ambigu (bukan penolakan
- * final toko), jadi admin diberi dua pilihan: coba lagi dengan item yang
- * sama (Order Ulang), atau menganggapnya final (Batalkan — cuma mengubah
- * catatan alasan, sama sekali tidak menyentuh stok).
+ * "Order Ulang" / "Batalkan" untuk pesanan yang dibatalkan dengan alasan
+ * SELAIN "toko membatalkan pesanan" — mis. toko tutup, stok tidak
+ * mencukupi, alamat tidak ditemukan. Situasi ini masih ambigu (bukan
+ * penolakan final toko), jadi admin diberi dua pilihan: coba lagi dengan
+ * item yang sama (Order Ulang), atau menganggapnya final (Batalkan — cuma
+ * mengubah catatan alasan, sama sekali tidak menyentuh stok).
+ *
+ * Berlaku SAMA SAJA baik pesanan dibatalkan driver di lapangan
+ * (`PengirimanService::batalkanDiLapangan()`) maupun dibatalkan admin
+ * langsung dari Daftar Pesanan (`PesananService::batalkan()`) — SIAPA yang
+ * membatalkan tidak relevan, cuma ALASANNYA yang menentukan. Awalnya fitur
+ * ini keliru mensyaratkan `stop` masih ada (yang cuma benar untuk jalur
+ * driver — `batalkan()` admin MENGHAPUS baris stop-nya), sehingga pesanan
+ * yang dibatalkan admin dengan alasan selain toko batal tetap tidak
+ * menampilkan Order Ulang — bug nyata yang dilaporkan pengguna, diperbaiki
+ * dengan melepas syarat `stop` dari `Pesanan::bisa_order_ulang` sama
+ * sekali.
  */
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
@@ -53,10 +63,9 @@ function buatTokoOrderUlang(string $nama = 'Toko Uji OU'): Toko
 
 /**
  * Menyiapkan satu pesanan yang sudah dibatalkan DRIVER di lapangan (lewat
- * PengirimanService::batalkanDiLapangan(), bukan PesananService::batalkan()
- * admin) — jalur satu-satunya yang membuat Pesanan::bisa_order_ulang bisa
- * bernilai true. Mengembalikan pesanan yang sudah di-refresh berikut
- * relasi item/toko/stop-nya.
+ * PengirimanService::batalkanDiLapangan()) — baris `stop`-nya tetap ada
+ * berstatus Dibatalkan. Mengembalikan pesanan yang sudah di-refresh
+ * berikut relasi item/toko/stop-nya.
  */
 function pesananDibatalkanDriver(
     string $alasan,
@@ -83,6 +92,23 @@ function pesananDibatalkanDriver(
     return $pesanan->fresh(['items', 'toko', 'stop', 'pembuat']);
 }
 
+/**
+ * Menyiapkan satu pesanan yang dibatalkan ADMIN langsung dari Daftar
+ * Pesanan (lewat PesananService::batalkan()) — baris `stop`-nya (kalau
+ * ada) DIHAPUS sekalian, beda dari jalur driver di atas.
+ */
+function pesananDibatalkanAdmin(string $alasan, int $jumlahDus = 10, ?Toko $toko = null): Pesanan
+{
+    $toko ??= buatTokoOrderUlang();
+
+    $pesanan = test()->pesananService->buat(
+        $toko, [['produk_id' => test()->produk->id, 'jumlah_dus' => $jumlahDus]], test()->sales,
+    );
+    test()->pesananService->batalkan($pesanan, test()->admin, $alasan);
+
+    return $pesanan->fresh(['items', 'toko', 'pembuat']);
+}
+
 // =====================================================================
 describe('Pesanan::bisa_order_ulang', function () {
     it('benar untuk pesanan yang dibatalkan driver dengan alasan selain toko membatalkan', function () {
@@ -91,21 +117,40 @@ describe('Pesanan::bisa_order_ulang', function () {
         expect($pesanan->bisa_order_ulang)->toBeTrue();
     });
 
-    it('salah kalau alasannya sudah "toko membatalkan pesanan"', function () {
-        $pesanan = pesananDibatalkanDriver(__('pesanan.alasan_toko_batal'));
+    /**
+     * Ini bug yang dilaporkan pengguna: pesanan yang dibatalkan ADMIN
+     * langsung (bukan driver di lapangan) dengan alasan selain "toko
+     * membatalkan pesanan" TETAP harus bisa di-order ulang — SIAPA yang
+     * membatalkan tidak relevan, cuma alasannya yang menentukan.
+     */
+    it('benar untuk pesanan yang dibatalkan ADMIN langsung dengan alasan selain toko membatalkan', function () {
+        $pesanan = pesananDibatalkanAdmin(__('pesanan.alasan_stok'));
 
-        expect($pesanan->bisa_order_ulang)->toBeFalse();
+        expect($pesanan->stop)->toBeNull()
+            ->and($pesanan->bisa_order_ulang)->toBeTrue();
     });
 
-    it('salah untuk pesanan yang dibatalkan ADMIN (bukan driver), karena stop-nya dihapus', function () {
-        $toko = buatTokoOrderUlang();
-        $pesanan = $this->pesananService->buat(
-            $toko, [['produk_id' => $this->produk->id, 'jumlah_dus' => 10]], $this->sales,
-        );
+    it('benar untuk SEMUA pilihan alasan selain toko membatalkan pesanan, baik driver maupun admin', function (string $kunciAlasan) {
+        $dariDriver = pesananDibatalkanDriver(__('pesanan.'.$kunciAlasan));
+        $dariAdmin = pesananDibatalkanAdmin(__('pesanan.'.$kunciAlasan));
 
-        $this->pesananService->batalkan($pesanan, $this->admin, __('pesanan.alasan_stok'));
+        expect($dariDriver->bisa_order_ulang)->toBeTrue()
+            ->and($dariAdmin->bisa_order_ulang)->toBeTrue();
+    })->with([
+        'alasan_toko_tutup',
+        'alasan_stok',
+        'alasan_salah_input',
+        'alasan_alamat',
+        'alasan_pembayaran',
+        'alasan_lainnya',
+    ]);
 
-        expect($pesanan->fresh(['stop'])->bisa_order_ulang)->toBeFalse();
+    it('salah kalau alasannya sudah "toko membatalkan pesanan", baik driver maupun admin', function () {
+        $dariDriver = pesananDibatalkanDriver(__('pesanan.alasan_toko_batal'));
+        $dariAdmin = pesananDibatalkanAdmin(__('pesanan.alasan_toko_batal'));
+
+        expect($dariDriver->bisa_order_ulang)->toBeFalse()
+            ->and($dariAdmin->bisa_order_ulang)->toBeFalse();
     });
 
     it('salah untuk pesanan yang belum/tidak dibatalkan sama sekali', function () {
@@ -114,7 +159,7 @@ describe('Pesanan::bisa_order_ulang', function () {
             $toko, [['produk_id' => $this->produk->id, 'jumlah_dus' => 10]], $this->sales,
         );
 
-        expect($pesanan->fresh(['stop'])->bisa_order_ulang)->toBeFalse();
+        expect($pesanan->fresh()->bisa_order_ulang)->toBeFalse();
     });
 });
 
@@ -136,6 +181,14 @@ describe('PesananService::tandaiBatalKarenaToko()', function () {
         expect($this->produk->fresh()->stok_reserved)->toBe($stokRervedSebelum);
     });
 
+    it('berhasil juga untuk pesanan yang dibatalkan admin langsung (bukan cuma driver)', function () {
+        $pesanan = pesananDibatalkanAdmin(__('pesanan.alasan_stok'));
+
+        $this->pesananService->tandaiBatalKarenaToko($pesanan, $this->admin);
+
+        expect($pesanan->fresh()->alasan_cancel)->toBe(__('pesanan.alasan_toko_batal'));
+    });
+
     it('menolak kalau alasannya sudah "toko membatalkan pesanan"', function () {
         $pesanan = pesananDibatalkanDriver(__('pesanan.alasan_toko_batal'));
 
@@ -143,34 +196,30 @@ describe('PesananService::tandaiBatalKarenaToko()', function () {
             ->toThrow(RuntimeException::class);
     });
 
-    it('menolak untuk pesanan yang dibatalkan admin, bukan driver', function () {
+    it('menolak untuk pesanan yang belum/tidak dibatalkan sama sekali', function () {
         $toko = buatTokoOrderUlang();
         $pesanan = $this->pesananService->buat(
             $toko, [['produk_id' => $this->produk->id, 'jumlah_dus' => 10]], $this->sales,
         );
-        $this->pesananService->batalkan($pesanan, $this->admin, __('pesanan.alasan_stok'));
 
-        expect(fn () => $this->pesananService->tandaiBatalKarenaToko($pesanan->fresh(), $this->admin))
+        expect(fn () => $this->pesananService->tandaiBatalKarenaToko($pesanan, $this->admin))
             ->toThrow(RuntimeException::class);
     });
 });
 
 // =====================================================================
 describe('DaftarPesanan (Livewire): Order Ulang', function () {
-    it('tombol Order Ulang dan Batalkan hanya tampil untuk pesanan yang dibatalkan driver, bukan admin', function () {
+    it('tombol Order Ulang dan Batalkan tampil untuk alasan selain toko membatalkan, baik dibatalkan driver maupun admin', function () {
         $dibatalkanDriver = pesananDibatalkanDriver(__('pesanan.alasan_stok'));
-
-        $tokoAdmin = buatTokoOrderUlang();
-        $dibatalkanAdmin = $this->pesananService->buat(
-            $tokoAdmin, [['produk_id' => $this->produk->id, 'jumlah_dus' => 10]], $this->sales,
-        );
-        $this->pesananService->batalkan($dibatalkanAdmin, $this->admin, __('pesanan.alasan_stok'));
+        $dibatalkanAdmin = pesananDibatalkanAdmin(__('pesanan.alasan_alamat'));
+        $sudahFinal = pesananDibatalkanDriver(__('pesanan.alasan_toko_batal'));
 
         $html = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->html();
 
-        expect(substr_count($html, 'wire:click="bukaOrderUlang('))->toBe(1)
-            ->and(substr_count($html, "wire:click=\"tandaiBatalKarenaToko({$dibatalkanDriver->id})\""))->toBe(1)
-            ->and($html)->not->toContain("tandaiBatalKarenaToko({$dibatalkanAdmin->id})");
+        expect(substr_count($html, 'wire:click="bukaOrderUlang('))->toBe(2)
+            ->and($html)->toContain("wire:click=\"tandaiBatalKarenaToko({$dibatalkanDriver->id})\"")
+            ->and($html)->toContain("wire:click=\"tandaiBatalKarenaToko({$dibatalkanAdmin->id})\"")
+            ->and($html)->not->toContain("tandaiBatalKarenaToko({$sudahFinal->id})");
     });
 
     it('membuka modal Order Ulang mengisi baris produk dan sales sesuai pesanan lama', function () {
@@ -201,6 +250,21 @@ describe('DaftarPesanan (Livewire): Order Ulang', function () {
             ->and($baru->items->first()->produk_id)->toBe($this->produk->id)
             ->and($baru->items->first()->jumlah_dus)->toBe(7)
             ->and($baru->sales_id)->toBe($this->sales->id);
+    });
+
+    it('admin bisa order ulang pesanan yang dibatalkannya sendiri langsung (bukan cuma yang dibatalkan driver)', function () {
+        $pesanan = pesananDibatalkanAdmin(__('pesanan.alasan_alamat'), jumlahDus: 6);
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->call('bukaOrderUlang', $pesanan->id)
+            ->call('simpanOrderUlang')
+            ->assertHasNoErrors();
+
+        $baru = Pesanan::where('id', '!=', $pesanan->id)->with('items')->firstOrFail();
+
+        expect($baru->toko_id)->toBe($pesanan->toko_id)
+            ->and($baru->items->first()->jumlah_dus)->toBe(6);
     });
 
     /**
