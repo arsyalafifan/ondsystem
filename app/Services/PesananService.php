@@ -221,19 +221,36 @@ class PesananService
      *
      * Beda lain dari pesanan biasa:
      *  - tidak ada batas minimal dus per toko (mulai dari 1);
-     *  - dibandingkan dengan stok fisik penuh (`stok`), bukan stok_tersedia
-     *    — brang dijual langsung dari rak, jadi reservasi pesanan lain
-     *    tidak relevan di sini;
      *  - toko yang masih punya pesanan pengantaran aktif tetap boleh
      *    dilayani, karena POS tidak bersinggungan dengan routing sama
      *    sekali.
      *
+     * Stok TETAP diperiksa terhadap `stok_tersedia` (`stok - stok_reserved`),
+     * SAMA seperti buat() — bukan `stok` fisik mentah. Dus yang sedang
+     * terkunci untuk pesanan pengantaran lain (termasuk sisa kampas yang
+     * masih di mobil setelah toko batal/dicoret, lihat
+     * `PengirimanService::batalkanDiLapangan()`/`coretNota()`) memang belum
+     * pernah lepas dari mobil — kalau POS dibiarkan menjualnya lagi karena
+     * cuma melihat `stok` mentah (yang belum berkurang sampai barang
+     * benar-benar diserahkan), dus yang sama akan terjanjikan dua kali:
+     * sekali ke pesanan yang menguncinya, sekali lagi ke pembeli POS.
+     * Karena POS tidak pernah lewat `kunciStok()` sama sekali (tidak ada
+     * fase reservasi, barangnya langsung keluar), stok yang benar-benar
+     * dikeluarkannya dipotong lewat `keluarkanStokLangsung()` — hanya
+     * menyentuh `stok` fisik, SENGAJA TIDAK ikut memotong `stok_reserved`
+     * seperti `keluarkanStok()` biasa, supaya kuncian milik pesanan lain
+     * yang sama sekali tidak berkaitan dengan transaksi POS ini tidak ikut
+     * terpotong.
+     *
      * Sama seperti buat(): admin/superadmin boleh menyertakan item bonus
      * (harga & subtotal SELALU 0), stoknya tetap keluar fisik seketika
-     * seperti item biasa. Bedanya dari buat(), POS tidak butuh "atas nama
-     * sales" sama sekali — tidak ada faktur bercetak yang menampilkan nama
-     * sales untuk transaksi POS (statusnya langsung SELESAI, tidak pernah
-     * lolos `bisaDicetak()`), jadi tidak ada yang perlu diatribusikan.
+     * seperti item biasa. Bedanya dari buat(), POS tidak punya parameter
+     * "atas nama sales" — notanya tetap boleh dicetak (statusnya langsung
+     * SELESAI seketika dibuat, dan `Pesanan::bisa_dicetak` sengaja
+     * mengecualikan jenis POS dari syarat status PROCESS/DELIVERY yang
+     * dipakai pesanan biasa, lihat dokumentasinya di `Pesanan.php`), tapi
+     * atribusi penjualnya otomatis memakai `dibuat_oleh` — tidak perlu
+     * dipilih manual seperti langkah "atas nama sales" di buat().
      *
      * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items  item biasa, harga penuh
      * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $bonusItems  item bonus — harga SELALU 0
@@ -301,12 +318,12 @@ class PesananService
                     ]);
                 }
 
-                if ($jumlahDiminta > $produk->stok) {
+                if ($jumlahDiminta > $produk->stok_tersedia) {
                     throw ValidationException::withMessages([
                         'items' => __('pesanan.galat_stok_kurang', [
                             'nama' => $produk->nama,
                             'diminta' => $jumlahDiminta,
-                            'tersedia' => $produk->stok,
+                            'tersedia' => $produk->stok_tersedia,
                         ]),
                     ]);
                 }
@@ -368,13 +385,13 @@ class PesananService
                     'is_bonus' => false,
                 ]);
 
-                $this->keluarkanStok($produk, $item['jumlah_dus'], $pesanan, $penjual);
+                $this->keluarkanStokLangsung($produk, $item['jumlah_dus'], $pesanan, $penjual);
             }
 
             // Item bonus: harga & subtotal SELALU 0 — sama seperti buat(),
             // stoknya tetap keluar fisik seketika seperti item biasa (baris
-            // keluarkanStok() di bawah tidak beda sama sekali dari baris
-            // biasa di atas).
+            // keluarkanStokLangsung() di bawah tidak beda sama sekali dari
+            // baris biasa di atas).
             foreach ($bonusItems as $item) {
                 $produk = $produks->get($item['produk_id']);
 
@@ -387,7 +404,7 @@ class PesananService
                     'is_bonus' => true,
                 ]);
 
-                $this->keluarkanStok($produk, $item['jumlah_dus'], $pesanan, $penjual);
+                $this->keluarkanStokLangsung($produk, $item['jumlah_dus'], $pesanan, $penjual);
             }
 
             return $pesanan->fresh(['items.produk', 'toko']);
@@ -573,10 +590,49 @@ class PesananService
         ]);
     }
 
+    /**
+     * Dipakai HANYA untuk item yang sebelumnya lewat `kunciStok()` untuk
+     * pesanan yang SAMA (alur buat() → selesaikanPengiriman()/coretNota()) —
+     * `$jumlah` di sini diasumsikan persis sama dengan yang dikunci
+     * sebelumnya, supaya `stok_reserved` (kuncian GLOBAL per produk, bukan
+     * per pesanan) terkurangi tepat sebesar kuncian milik pesanan ini saja.
+     * Untuk stok yang keluar TANPA pernah dikunci lebih dulu (POS), pakai
+     * `keluarkanStokLangsung()` — memotong `stok_reserved` di sini akan
+     * salah sasaran, mengurangi kuncian pesanan lain yang tidak ada
+     * hubungannya sama sekali.
+     */
     private function keluarkanStok(Produk $produk, int $jumlah, Pesanan $pesanan, User $user): void
     {
         $produk->decrement('stok', min($jumlah, $produk->stok));
         $produk->decrement('stok_reserved', min($jumlah, $produk->stok_reserved));
+        $produk->refresh();
+
+        StokMutasi::create([
+            'produk_id' => $produk->id,
+            'pesanan_id' => $pesanan->id,
+            'tipe' => 'keluar',
+            'jumlah' => -$jumlah,
+            'stok_sesudah' => $produk->stok,
+            'reserved_sesudah' => $produk->stok_reserved,
+            'keterangan' => __('pesanan.mutasi_keluar', ['kode' => $pesanan->kode]),
+            'user_id' => $user->id,
+        ]);
+    }
+
+    /**
+     * Mengeluarkan stok fisik untuk transaksi yang TIDAK PERNAH lewat fase
+     * kuncian (POS — lihat buatPos()): barangnya langsung dari rak lalu
+     * langsung ke pembeli dalam satu langkah, tidak pernah melalui
+     * `kunciStok()` lebih dulu. Hanya `stok` fisik yang berkurang; SENGAJA
+     * TIDAK menyentuh `stok_reserved` sama sekali — beda dari
+     * `keluarkanStok()` yang melepas kuncian milik pesanan ITU SENDIRI,
+     * di sini tidak ada kuncian yang dimiliki transaksi ini yang perlu
+     * dilepas. Availabilitasnya sudah dipastikan aman lewat pemeriksaan
+     * `stok_tersedia` di buatPos() sebelum method ini dipanggil.
+     */
+    private function keluarkanStokLangsung(Produk $produk, int $jumlah, Pesanan $pesanan, User $user): void
+    {
+        $produk->decrement('stok', min($jumlah, $produk->stok));
         $produk->refresh();
 
         StokMutasi::create([

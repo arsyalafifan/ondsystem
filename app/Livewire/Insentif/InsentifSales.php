@@ -63,11 +63,15 @@ class InsentifSales extends Component
     }
 
     /**
-     * Selesai_at dipilih sebagai patokan tanggal (bukan `tanggal`, yang
-     * cuma target awal, atau `created_at`, yang cuma waktu diinput) —
-     * konsisten dengan Pelunasan/Pendapatan yang juga memakai kapan pesanan
-     * SUNGGUH tuntas sebagai patokan "kapan"-nya. Insentif dihitung atas
-     * dus yang benar-benar sudah keluar, bukan yang baru dipesan.
+     * `Pesanan::tanggalPendapatanAntara()` dipakai sebagai patokan tanggal —
+     * scope BERSAMA dengan menu Pendapatan (lihat dokumentasinya di
+     * `Pesanan.php`), supaya kedua layar SELALU konsisten: tanggal
+     * keberangkatan kendaraan untuk pesanan yang lewat rute (rute biasa
+     * maupun kampas), tanggal_lunas untuk POS (yang tidak pernah lewat
+     * kendaraan). BUKAN `tanggal` (cuma target awal), `created_at` (cuma
+     * waktu diinput), atau `selesai_at` (kapan toko benar-benar menerima —
+     * bisa menyusul beberapa hari dari keberangkatan, sama seperti
+     * tanggal_lunas yang dulu dipakai di sini).
      *
      * @return Collection<int, Pesanan>
      */
@@ -77,16 +81,13 @@ class InsentifSales extends Component
         return Pesanan::query()
             ->where('status', StatusPesanan::Selesai)
             ->whereHas('pembuat', fn ($q) => $q->where('role', PeranPengguna::Sales))
-            ->with(['items', 'pembuat:id,name'])
-            ->when($this->mode === 'hari', fn ($q) => $q->whereDate('selesai_at', $this->tanggal))
+            ->with(['items', 'pembuat:id,name', 'stop.kendaraan.batch'])
+            ->when($this->mode === 'hari', fn ($q) => $q->tanggalPendapatanAntara($this->tanggal, $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');
-                $q->whereBetween('selesai_at', [$bulan->startOfMonth(), $bulan->endOfMonth()]);
+                $q->tanggalPendapatanAntara($bulan->startOfMonth()->toDateString(), $bulan->endOfMonth()->toDateString());
             })
-            ->when($this->mode === 'rentang', fn ($q) => $q->whereBetween('selesai_at', [
-                CarbonImmutable::parse($this->dariTanggal)->startOfDay(),
-                CarbonImmutable::parse($this->sampaiTanggal)->endOfDay(),
-            ]))
+            ->when($this->mode === 'rentang', fn ($q) => $q->tanggalPendapatanAntara($this->dariTanggal, $this->sampaiTanggal))
             // mode 'semua': tidak ada penyaring tanggal sama sekali.
             ->get();
     }

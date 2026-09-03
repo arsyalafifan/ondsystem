@@ -14,7 +14,7 @@ final class NotaPesananController extends Controller
 {
     public function cetak(Pesanan $pesanan): View
     {
-        abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
+        abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
         $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
 
@@ -32,7 +32,7 @@ final class NotaPesananController extends Controller
      */
     public function unduhPdf(Pesanan $pesanan): Response
     {
-        abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
+        abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
         $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
 
@@ -55,7 +55,7 @@ final class NotaPesananController extends Controller
      */
     public function unduhEscp(Pesanan $pesanan): Response
     {
-        abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
+        abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
         $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
 
@@ -77,7 +77,7 @@ final class NotaPesananController extends Controller
      */
     public function escpUntukAgenCetak(Pesanan $pesanan, Request $request): Response
     {
-        abort_unless($pesanan->status->bisaDicetak(), 403, __('pesanan.galat_tak_bisa_cetak'));
+        abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
         // Menutup celah "tercetak dua kali": token dari link ondprint://
         // hanya boleh dipakai sekali, apa pun yang membuat URL ini diminta

@@ -137,6 +137,52 @@ it('menolak kalau stok fisik tidak cukup', function () {
     expect($this->produk->fresh()->stok)->toBe(50);
 });
 
+/**
+ * `PesananService::buatPos()` sebelumnya memeriksa `stok` fisik mentah,
+ * bukan `stok_tersedia` — jadi dus yang sudah dikunci pesanan pengantaran
+ * lain (belum dikirim sama sekali) masih bisa dijual lagi lewat POS, dus
+ * yang sama terjanjikan dua kali. Diperbaiki dengan menyamakan
+ * pemeriksaannya ke `stok_tersedia`, sama seperti buat().
+ */
+it('menolak POS kalau stok sedang terkunci pesanan pengantaran lain, walau stok fisik masih terlihat cukup', function () {
+    $toko = buatTokoPos();
+
+    // Toko lain memesan 48 dari 50 dus lewat jalur pengantaran biasa —
+    // belum terkirim sama sekali, jadi masih terkunci (stok_reserved).
+    $this->service->buat($toko, [['produk_id' => $this->produk->id, 'jumlah_dus' => 48]], $this->sales);
+
+    expect($this->produk->fresh()->stok_tersedia)->toBe(2);
+
+    // 2 dus yang benar-benar bebas tetap boleh dijual lewat POS...
+    $pesanan = $this->service->buatPos(
+        toko: $toko,
+        items: [['produk_id' => $this->produk->id, 'jumlah_dus' => 2]],
+        penjual: $this->sales,
+        nominalCash: 40_000,
+        nominalTransfer: 0,
+    );
+
+    expect($pesanan->total_dus)->toBe(2);
+
+    // ...tapi kuncian 48 dus milik pesanan pengantaran itu TIDAK ikut
+    // terpotong oleh penjualan POS ini — keluarkanStokLangsung() sengaja
+    // tidak pernah menyentuh stok_reserved sama sekali, beda dari
+    // keluarkanStok() yang dipakai pesanan biasa.
+    $produk = $this->produk->fresh();
+    expect($produk->stok_reserved)->toBe(48)
+        ->and($produk->stok)->toBe(48)
+        ->and($produk->stok_tersedia)->toBe(0);
+
+    // Tidak ada lagi sisa yang benar-benar bebas — ditolak.
+    expect(fn () => $this->service->buatPos(
+        toko: $toko,
+        items: [['produk_id' => $this->produk->id, 'jumlah_dus' => 1]],
+        penjual: $this->sales,
+        nominalCash: 20_000,
+        nominalTransfer: 0,
+    ))->toThrow(ValidationException::class);
+});
+
 it('menolak kalau cash + transfer tidak sama dengan total belanja', function () {
     $toko = buatTokoPos();
 
@@ -170,7 +216,7 @@ it('menolak toko yang belum punya wilayah', function () {
 it('menyelesaikan penjualan lewat layar kasir dari awal sampai akhir', function () {
     $toko = buatTokoPos('Toko Kasir Lengkap');
 
-    Livewire::actingAs($this->sales)
+    $test = Livewire::actingAs($this->sales)
         ->test(Kasir::class)
         ->set('cariToko', 'Kasir Lengkap')
         ->call('pilihToko', $toko->id)
@@ -189,6 +235,12 @@ it('menyelesaikan penjualan lewat layar kasir dari awal sampai akhir', function 
         ->and((float) $pesanan->nominal_cash)->toEqualWithDelta(40_000, 0.01)
         ->and((float) $pesanan->nominal_transfer)->toBe(0.0)
         ->and($this->produk->fresh()->stok)->toBe(48);
+
+    // `kodeTerakhir`/`idTerakhir` sengaja TIDAK ikut ter-reset bersama
+    // field form lainnya — keduanya dipakai banner sukses untuk
+    // menampilkan kode transaksi sekaligus link "Cetak Nota".
+    $test->assertSet('kodeTerakhir', $pesanan->kode)
+        ->assertSet('idTerakhir', $pesanan->id);
 });
 
 it('kasir menambah baris dari barcode yang cocok', function () {

@@ -2,11 +2,9 @@
 
 namespace App\Livewire\Pembayaran;
 
-use App\Enums\JenisPesanan;
 use App\Enums\StatusBayar;
 use App\Models\Pesanan;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -71,53 +69,25 @@ class Pendapatan extends Component
         unset($this->riwayat);
     }
 
+    /**
+     * Penyaring "hari/bulan/rentang" bekerja lewat `Pesanan::tanggalPendapatanAntara()`
+     * (scope bersama dengan Insentif Sales — lihat dokumentasinya di
+     * `Pesanan.php`) LANGSUNG di kueri, bukan disaring belakangan di
+     * memori.
+     */
     #[Computed]
     public function pesanans(): Collection
     {
         return Pesanan::query()
             ->where('status_bayar', StatusBayar::Lunas)
             ->with(['items', 'toko:id,nama', 'stop.kendaraan.batch'])
-            ->when($this->mode === 'hari', fn ($q) => $this->saringTanggalPendapatan($q, $this->tanggal, $this->tanggal))
+            ->when($this->mode === 'hari', fn ($q) => $q->tanggalPendapatanAntara($this->tanggal, $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');
-                $this->saringTanggalPendapatan($q, $bulan->startOfMonth()->toDateString(), $bulan->endOfMonth()->toDateString());
+                $q->tanggalPendapatanAntara($bulan->startOfMonth()->toDateString(), $bulan->endOfMonth()->toDateString());
             })
-            ->when($this->mode === 'rentang', fn ($q) => $this->saringTanggalPendapatan($q, $this->dariTanggal, $this->sampaiTanggal))
+            ->when($this->mode === 'rentang', fn ($q) => $q->tanggalPendapatanAntara($this->dariTanggal, $this->sampaiTanggal))
             ->get();
-    }
-
-    /**
-     * Menyaring berdasarkan `Pesanan::tanggal_pendapatan` (lihat dokumentasi
-     * accessor-nya) LANGSUNG lewat kueri — bukan disaring belakangan di
-     * memori, supaya penyaring "hari/bulan/rentang" tetap bekerja di
-     * lapisan basis data seperti sebelumnya. Kategori driver (rute biasa +
-     * kampas) disaring lewat tanggal keberangkatan kendaraannya
-     * (`RoutingBatch::tanggal`); kategori pos (tidak pernah lewat
-     * kendaraan) tetap lewat tanggal_lunas.
-     *
-     * Dua batas dibandingkan lewat whereDate(), BUKAN whereBetween() dengan
-     * string tanggal polos — kolom `date` di Eloquent bisa saja tersimpan
-     * dengan sisa waktu "00:00:00" di baliknya (tergantung driver basis
-     * data), sehingga whereBetween(['2026-08-20', '2026-08-20']) gagal
-     * mencocokkan nilai '2026-08-20 00:00:00' (secara leksikografis nilai
-     * itu dianggap LEBIH BESAR dari batas atasnya). whereDate() mengekstrak
-     * bagian tanggalnya lewat SQL sebelum dibandingkan, jadi kebal dari
-     * sisa waktu semacam itu di kedua sisi.
-     */
-    private function saringTanggalPendapatan(Builder $query, string $dari, string $sampai): void
-    {
-        $query->where(function (Builder $q) use ($dari, $sampai) {
-            $q->where(function (Builder $qq) use ($dari, $sampai) {
-                $qq->whereIn('jenis', [JenisPesanan::Normal->value, JenisPesanan::Kampas->value])
-                    ->whereHas('stop.kendaraan.batch', function (Builder $b) use ($dari, $sampai) {
-                        $b->whereDate('tanggal', '>=', $dari)->whereDate('tanggal', '<=', $sampai);
-                    });
-            })->orWhere(function (Builder $qq) use ($dari, $sampai) {
-                $qq->where('jenis', JenisPesanan::Pos->value)
-                    ->whereDate('tanggal_lunas', '>=', $dari)
-                    ->whereDate('tanggal_lunas', '<=', $sampai);
-            });
-        });
     }
 
     #[Computed]
