@@ -359,3 +359,63 @@ describe('faktur untuk pesanan dengan bonus', function () {
             ->assertDontSee('Admin Penginput');
     });
 });
+
+// =====================================================================
+describe('nota untuk transaksi POS', function () {
+    /**
+     * Transaksi POS (Kasir) langsung tercatat SELESAI seketika dibuat —
+     * tidak pernah lewat status PROCESS/DELIVERY seperti pesanan rute biasa
+     * (lihat PesananService::buatPos()). `StatusPesanan::bisaDicetak()`
+     * sendiri cuma mengizinkan PROCESS/DELIVERY, jadi kalau dipakai apa
+     * adanya, POS tidak akan PERNAH punya nota yang bisa dicetak. Karena
+     * itu `Pesanan::bisa_dicetak` (dipakai gerbang cetak, bukan enum-nya
+     * langsung) sengaja meloloskan SEMUA pesanan berjenis POS apa pun
+     * statusnya — lihat dokumentasi accessor-nya di Pesanan.php.
+     */
+    function buatPesananPos(int $jumlahProduk = 1): Pesanan
+    {
+        $items = buatItemUji($jumlahProduk);
+
+        return test()->pesananService->buatPos(
+            toko: test()->toko,
+            items: $items,
+            penjual: test()->admin,
+            nominalCash: 250_000 * $jumlahProduk,
+            nominalTransfer: 0.0,
+        );
+    }
+
+    it('menampilkan nota untuk transaksi POS', function () {
+        $pesanan = buatPesananPos();
+
+        $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))->assertOk();
+    });
+
+    it('mengunduh nota POS sebagai berkas PDF sungguhan', function () {
+        $pesanan = buatPesananPos(2);
+
+        $respons = $this->actingAs($this->admin)->get(route('pesanan.nota.pdf', $pesanan));
+
+        $respons->assertOk();
+        expect($respons->headers->get('content-type'))->toBe('application/pdf');
+        expect(str_starts_with($respons->getContent(), '%PDF-'))->toBeTrue();
+    });
+
+    it('mengunduh nota POS sebagai perintah ESC/P mentah', function () {
+        $pesanan = buatPesananPos(2);
+
+        $respons = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan));
+
+        $respons->assertOk();
+        $isi = $respons->getContent();
+        expect($isi)->toContain($pesanan->kode)
+            ->and($isi)->toContain($pesanan->toko->nama);
+    });
+
+    it('pesanan rute biasa berstatus SELESAI tetap ditolak, tidak ikut terpengaruh pengecualian POS', function () {
+        $pesanan = buatPesananProcess();
+        $pesanan->update(['status' => StatusPesanan::Selesai]);
+
+        $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))->assertForbidden();
+    });
+});

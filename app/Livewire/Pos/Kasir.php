@@ -36,9 +36,12 @@ class Kasir extends Component
     /**
      * Khusus admin/superadmin: item bonus untuk toko yang berhak — harganya
      * SELALU 0 di layar ini (lihat totalDusBonus()/simpan()), sama seperti
-     * langkah bonus di Input Pesanan. Bedanya dari sana, POS tidak butuh
-     * "atas nama sales" karena tidak ada faktur bercetak yang perlu
-     * menampilkan nama sales untuk transaksi POS.
+     * langkah bonus di Input Pesanan. Bedanya dari sana, POS tidak punya
+     * langkah "atas nama sales" tersendiri — notanya tetap bisa dicetak
+     * (lihat `Pesanan::bisa_dicetak`), tapi atribusinya otomatis memakai
+     * `dibuat_oleh` (fallback `$pesanan->sales ?? $pesanan->pembuat` di
+     * templat nota), bukan sales yang dipilih manual seperti di Input
+     * Pesanan.
      *
      * @var array<int, array{produk_id: int|string, jumlah_dus: int|string}>
      */
@@ -75,6 +78,8 @@ class Kasir extends Component
     public string $nominalCash = '';
 
     public ?string $kodeTerakhir = null;
+
+    public ?int $idTerakhir = null;
 
     public function mount(): void
     {
@@ -344,16 +349,18 @@ class Kasir extends Component
                 continue;
             }
 
-            // Dibandingkan dengan stok fisik penuh, bukan stok_tersedia —
-            // POS menjual langsung dari rak, jadi reservasi pesanan
-            // pengantaran lain tidak relevan di sini.
-            if ($jumlah > $produk->stok) {
+            // Sama seperti PesananService::buatPos(): dibandingkan dengan
+            // stok_tersedia (stok - stok_reserved), BUKAN stok fisik mentah
+            // — dus yang sedang terkunci untuk pesanan pengantaran lain
+            // (termasuk sisa kampas yang masih di mobil) belum benar-benar
+            // ada di rak, jadi tidak boleh dijanjikan dua kali lewat POS.
+            if ($jumlah > $produk->stok_tersedia) {
                 $masalah[] = [
                     'jenis' => 'stok',
                     'pesan' => __('pesanan.galat_stok_kurang_ringkas', [
                         'nama' => $produk->nama,
                         'diminta' => $jumlah,
-                        'tersedia' => $produk->stok,
+                        'tersedia' => $produk->stok_tersedia,
                     ]),
                 ];
             }
@@ -422,6 +429,7 @@ class Kasir extends Component
         }
 
         $this->kodeTerakhir = $pesanan->kode;
+        $this->idTerakhir = $pesanan->id;
 
         $this->reset(['tokoId', 'catatan', 'baris', 'barisBonus', 'tanpaToko', 'cariToko', 'nominalCash', 'cariBarcode']);
         $this->tambahBaris();

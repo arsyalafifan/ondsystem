@@ -18,6 +18,7 @@ use App\Services\PesananService;
 use App\Services\RoutingService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 /**
@@ -152,6 +153,54 @@ describe('membatalkan toko di lapangan', function () {
         expect($sesudah->stok)->toBe($sebelum->stok)
             ->and($sesudah->stok_reserved)->toBe(20)
             ->and($sesudah->stok_tersedia)->toBe($sebelum->stok_tersedia);
+    });
+
+    /**
+     * Sambungan langsung dari bug di atas: sebelum diperbaiki, POS
+     * memeriksa `stok` fisik mentah (bukan `stok_tersedia`), jadi dus yang
+     * sedang terkunci di mobil ini masih bisa "dijual lagi" lewat POS
+     * walau fisiknya sedang tidak ada di rak sama sekali — dus yang sama
+     * terjanjikan dua kali. POS sekarang ikut memakai stok_tersedia yang
+     * sama dengan pesanan biasa (lihat PesananService::buatPos()).
+     */
+    it('POS menolak menjual dus yang masih terkunci di mobil setelah toko dibatalkan di lapangan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 20]]]);
+
+        // Persis 20 dus total: begitu 20 dus ini terkunci di mobil,
+        // stok_tersedia produk ini jadi 0 walau `stok` mentahnya masih 20.
+        $this->air->update(['stok' => 20]);
+
+        $this->service->batalkanDiLapangan(stopUntuk($kendaraan, 'Toko 1'), $this->driver, 'Toko tutup');
+
+        $tokoPos = buatTokoKirim('Toko POS');
+
+        expect(fn () => $this->pesananService->buatPos(
+            toko: $tokoPos,
+            items: [['produk_id' => $this->air->id, 'jumlah_dus' => 1]],
+            penjual: $this->admin,
+            nominalCash: 50_000,
+            nominalTransfer: 0,
+        ))->toThrow(ValidationException::class);
+
+        // Stok fisik maupun kuncian tidak boleh berubah sama sekali akibat
+        // percobaan yang ditolak itu.
+        expect($this->air->fresh()->stok)->toBe(20)
+            ->and($this->air->fresh()->stok_reserved)->toBe(20);
+
+        // Begitu kuncian benar-benar lepas (kendaraan ditutup admin), 1 dus
+        // itu baru boleh dijual lewat POS.
+        $this->service->selesaikanKendaraan($kendaraan->fresh(['stops']), $this->admin);
+
+        $pesanan = $this->pesananService->buatPos(
+            toko: $tokoPos,
+            items: [['produk_id' => $this->air->id, 'jumlah_dus' => 1]],
+            penjual: $this->admin,
+            nominalCash: 50_000,
+            nominalTransfer: 0,
+        );
+
+        expect($pesanan->total_dus)->toBe(1)
+            ->and($this->air->fresh()->stok)->toBe(19);
     });
 
     it('membatalkan pesanannya dengan alasan yang dipilih driver', function () {

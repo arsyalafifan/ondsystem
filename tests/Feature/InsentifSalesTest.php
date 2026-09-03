@@ -4,8 +4,11 @@ use App\Enums\JenisPesanan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Livewire\Insentif\InsentifSales;
+use App\Models\Kendaraan;
+use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
@@ -29,6 +32,17 @@ beforeEach(function () {
  * Pesanan SELESAI dibuat langsung lewat Eloquent — yang diuji di sini
  * murni logika agregasi InsentifSales, bukan alur pengiriman/POS itu
  * sendiri (yang sudah punya tesnya masing-masing).
+ *
+ * Insentif Sales sekarang mengelompokkan tanggal lewat
+ * `Pesanan::tanggal_pendapatan` (tanggal KEBERANGKATAN kendaraan untuk
+ * kategori driver, bukan `selesai_at`) — jadi untuk jenis Normal/Kampas,
+ * helper ini juga membuat rantai minimal RoutingBatch → Kendaraan →
+ * KendaraanStop langsung lewat Eloquent (bukan RoutingService
+ * sesungguhnya, tetap konsisten dengan semangat helper ini), dengan
+ * tanggal keberangkatan batch-nya DISAMAKAN dengan `$selesaiAt` supaya
+ * parameter yang sama tetap bisa dipakai memanipulasi "tanggal" pada
+ * tes-tes penyaring hari/bulan/rentang di bawah. Jenis Pos tidak pernah
+ * lewat kendaraan sama sekali, jadi cukup tanggal_lunas yang diisi.
  */
 function buatPesananSelesai(
     User $pembuat,
@@ -39,6 +53,8 @@ function buatPesananSelesai(
 ): Pesanan {
     static $n = 0;
     $n++;
+
+    $tanggal = $selesaiAt ?? now();
 
     $toko = Toko::create([
         'kode' => sprintf('TK-IS%04d', $n),
@@ -60,7 +76,9 @@ function buatPesananSelesai(
         'tanggal' => today(),
         'total_dus' => $totalDus,
         'total_nilai' => $totalDus * 10_000,
-        'selesai_at' => $selesaiAt ?? now(),
+        'selesai_at' => $tanggal,
+        'status_bayar' => 'lunas',
+        'tanggal_lunas' => $tanggal->toDateString(),
     ]);
 
     $pesanan->items()->create([
@@ -70,7 +88,40 @@ function buatPesananSelesai(
         'subtotal' => $totalDus * 10_000,
     ]);
 
-    return $pesanan;
+    if (in_array($jenis, [JenisPesanan::Normal, JenisPesanan::Kampas], true)) {
+        $batch = RoutingBatch::create([
+            'kode' => sprintf('RB-IS-%04d', $n),
+            'tanggal' => $tanggal->toDateString(),
+            'status' => 'disetujui',
+            'total_kendaraan' => 1,
+            'total_toko' => 1,
+            'total_dus' => $totalDus,
+            'dibuat_oleh' => $pembuat->id,
+        ]);
+
+        $kendaraan = Kendaraan::create([
+            'routing_batch_id' => $batch->id,
+            'nomor' => 1,
+            'nama' => 'Mobil IS '.$n,
+            'total_toko' => 1,
+            'total_dus' => $totalDus,
+            'target_dus' => $totalDus,
+            'status' => 'selesai',
+        ]);
+
+        KendaraanStop::create([
+            'kendaraan_id' => $kendaraan->id,
+            'pesanan_id' => $pesanan->id,
+            'toko_id' => $toko->id,
+            'urutan' => 1,
+            'total_dus' => $totalDus,
+            'total_dus_terkirim' => $totalDus,
+            'status' => 'selesai',
+            'selesai_at' => $tanggal,
+        ]);
+    }
+
+    return $pesanan->fresh(['stop.kendaraan.batch']);
 }
 
 it('menolak akses selain admin', function () {

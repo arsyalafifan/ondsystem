@@ -149,7 +149,7 @@
                                         {{ __('umum.rincian') }}
                                     </button>
 
-                                    @if ($p->status->bisaDicetak())
+                                    @if ($p->bisa_dicetak)
                                         <a href="{{ route('pesanan.nota', $p) }}" target="_blank"
                                            class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                             <x-heroicon-o-printer class="size-3.5" />
@@ -326,7 +326,7 @@
                 @endif
             </div>
 
-            @if ($d->status->bisaDicetak())
+            @if ($d->bisa_dicetak)
                 <x-slot:aksi>
                     <a href="{{ route('pesanan.nota', $d) }}" target="_blank"
                        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">

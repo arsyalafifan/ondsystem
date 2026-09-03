@@ -1113,16 +1113,39 @@ menunggu pengiriman. Bedanya dari kampas: POS **tidak pernah membuat
 terlibat — toko tetap dipilih (barangnya tercatat masuk ke toko yang mana),
 tapi tidak ada rute.
 
-Tiga aturan yang sengaja beda dari pesanan biasa:
+Dua aturan yang sengaja beda dari pesanan biasa:
 
 - **Tidak ada minimal pembelian** — mulai dari 1, bukan `min_dus_per_toko`.
-- **Dibandingkan dengan stok fisik penuh** (`produks.stok`), bukan
-  `stok_tersedia` (stok dikurangi reservasi) — POS menjual langsung dari
-  rak, jadi reservasi pesanan pengantaran lain tidak relevan di sini.
 - **Toko yang masih punya pesanan pengantaran aktif tetap boleh dilayani** —
   POS tidak bersinggungan dengan routing sama sekali, jadi aturan "satu
   pesanan aktif per toko" (yang ada untuk mencegah konflik rute) tidak
   berlaku.
+
+**Stoknya TETAP dibandingkan dengan `stok_tersedia`** (`stok - stok_reserved`),
+SAMA seperti pesanan biasa — bukan `produks.stok` fisik mentah. Awalnya POS
+sengaja dibuat memeriksa `stok` mentah dengan alasan "menjual langsung dari
+rak, reservasi pesanan lain tidak relevan", tapi alasan itu keliru untuk dus
+yang sedang di dalam mobil: `stok` fisik baru berkurang saat barang
+benar-benar sampai ke toko (lihat `PesananService::keluarkanStok()`), jadi
+dus yang sudah dimuat ke mobil (baik yang sedang dikirim, maupun sisa
+kampas dari toko yang batal/dicoret dan belum diampaskan atau ditutup admin
+— lihat [Tiga keputusan driver di lapangan](#tiga-keputusan-driver-di-lapangan))
+masih terhitung "ada" di `stok` padahal fisiknya sedang tidak di rak. Kalau
+POS dibiarkan menjual dari angka itu, dus yang sama bisa terjanjikan dua
+kali: sekali ke pesanan/kampas yang menguncinya, sekali lagi ke pembeli POS.
+Diperbaiki dengan menyamakan pemeriksaannya ke `stok_tersedia` di
+`PesananService::buatPos()` dan pre-check `Kasir::halangan()`.
+
+Konsekuensinya, stok yang benar-benar keluar lewat POS TIDAK memakai
+`keluarkanStok()` yang sama dengan pesanan biasa — method itu ikut memotong
+`stok_reserved` dengan asumsi jumlahnya persis sama dengan kuncian yang
+sebelumnya dipasang `kunciStok()` untuk pesanan yang sama. POS tidak pernah
+lewat `kunciStok()` sama sekali (tidak ada fase reservasi, barangnya
+langsung keluar dalam satu langkah), jadi memakai `keluarkanStok()` apa
+adanya akan salah sasaran: memotong kuncian `stok_reserved` milik pesanan
+lain yang sama sekali tidak berkaitan dengan transaksi POS ini. Karena itu
+POS memakai method terpisah, `keluarkanStokLangsung()` — hanya memotong
+`stok` fisik, sama sekali tidak menyentuh `stok_reserved`.
 
 Pembayarannya langsung diminta saat itu juga dan disimpan dalam transaksi
 yang sama dengan pesanannya, bukan lewat `PelunasanService` terpisah
@@ -1143,6 +1166,33 @@ bukan pembayaran campuran — membingungkan untuk transaksi yang seharusnya
 satu metode saja. Dibatalkan sebelum opsi transfer sempat dipakai
 siapa pun, jadi tidak ada riwayat/migrasi yang perlu disesuaikan.
 
+### Mencetak nota untuk transaksi POS
+
+Layar Kasir menampilkan link **"Cetak Nota"** di banner sukses begitu
+transaksi tersimpan (di sebelah "Lihat riwayat pendapatan"), membuka nota
+di tab baru — memakai templat dan keempat jalur cetak yang PERSIS SAMA
+dengan pesanan biasa (lihat
+[Mencetak nota dan packing list](#mencetak-nota-dan-packing-list)): Cetak,
+Unduh PDF, Unduh ESC/P, maupun jalur `ondprint://` untuk OND Print Helper.
+Baris "Cetak Nota" yang sama juga muncul di Daftar Pesanan untuk pesanan
+berjenis POS, karena layar itu tidak pernah menyaring berdasarkan `jenis`.
+
+Sebelum ini, transaksi POS **sama sekali tidak punya nota** — bukan karena
+sengaja disembunyikan, tapi karena gerbang cetak (`StatusPesanan::bisaDicetak()`)
+hanya mengizinkan status PROCESS/DELIVERY, sementara POS langsung tercatat
+**SELESAI** seketika dibuat (lihat `PesananService::buatPos()` di atas) dan
+tidak pernah melewati fase-fase itu sama sekali — jadi apa pun keadaannya,
+notanya mustahil tercapai, bukan cuma belum sempat. Diperbaiki lewat
+accessor baru `Pesanan::bisa_dicetak` (dipakai di seluruh gerbang cetak,
+menggantikan pemanggilan `$pesanan->status->bisaDicetak()` langsung): tetap
+memakai aturan status PROCESS/DELIVERY untuk pesanan biasa, tapi
+mengecualikan SELURUH pesanan berjenis **POS** dari syarat itu, apa pun
+statusnya (praktiknya selalu Selesai). Templat notanya sendiri tidak perlu
+disunting sama sekali — satu-satunya elemen yang berkaitan dengan rute
+pengantaran cuma label kotak tanda tangan "Driver," yang murni kosmetik
+(sekadar kotak kosong untuk ditandatangani, tidak bergantung data kendaraan
+apa pun), jadi tetap tampil apa adanya untuk nota POS.
+
 ### Bonus produk (admin/superadmin)
 
 Sama seperti langkah bonus di Input Pesanan: khusus admin/superadmin, ada
@@ -1156,10 +1206,11 @@ SELALU Rp 0 apa pun produk/jumlahnya, produk yang sama boleh dipilih di
 kedua daftar dan tetap tersimpan sebagai dua baris terpisah, stok diperiksa
 gabungan (biasa+bonus) per produk, dan nominal cash cuma perlu mengikuti
 total item biasa (bonus tidak pernah ikut ditagihkan). Satu-satunya beda:
-**tidak ada "Pilih Sales"** — POS tidak pernah lewat rute pengantaran
-driver dan pesanannya langsung SELESAI seketika, jadi tidak pernah lolos
-`bisaDicetak()` (yang hanya mengizinkan status PROCESS/DELIVERY); tidak ada
-faktur bercetak untuk transaksi POS yang perlu atribusi nama sales.
+**tidak ada "Pilih Sales"** — notanya tetap bisa dicetak (lihat
+[Mencetak nota untuk transaksi POS](#mencetak-nota-untuk-transaksi-pos) di
+bawah), tapi atribusi penjualnya otomatis memakai akun yang menginput
+(`dibuat_oleh`), bukan dipilih manual seperti langkah "atas nama sales" di
+Input Pesanan.
 
 Karena stok POS memang sudah keluar fisik seketika (bukan direservasi lalu
 dilepas saat pengiriman seperti pesanan biasa), item bonus di sini langsung
@@ -1240,44 +1291,54 @@ kueri dasarnya. Yang ditambahkan:
   "metode tunggalnya apa" — pembayaran campuran (sebagian cash, sebagian
   transfer, seperti yang diizinkan Pelunasan/POS) muncul di KEDUA penyaring.
 
-### Tanggal pendapatan kategori driver mengikuti tanggal keberangkatan, bukan tanggal lunas
+### Tanggal pendapatan & insentif kategori driver mengikuti tanggal keberangkatan, bukan tanggal lunas/selesai
 
 Toko yang kendaraannya berangkat tanggal 20 tapi baru dilunasi tanggal 22
-tetap terhitung sebagai pendapatan tanggal **20** — bukan 22. Dus-nya
-memang sudah keluar gudang tanggal 20; kapan tagihannya kebetulan
-dilunasi belakangan tidak seharusnya menggeser hari mana yang "menjual"
-dus itu. Ini cuma berlaku untuk kategori **driver** (rute biasa & kampas,
-keduanya lewat kendaraan) — kategori **pos** tidak pernah lewat kendaraan
-sama sekali (langsung lunas seketika saat dibuat, `tanggal_lunas`-nya
-memang satu-satunya tanggal yang bermakna), jadi tetap memakai
-`tanggal_lunas` seperti sebelumnya.
+(atau baru benar-benar SELESAI diterima tanggal 22) tetap terhitung
+sebagai pendapatan **maupun insentif sales** tanggal **20** — bukan 22.
+Dus-nya memang sudah keluar gudang tanggal 20; kapan tagihannya kebetulan
+dilunasi atau kapan toko sungguh menerimanya belakangan tidak seharusnya
+menggeser hari mana yang "menjual" dus itu. Berlaku di KEDUA layar
+(**Pendapatan** dan **Insentif Sales**) sekaligus, supaya keduanya selalu
+sepakat soal "pesanan ini masuk hitungan tanggal berapa" — sebelum
+diseragamkan, Insentif Sales masih memakai `selesai_at` sendiri,
+membuatnya bisa melenceng dari Pendapatan yang sudah lebih dulu dipindah
+ke tanggal keberangkatan.
 
-Dipusatkan lewat accessor `Pesanan::tanggal_pendapatan` — untuk kategori
-driver mengambil `stop->kendaraan->batch->tanggal` (`RoutingBatch::tanggal`,
-tanggal keberangkatan yang sama dengan bagian
-[Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)),
-jatuh kembali ke `tanggal_lunas` kalau rantai relasinya ternyata putus
-(mis. data lama yang tidak lengkap), supaya layar ini tidak pernah pecah
-gara-gara satu baris yang datanya tidak biasa. Dipakai di tiga tempat:
-pengelompokan `ringkasanHarian()`/grafik, pengurutan tabel riwayat, dan
-kolom Tanggal pada tabel riwayat itu sendiri — ketiganya sekarang
-konsisten menunjukkan tanggal yang sama, bukan tanggal_lunas di tabel tapi
-tanggal keberangkatan di grafik.
+Ini cuma berlaku untuk kategori **driver** (rute biasa & kampas, keduanya
+lewat kendaraan) — kategori **pos** tidak pernah lewat kendaraan sama
+sekali (langsung lunas seketika saat dibuat, `tanggal_lunas`-nya memang
+satu-satunya tanggal yang bermakna), jadi tetap memakai `tanggal_lunas`
+seperti sebelumnya.
 
-Penyaring "hari/bulan/rentang" pada `pesanans()` ikut disesuaikan
-lewat `whereHas('stop.kendaraan.batch', ...)` untuk kategori driver
-(digabung `orWhere` dengan `tanggal_lunas` untuk kategori pos) —
-dibandingkan lewat `whereDate()`, BUKAN `whereBetween()` dengan string
-tanggal polos. Ini bukan sekadar gaya penulisan: kolom `date` di Eloquent
-bisa saja tersimpan dengan sisa waktu `00:00:00` di baliknya tergantung
-driver basis data (SQLite yang dipakai pengujian menyimpannya apa adanya
-sebagai `'2026-08-20 00:00:00'`, sedangkan MySQL asli memotongnya bersih
-jadi `'2026-08-20'` karena tipe kolom `DATE` fisik tidak bisa menyimpan
-komponen waktu sama sekali) — `whereBetween(['2026-08-20', '2026-08-20'])`
-gagal mencocokkan nilai yang punya sisa waktu itu (secara leksikografis
-dianggap LEBIH BESAR dari batas atasnya), sedangkan `whereDate()`
-mengekstrak bagian tanggalnya lewat SQL sebelum dibandingkan sehingga
-kebal dari perbedaan format penyimpanan antar driver basis data.
+Dipusatkan lewat DUA anggota `Pesanan` yang saling melengkapi, dipakai
+BERSAMA oleh `Pendapatan::pesanans()` maupun `InsentifSales::pesanans()`
+supaya logikanya tidak pernah dobel-tulis dan diam-diam melenceng:
+
+- **Accessor `tanggal_pendapatan`** — untuk kategori driver mengambil
+  `stop->kendaraan->batch->tanggal` (`RoutingBatch::tanggal`, tanggal
+  keberangkatan yang sama dengan bagian
+  [Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)),
+  jatuh kembali ke `tanggal_lunas` kalau rantai relasinya ternyata putus
+  (mis. data lama yang tidak lengkap), supaya layar-layar ini tidak
+  pernah pecah gara-gara satu baris yang datanya tidak biasa. Dipakai
+  untuk pengelompokan `ringkasanHarian()`/grafik Pendapatan, pengurutan
+  tabel riwayatnya, dan kolom Tanggal di tabel itu sendiri.
+- **Scope `tanggalPendapatanAntara($dari, $sampai)`** — versi kueri dari
+  aturan yang sama, dipakai kedua layar untuk penyaring "hari/bulan/rentang"
+  langsung di lapisan basis data (bukan disaring belakangan di memori).
+  Dua batasnya dibandingkan lewat `whereDate()`, BUKAN `whereBetween()`
+  dengan string tanggal polos. Ini bukan sekadar gaya penulisan: kolom
+  `date` di Eloquent bisa saja tersimpan dengan sisa waktu `00:00:00` di
+  baliknya tergantung driver basis data (SQLite yang dipakai pengujian
+  menyimpannya apa adanya sebagai `'2026-08-20 00:00:00'`, sedangkan
+  MySQL asli memotongnya bersih jadi `'2026-08-20'` karena tipe kolom
+  `DATE` fisik tidak bisa menyimpan komponen waktu sama sekali) —
+  `whereBetween(['2026-08-20', '2026-08-20'])` gagal mencocokkan nilai
+  yang punya sisa waktu itu (secara leksikografis dianggap LEBIH BESAR
+  dari batas atasnya), sedangkan `whereDate()` mengekstrak bagian
+  tanggalnya lewat SQL sebelum dibandingkan sehingga kebal dari
+  perbedaan format penyimpanan antar driver basis data.
 
 ### Pemilih produk yang bisa dicari (`<x-pilih-cari>`)
 
@@ -1360,7 +1421,7 @@ orang, bukan uang per hari).
 php artisan test
 ```
 
-561 tes, mencakup:
+567 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1399,7 +1460,11 @@ php artisan test
   eksplisit lewat `jenis`); POS yang diinput sales terhitung, POS yang
   diinput admin tidak; jumlah toko dihitung UNIK per sales, bukan jumlah
   pesanan; keempat mode penyaring (hari/bulan/rentang/semua) menyaring
-  `selesai_at` dengan benar; dan halaman tampil dengan BEBERAPA sales
+  lewat `Pesanan::tanggalPendapatanAntara()` — tanggal KEBERANGKATAN
+  kendaraan untuk pesanan yang lewat rute, bukan `selesai_at` (scope
+  bersama dengan Pendapatan, lihat
+  [Tanggal pendapatan & insentif kategori driver](#tanggal-pendapatan--insentif-kategori-driver-mengikuti-tanggal-keberangkatan-bukan-tanggal-lunasselesai));
+  dan halaman tampil dengan BEBERAPA sales
   sekaligus tanpa lazy load — pelajaran yang sama seperti
   `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`; dan dus dari item
   bonus (`is_bonus = true`) tetap dikecualikan dari jumlahnya sebagai
@@ -1436,13 +1501,22 @@ php artisan test
   `KendaraanStop`, stok fisik berkurang seketika (bukan lewat reservasi),
   tidak menuntut minimal dus, tetap melayani toko yang masih punya pesanan
   pengantaran aktif, menolak stok fisik kurang dan nominal cash+transfer
-  yang tidak pas; layar Kasir menyelesaikan penjualan dari awal sampai
+  yang tidak pas; **menolak POS kalau stok sedang terkunci pesanan
+  pengantaran lain walau stok fisik masih terlihat cukup** (memeriksa
+  `stok_tersedia`, bukan `stok` mentah — lihat
+  [Point of Sale (POS)](#point-of-sale-pos)), dan memastikan kuncian
+  `stok_reserved` milik pesanan lain itu TIDAK ikut terpotong oleh
+  penjualan POS (`keluarkanStokLangsung()`); layar Kasir menyelesaikan
+  penjualan dari awal sampai
   akhir, menambah baris dari barcode (termasuk memindai kode yang sama dua
   kali menambah jumlah, bukan baris baru) dan menolak barcode yang tidak
   dikenali; tombol Simpan terkunci sampai nominal cash persis sama dengan
   total belanja, dan nominal yang diubah manual SETELAH tombol "Isi Total
   Belanja" ditekan tetap yang tersimpan (bukan otomatis kembali ke total);
-  penjualan POS dan pesanan pengantaran biasa yang lunas
+  `kodeTerakhir`/`idTerakhir` (dasar banner sukses dan link "Cetak Nota")
+  tetap terisi dengan kode dan ID pesanan yang baru dibuat, sengaja tidak
+  ikut ter-reset bersama field form lainnya; penjualan POS dan pesanan
+  pengantaran biasa yang lunas
   terkategori benar di Pendapatan (`pos` vs `driver`), termasuk lewat blade
   yang sungguhan dirender dengan BEBERAPA pesanan sekaligus — pelajaran
   yang sama seperti pengujian `rute:perbaiki-geometry` dan
@@ -1468,16 +1542,18 @@ php artisan test
   (produk yang dipilih maupun penyaringnya).
 - **[`tests/Feature/PosBonusTest.php`](tests/Feature/PosBonusTest.php)** —
   langkah bonus admin/superadmin di POS: item bonus tersimpan dengan harga
-  0 tapi stok fisik tetap berkurang SEKETIKA (`keluarkanStok()`, sama
-  seperti item biasa, bukan lewat reservasi); nominal cash cukup mengikuti
-  total item biasa saja, bonus tidak pernah ikut ditagihkan; produk yang
-  sama di kedua daftar tersimpan sebagai DUA baris terpisah; pemeriksaan
-  stok GABUNGAN (biasa+bonus per produk) terhadap stok fisik penuh; bonus
+  0 tapi stok fisik tetap berkurang SEKETIKA (`keluarkanStokLangsung()`,
+  sama seperti item biasa, bukan lewat reservasi); nominal cash cukup
+  mengikuti total item biasa saja, bonus tidak pernah ikut ditagihkan;
+  produk yang sama di kedua daftar tersimpan sebagai DUA baris terpisah;
+  pemeriksaan stok GABUNGAN (biasa+bonus per produk) terhadap
+  `stok_tersedia`; bonus
   saja tanpa item biasa tetap sah; visibilitas langkah bonus di komponen
   `Kasir` (tersembunyi total untuk sales, termasuk penomoran ulang langkah
   Pembayaran/Catatan untuk admin/superadmin — tanpa "Pilih Sales" sama
-  sekali, beda dari Input Pesanan, karena POS tidak pernah mencetak
-  faktur); dan tes keamanan yang sama seperti `PesananBonusTest`: sales
+  sekali, beda dari Input Pesanan, karena atribusi penjual POS otomatis
+  memakai `dibuat_oleh`, tidak dipilih manual); dan tes keamanan yang sama
+  seperti `PesananBonusTest`: sales
   yang memaksa mengisi `barisBonus` lewat `$wire.set()` langsung tetap
   TIDAK tersimpan sebagai bonus.
 - **[`tests/Feature/PosTanpaTokoTest.php`](tests/Feature/PosTanpaTokoTest.php)** —
@@ -1567,7 +1643,15 @@ php artisan test
   admin, bukan admin yang mengetik; dan total qty (jumlah dus keseluruhan)
   tercetak sejajar kolom Qty tepat di bawah tabel item ESC/P, terpisah
   dari "Total Harga" (header) dan "Total Invoice" (ringkasan nominal) yang
-  kebetulan sama-sama mengandung kata "Total".
+  kebetulan sama-sama mengandung kata "Total"; dan nota untuk transaksi
+  **POS**: `Pesanan::bisa_dicetak` (bukan `StatusPesanan::bisaDicetak()`
+  langsung) meloloskan pesanan berjenis POS lewat Cetak/PDF/ESC-P meski
+  statusnya SELESAI — sesuatu yang MUSTAHIL tercapai lewat aturan status
+  PROCESS/DELIVERY biasa karena POS langsung SELESAI seketika dibuat (lihat
+  `PesananService::buatPos()`) — sementara pesanan rute biasa yang sudah
+  SELESAI tetap ditolak seperti sebelumnya, membuktikan pengecualiannya
+  benar-benar khusus jenis POS, bukan longgar untuk status SELESAI secara
+  umum.
 - **[`tests/Feature/RincianPesananTest.php`](tests/Feature/RincianPesananTest.php)** —
   modal "Rincian Pesanan" menyembunyikan produk yang dikoreksi jadi 0 dus
   diterima, menampilkan jumlah terkirim sebagian apa adanya, menampilkan
@@ -1674,7 +1758,11 @@ php artisan test
   toko tanpa menambah dus terkirim, coret nota beserta penolakan di bawah
   batas minimal, jatah kampas per produk yang menolak permintaan melebihi sisa
   produk itu meski total jatahnya cukup, dan pemeriksaan bahwa dus yang tidak
-  sampai ke mana pun tidak memotong stok gudang. Termasuk cegatan di layar:
+  sampai ke mana pun tidak memotong stok gudang — termasuk POS: dus yang
+  masih terkunci di mobil setelah toko dibatalkan di lapangan TIDAK boleh
+  dijual lagi lewat POS walau `stok` fisik mentahnya masih terlihat cukup
+  (lihat [Point of Sale (POS)](#point-of-sale-pos)), dan begitu kuncian itu
+  lepas (kendaraan ditutup admin) baru boleh terjual. Termasuk cegatan di layar:
   isian yang melebihi jatah dipotong dan diberitahukan sejak diketik, bukan
   baru setelah nota terunggah. Serta koreksi pesanan yang terlanjur SELESAI
   lewat unggah nota penuh yang keliru: stok fisik kembali sebesar selisihnya

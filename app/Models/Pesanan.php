@@ -213,6 +213,23 @@ class Pesanan extends Model
     }
 
     /**
+     * Boleh dicetak notanya. Untuk pesanan biasa (rute pengantaran), cuma
+     * status PROCESS/DELIVERY yang boleh — lihat `StatusPesanan::bisaDicetak()`.
+     * Tapi POS TIDAK PERNAH melewati status itu sama sekali: langsung
+     * tercatat SELESAI seketika dibuat (lihat `PesananService::buatPos()`),
+     * jadi kalau aturan pesanan biasa dipakai apa adanya, transaksi POS
+     * tidak akan pernah punya nota yang bisa dicetak — bukan sekadar
+     * belum sempat, tapi memang mustahil tercapai. Pesanan kategori POS
+     * karena itu SELALU boleh dicetak, apa pun statusnya (praktiknya
+     * selalu Selesai).
+     */
+    protected function bisaDicetak(): Attribute
+    {
+        return Attribute::get(fn (): bool => $this->status->bisaDicetak()
+            || $this->jenis === JenisPesanan::Pos);
+    }
+
+    /**
      * Tanggal yang dipakai untuk mengelompokkan pesanan ini di menu
      * Pendapatan — BUKAN selalu tanggal_lunas.
      *
@@ -245,6 +262,42 @@ class Pesanan extends Model
             }
 
             return $this->tanggal_lunas;
+        });
+    }
+
+    /**
+     * Menyaring pesanan menurut `tanggal_pendapatan` (lihat dokumentasi
+     * accessor-nya di atas) berada di antara `$dari` dan `$sampai`
+     * (keduanya inklusif, format 'Y-m-d') — dipakai BERSAMA oleh layar
+     * Pendapatan dan Insentif Sales, supaya keduanya SELALU konsisten
+     * mengelompokkan pesanan ke hari yang sama (tanggal keberangkatan
+     * kendaraan untuk kategori driver, tanggal_lunas untuk kategori pos),
+     * bukan lewat dua kali logika kueri yang bisa diam-diam melenceng
+     * satu sama lain seiring waktu.
+     *
+     * Kedua batas dibandingkan lewat whereDate(), BUKAN whereBetween()
+     * dengan string tanggal polos — kolom `date` di Eloquent bisa saja
+     * tersimpan dengan sisa waktu "00:00:00" di baliknya (tergantung
+     * driver basis data), sehingga whereBetween(['2026-08-20',
+     * '2026-08-20']) gagal mencocokkan nilai '2026-08-20 00:00:00'
+     * (secara leksikografis dianggap LEBIH BESAR dari batas atasnya).
+     * whereDate() mengekstrak bagian tanggalnya lewat SQL sebelum
+     * dibandingkan, jadi kebal dari perbedaan format penyimpanan itu.
+     */
+    #[Scope]
+    protected function tanggalPendapatanAntara(Builder $query, string $dari, string $sampai): void
+    {
+        $query->where(function (Builder $q) use ($dari, $sampai) {
+            $q->where(function (Builder $qq) use ($dari, $sampai) {
+                $qq->whereIn('jenis', [JenisPesanan::Normal->value, JenisPesanan::Kampas->value])
+                    ->whereHas('stop.kendaraan.batch', function (Builder $b) use ($dari, $sampai) {
+                        $b->whereDate('tanggal', '>=', $dari)->whereDate('tanggal', '<=', $sampai);
+                    });
+            })->orWhere(function (Builder $qq) use ($dari, $sampai) {
+                $qq->where('jenis', JenisPesanan::Pos->value)
+                    ->whereDate('tanggal_lunas', '>=', $dari)
+                    ->whereDate('tanggal_lunas', '<=', $sampai);
+            });
         });
     }
 

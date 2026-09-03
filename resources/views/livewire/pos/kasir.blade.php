@@ -5,6 +5,10 @@
         <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {!! __('pos.tersimpan', ['kode' => '<strong>'.e($kodeTerakhir).'</strong>']) !!}
             <a href="{{ route('pembayaran.pendapatan') }}" wire:navigate class="font-semibold underline">{{ __('pos.lihat_riwayat') }}</a>
+            @if ($idTerakhir)
+                &middot;
+                <a href="{{ route('pesanan.nota', $idTerakhir) }}" target="_blank" class="font-semibold underline">{{ __('pesanan.cetak_nota') }}</a>
+            @endif
         </div>
     @endif
 
@@ -139,8 +143,8 @@
                                         <input type="number" min="1" wire:model.live.debounce.400ms="baris.{{ $i }}.jumlah_dus"
                                                class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     </td>
-                                    <td class="px-4 py-2 text-right {{ $produk && (int) ($b['jumlah_dus'] ?: 0) > $produk->stok ? 'font-semibold text-red-600' : 'text-gray-500' }}">
-                                        {{ $produk ? \App\Support\Bahasa::angka($produk->stok) : '—' }}
+                                    <td class="px-4 py-2 text-right {{ $produk && (int) ($b['jumlah_dus'] ?: 0) > $produk->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
+                                        {{ $produk ? \App\Support\Bahasa::angka($produk->stok_tersedia) : '—' }}
                                     </td>
                                     <td class="px-4 py-2 text-right tabular-nums text-gray-700">
                                         {{ $produk ? \App\Support\Bahasa::rupiah((float) $produk->harga * (int) ($b['jumlah_dus'] ?: 0)) : '—' }}
@@ -209,8 +213,8 @@
                                             <input type="number" min="1" wire:model.live.debounce.400ms="barisBonus.{{ $i }}.jumlah_dus"
                                                    class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                         </td>
-                                        <td class="px-4 py-2 text-right {{ $produkBonus && (int) ($b['jumlah_dus'] ?: 0) > $produkBonus->stok ? 'font-semibold text-red-600' : 'text-gray-500' }}">
-                                            {{ $produkBonus ? \App\Support\Bahasa::angka($produkBonus->stok) : '—' }}
+                                        <td class="px-4 py-2 text-right {{ $produkBonus && (int) ($b['jumlah_dus'] ?: 0) > $produkBonus->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
+                                            {{ $produkBonus ? \App\Support\Bahasa::angka($produkBonus->stok_tersedia) : '—' }}
                                         </td>
                                         <td class="px-4 py-2 text-right tabular-nums text-gray-700">
                                             @rupiah(0)
