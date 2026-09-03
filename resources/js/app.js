@@ -5,6 +5,7 @@ import { pasangKamera } from './kamera';
 import { pasangPemindaiQr } from './pemindai-qr';
 import { pasangChartPendapatan } from './pendapatan-chart';
 import { pasangChartInsentif } from './insentif-chart';
+import { pasangChartBarangTerjual } from './barang-terjual-chart';
 import { formatRibuan } from './format-rupiah';
 
 // Leaflet mencari berkas gambar penanda bawaan lewat jalur relatif yang tidak
@@ -19,4 +20,5 @@ window.pasangKamera = pasangKamera;
 window.pasangPemindaiQr = pasangPemindaiQr;
 window.pasangChartPendapatan = pasangChartPendapatan;
 window.pasangChartInsentif = pasangChartInsentif;
+window.pasangChartBarangTerjual = pasangChartBarangTerjual;
 window.formatRibuan = formatRibuan;

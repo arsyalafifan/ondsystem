@@ -8,6 +8,8 @@ return [
     'riwayat_pesanan' => 'Riwayat Pesanan',
     'generate_routing' => 'Generate Routing',
     'riwayat_routing' => 'Riwayat Routing',
+    'penjualan' => 'Penjualan',
+    'barang_terjual' => 'Barang Terjual',
     'pembayaran' => 'Pembayaran',
     'pelunasan' => 'Pelunasan',
     'belum_lunas' => 'Belum Lunas',
