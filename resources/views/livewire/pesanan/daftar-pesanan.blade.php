@@ -171,9 +171,10 @@
                                         </button>
                                     @endif
 
-                                    {{-- Dibatalkan DRIVER di lapangan (bukan oleh admin), dengan
-                                         alasan selain "toko membatalkan pesanan" — masih perlu
-                                         ditindaklanjuti: dicoba lagi, atau ditandai final. --}}
+                                    {{-- Dibatalkan dengan alasan selain "toko membatalkan
+                                         pesanan" (baik oleh driver di lapangan maupun admin
+                                         langsung dari sini) — masih perlu ditindaklanjuti:
+                                         dicoba lagi, atau ditandai final. --}}
                                     @if (auth()->user()->isAdmin() && $p->bisa_order_ulang)
                                         <button type="button" wire:click="bukaOrderUlang({{ $p->id }})"
                                                 class="rounded-md border border-blue-300 bg-white px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">
@@ -375,9 +376,10 @@
         </x-modal>
     @endif
 
-    {{-- Order ulang: pesanan yang dibatalkan driver di lapangan (bukan
-         karena toko menolak) — item-nya sudah diisi apa adanya dari
-         pesanan lama, tinggal disesuaikan kalau perlu. --}}
+    {{-- Order ulang: pesanan yang dibatalkan dengan alasan selain "toko
+         membatalkan pesanan" (bukan penolakan final) — item-nya sudah
+         diisi apa adanya dari pesanan lama, tinggal disesuaikan kalau
+         perlu. --}}
     @if ($this->pesananOrderUlangModel)
         @php $po = $this->pesananOrderUlangModel; @endphp
         <x-modal :judul="__('pesanan.judul_order_ulang', ['kode' => $po->kode])" lebar="max-w-2xl" tutup="tutupOrderUlang">

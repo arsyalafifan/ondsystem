@@ -523,8 +523,6 @@ class PesananService
      */
     public function tandaiBatalKarenaToko(Pesanan $pesanan, User $admin): void
     {
-        $pesanan->loadMissing('stop');
-
         if (! $pesanan->bisa_order_ulang) {
             throw new RuntimeException(__('pesanan.galat_bukan_batal_lapangan'));
         }
