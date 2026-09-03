@@ -8,6 +8,8 @@ return [
     'riwayat_pesanan' => '订单记录',
     'generate_routing' => '生成路线',
     'riwayat_routing' => '路线记录',
+    'penjualan' => '销售',
+    'barang_terjual' => '已售商品',
     'pembayaran' => '付款',
     'pelunasan' => '结算',
     'belum_lunas' => '未付款',

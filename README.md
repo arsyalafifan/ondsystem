@@ -1399,9 +1399,13 @@ Tiga aturan yang menentukan dus mana yang dihitung:
   POS yang diinput sales sendiri tetap ikut — insentif ini soal siapa yang
   menjual, bukan soal jalur penjualannya (driver vs POS).
 
-Tanggalnya mengikuti `Pesanan::selesai_at` (kapan pesanan SUNGGUH tuntas),
-bukan `tanggal` (target awal) atau `created_at` (waktu diinput) —
-konsisten dengan Pelunasan/Pendapatan yang juga memakai patokan yang sama.
+Tanggalnya mengikuti `Pesanan::tanggal_pendapatan` lewat
+`tanggalPendapatanAntara()` — SAMA persis dengan Pendapatan (lihat
+[Tanggal pendapatan & insentif kategori driver](#tanggal-pendapatan--insentif-kategori-driver-mengikuti-tanggal-keberangkatan-bukan-tanggal-lunasselesai)):
+tanggal keberangkatan kendaraan untuk pesanan yang lewat rute, `tanggal_lunas`
+untuk POS. BUKAN `tanggal` (target awal), `created_at` (waktu diinput), atau
+`selesai_at` (kapan toko benar-benar menerima — bisa menyusul beberapa hari
+dari keberangkatan).
 Empat mode penyaring seperti Pendapatan (Harian/Bulanan/Rentang/Semua),
 tapi **default-nya Bulanan** (Pendapatan default-nya Harian) — insentif
 memang lazimnya direkap bulanan.
@@ -1415,13 +1419,67 @@ orang, bukan uang per hari).
 
 ---
 
+## Barang Terjual
+
+Menu **Penjualan → Barang Terjual** (`/penjualan/barang-terjual`, admin/
+superadmin — `App\Livewire\Penjualan\BarangTerjual`) adalah **padanan
+packing list, tapi kebalikannya**. Packing list
+(`Kendaraan::ringkasan_produk_packing`, lihat
+[Mencetak nota dan packing list](#mencetak-nota-dan-packing-list))
+menunjukkan total & varian dus yang **BERANGKAT** — dihitung dari
+`jumlah_dus`, yaitu apa yang DIMUAT ke mobil sebelum berangkat. Layar ini
+menunjukkan total & varian dus yang **BENAR-BENAR TERJUAL** — dihitung
+dari `PesananItem::terkirim`, yang sudah memperhitungkan nota yang dicoret
+di lapangan maupun koreksi pasca-selesai. Dua angka itu SENGAJA berbeda:
+selisihnya persis sebesar dus yang dimuat tapi tidak jadi terjual (batal,
+dicoret, kurang kirim) — itulah gunanya menu ini ada terpisah dari packing
+list, bukan sekadar duplikat.
+
+Hanya pesanan berstatus **SELESAI** yang dihitung. Ini bukan pemeriksaan
+berlebihan: `Pesanan::tanggalPendapatanAntara()` (scope tanggal yang sama
+dipakai Pendapatan dan Insentif Sales — tanggal keberangkatan kendaraan
+untuk rute biasa & kampas, `tanggal_lunas` untuk POS) SENDIRI tidak
+menyaring status pesanan sama sekali untuk kategori driver, jadi pesanan
+yang batal di lapangan (`PengirimanService::batalkanDiLapangan()` — stop
+TETAP ada, tidak dihapus, dan kendaraannya tetap berangkat pada tanggal
+yang sama) akan ikut lolos scope tanggal itu kalau statusnya tidak
+disaring eksplisit di sini. Pesanan begitu tidak pernah menyerahkan
+barang apa pun, jadi tidak boleh terhitung "terjual" — lihat pengujiannya
+di `BarangTerjualTest.php`.
+
+Layarnya dibagi tiga bagian:
+
+1. **Kartu ringkasan** — total dus terjual, jumlah varian produk, jumlah
+   transaksi, dus bonus, dan pemisahan kategori Pengantaran Driver vs
+   Point of Sale (padanan `Pendapatan::totalPerKategori()`, tapi satuan
+   dus, bukan rupiah).
+2. **Grafik & ringkasan per produk** — sepuluh produk terlaris sebagai
+   batang horizontal (`resources/js/barang-terjual-chart.js`, pola yang
+   sama dengan `insentif-chart.js`), plus tabel ringkasan SELURUH varian
+   terurut dari yang paling laris, dengan kolom dus bonus terpisah supaya
+   angka "terjual" tidak diam-diam bercampur dengan yang gratis.
+3. **Tabel riwayat** — satu baris per item per pesanan (tanggal, kode
+   pesanan, toko, produk, kategori, dus terjual), bisa disaring lewat
+   kata kunci/kategori/produk, dan **dipaging 15 baris per halaman**
+   lewat kueri basis data langsung (bukan menyaring koleksi di memori
+   seperti riwayat Pendapatan) — supaya jumlah halamannya akurat dan
+   tabelnya tidak perlu discroll panjang-panjang saat rentang tanggalnya
+   lebar.
+
+Kartu ringkasan dan grafik SENGAJA tidak ikut tersaring oleh penyaring
+tabel riwayat (kata kunci/kategori/produk) — sama seperti pola Pendapatan,
+angka ringkasan selalu menunjukkan gambaran SELURUH rentang tanggal yang
+dipilih, penyaring tabel cuma mempersempit tabelnya sendiri.
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-567 tes, mencakup:
+579 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1470,6 +1528,21 @@ php artisan test
   bonus (`is_bonus = true`) tetap dikecualikan dari jumlahnya sebagai
   pertahanan lapis kedua, sekalipun secara hipotetis muncul pada pesanan
   yang penginputnya berperan sales.
+- **[`tests/Feature/BarangTerjualTest.php`](tests/Feature/BarangTerjualTest.php)** —
+  hanya admin yang bisa akses (sales/driver ditolak); dus dihitung dari
+  `terkirim` (bukan `jumlah_dus`) — nota yang dicoret mengurangi angkanya
+  sesuai yang benar-benar diterima; pesanan yang **dibatalkan driver di
+  lapangan TIDAK ikut terhitung** walau kendaraannya tetap berangkat pada
+  tanggal yang sama (stop-nya sengaja tidak dihapus, jadi kalau status
+  SELESAI tidak disaring eksplisit angkanya akan ikut lolos scope tanggal
+  — persis skenario yang diuji di sini); ringkasan per produk memisahkan
+  dus bonus dari dus berbayar; kategori driver vs POS dihitung dalam
+  satuan dus, terpisah dari `Pendapatan` yang satuannya rupiah;
+  pengelompokan memakai tanggal KEBERANGKATAN kendaraan, bukan tanggal
+  pesanan dibuat; tabel riwayat bisa disaring lewat kata kunci/kategori/
+  produk tanpa mengubah kartu ringkasan di atasnya, dan sungguh dipaging
+  15 baris per halaman (diuji dengan 17 baris, memastikan halaman kedua
+  benar-benar ada) — bukan cuma dipotong tampilannya lewat `take()`.
 - **[`tests/Feature/PendapatanRiwayatTest.php`](tests/Feature/PendapatanRiwayatTest.php)** —
   penyaring tabel riwayat lewat kode pesanan, nama toko, kategori (`pos`
   vs `driver` — termasuk memastikan rute biasa DAN kampas sama-sama masuk

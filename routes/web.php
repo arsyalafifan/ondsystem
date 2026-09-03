@@ -20,6 +20,7 @@ use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
 use App\Livewire\Pengguna\DaftarPengguna;
+use App\Livewire\Penjualan\BarangTerjual;
 use App\Livewire\Pesanan\BuatPesanan;
 use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
@@ -92,6 +93,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan');
 
         Route::get('/insentif/sales', InsentifSales::class)->name('insentif.sales');
+
+        Route::get('/penjualan/barang-terjual', BarangTerjual::class)->name('penjualan.barang-terjual');
 
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
