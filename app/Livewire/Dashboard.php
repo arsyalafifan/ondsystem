@@ -58,9 +58,8 @@ class Dashboard extends Component
     {
         return Kendaraan::query()
             ->with(['wilayah:id,nama', 'driver:id,name', 'stops'])
-            ->whereHas('batch', fn ($q) => $q
-                ->where('status', 'disetujui')
-                ->whereDate('tanggal', $this->tanggal))
+            ->whereHas('batch', fn ($q) => $q->where('status', 'disetujui'))
+            ->whereDate('tanggal', $this->tanggal)
             ->orderBy('nomor')
             ->get();
     }

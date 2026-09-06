@@ -4,16 +4,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Target kunjungan
-    |--------------------------------------------------------------------------
-    | Batas jumlah toko yang boleh ditugaskan kepada satu sales, sekaligus
-    | menjadi target kunjungannya dalam satu minggu.
-    */
-
-    'maks_toko_per_sales' => (int) env('VISIT_MAKS_TOKO_PER_SALES', 120),
-
-    /*
-    |--------------------------------------------------------------------------
     | Hari kerja
     |--------------------------------------------------------------------------
     | Periode kunjungan berjalan Senin sampai Sabtu, lalu dimulai lagi dari nol

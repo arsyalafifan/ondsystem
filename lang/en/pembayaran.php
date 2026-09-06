@@ -9,7 +9,7 @@ return [
 
     // Pelunasan
     'judul_pelunasan' => 'Settlement',
-    'ket_pelunasan' => 'Mark which stores have paid, per vehicle per day. Only COMPLETED orders can be processed.',
+    'ket_pelunasan' => 'Mark which stores have paid, per vehicle per departure date. Only COMPLETED orders can be processed.',
     'tombol_lunas' => 'Paid',
     'tombol_belum_lunas' => 'Unpaid',
     'konfirmasi_lunas_judul' => 'Mark as Paid',
@@ -33,7 +33,7 @@ return [
 
     // Pendapatan
     'judul_pendapatan' => 'Revenue',
-    'ket_pendapatan' => 'Revenue recap by settlement date, not delivery date.',
+    'ket_pendapatan' => 'Revenue recap by vehicle departure date for the Driver Delivery category, and by settlement date for Point of Sale.',
     'mode_hari' => 'Daily',
     'mode_bulan' => 'Monthly',
     'mode_rentang' => 'Range',

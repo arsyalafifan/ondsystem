@@ -2,14 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
-use App\Models\PenugasanSales;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
-use Carbon\CarbonImmutable;
+use App\Services\Kunjungan\PenugasanTokoService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -128,8 +128,10 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Membagi toko berfreezer kepada para sales untuk bulan berjalan, sebatas
-     * kuota per orang. Satu toko hanya diberikan kepada satu sales.
+     * Menyusun jadwal mingguan per hari (lihat dokumentasi `PenugasanToko`)
+     * untuk para sales: tiap sales kebagian toko Senin sampai Sabtu, sebatas
+     * kuota per hari. Minggu sengaja dibiarkan kosong (default), dan satu
+     * toko hanya masuk ke satu slot (sales, hari).
      */
     private function penugasanKunjungan(): void
     {
@@ -140,30 +142,26 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        $bulan = CarbonImmutable::today()->startOfMonth()->toDateString();
-        $maks = (int) config('visit.maks_toko_per_sales');
+        $service = app(PenugasanTokoService::class);
+        $hariKerja = array_filter(HariKunjungan::cases(), fn (HariKunjungan $h) => $h !== HariKunjungan::Minggu);
 
         $tokos = Toko::aktif()->berassetId()->orderBy('id')->get();
-
-        // Dibagi rata, bukan mengisi sales pertama sampai kuotanya penuh.
-        // Pembagian yang timpang membuat data contoh tidak menggambarkan
-        // keadaan sebenarnya, dan sales terakhir bisa kebagian nol toko.
-        $perSales = min($maks, (int) ceil($tokos->count() / max(1, $salesList->count())));
         $indeks = 0;
 
         foreach ($salesList as $sales) {
-            $jatah = $tokos->slice($indeks, $perSales);
-            $indeks += $jatah->count();
+            foreach ($hariKerja as $hari) {
+                $jatah = $tokos->slice($indeks, $service->maksPerHari());
 
-            foreach ($jatah as $toko) {
-                PenugasanSales::updateOrCreate(
-                    ['toko_id' => $toko->id, 'bulan' => $bulan],
-                    ['sales_id' => $sales->id, 'ditugaskan_oleh' => $admin->id],
-                );
+                if ($jatah->isEmpty()) {
+                    break 2;
+                }
+
+                $indeks += $jatah->count();
+                $service->tetapkan($sales, $hari, $jatah->pluck('id')->all(), $admin);
             }
         }
 
-        $this->command->info("Penugasan kunjungan: {$indeks} toko dibagi ke {$salesList->count()} sales untuk bulan {$bulan}.");
+        $this->command->info("Penugasan kunjungan: {$indeks} toko dijadwalkan untuk {$salesList->count()} sales.");
     }
 
     /** @param  array<string, array{id: int, nama: string, lat: float, lng: float}>  $wilayahs */

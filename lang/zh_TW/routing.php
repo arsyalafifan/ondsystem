@@ -90,6 +90,8 @@ return [
     'driver_terkunci' => '已經開始配送，無法更改',
     'notif_driver_diubah' => ':mobil 的司機已設為 :driver。',
     'galat_driver_sudah_jalan' => ':mobil 已經在現場開始配送，司機無法再更改。',
+    'notif_tanggal_diubah' => ':mobil 的發車日期已改為 :tanggal。',
+    'galat_tanggal_sudah_jalan' => ':mobil 已經在現場開始配送，發車日期無法再更改。',
     'galat_bukan_driver' => ':nama 不是司機角色的帳號。',
     'galat_driver_sedang_bertugas' => ':nama 已在同一天（:tanggal）駕駛另一輛車。',
 ];

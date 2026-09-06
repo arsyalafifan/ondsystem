@@ -159,3 +159,43 @@ it('pesanan POS tetap memakai tanggal_lunas, tidak terpengaruh perubahan ini', f
         ->toBe($pesanan->tanggal_lunas->toDateString())
         ->toBe(today()->toDateString());
 });
+
+/**
+ * Tanggal keberangkatan sekarang milik KENDARAAN, bukan batch — dua mobil
+ * dari satu `generate()` yang sama boleh diedit ke tanggal berbeda-beda
+ * lewat `RoutingService::ubahTanggal()` (lihat `RoutingDriverTest.php`).
+ * `tanggal_pendapatan` tiap pesanan harus ikut tanggal KENDARAANNYA
+ * sendiri, bukan tanggal default batch saat digenerate.
+ */
+it('dua kendaraan dari batch yang sama diedit ke tanggal berbeda — pendapatan ikut tanggal kendaraan masing-masing', function () {
+    $wilayah = Wilayah::create(['kode' => 'W-PTK', 'nama' => 'Wilayah PTK']);
+    $produk = Produk::create(['kode' => 'PTK1', 'nama' => 'Produk PTK', 'stok' => 1000, 'harga' => 25_000]);
+
+    foreach ([1, 2] as $i) {
+        $toko = Toko::create([
+            'kode' => "TK-PTK{$i}", 'nama' => "Toko PTK {$i}", 'wilayah_id' => $wilayah->id,
+            'alamat' => 'Jl. PTK', 'latitude' => -6.20 + $i * 0.05, 'longitude' => 106.80 + $i * 0.05,
+            'sumber_koordinat' => 'manual',
+        ]);
+        $pesanan = $this->pesananService->buat($toko, [['produk_id' => $produk->id, 'jumlah_dus' => 5]], $this->sales);
+        $this->pesananService->setujui($pesanan, $this->admin);
+    }
+
+    // maxToko: 1 supaya kedua toko dipecah ke dua kendaraan berbeda.
+    $batch = $this->routingService->generate($this->admin, maxToko: 1, pisahPerWilayah: false);
+    $this->routingService->setujui($batch, $this->admin);
+
+    [$kendaraan1, $kendaraan2] = $batch->fresh()->kendaraans->all();
+
+    $tanggal1 = CarbonImmutable::parse('2026-08-20');
+    $tanggal2 = CarbonImmutable::parse('2026-08-25');
+
+    $this->routingService->ubahTanggal($kendaraan1, $tanggal1);
+    $this->routingService->ubahTanggal($kendaraan2, $tanggal2);
+
+    $pesanan1 = $kendaraan1->fresh()->stops->first()->pesanan()->first();
+    $pesanan2 = $kendaraan2->fresh()->stops->first()->pesanan()->first();
+
+    expect($pesanan1->fresh(['stop.kendaraan'])->tanggal_pendapatan->toDateString())->toBe($tanggal1->toDateString())
+        ->and($pesanan2->fresh(['stop.kendaraan'])->tanggal_pendapatan->toDateString())->toBe($tanggal2->toDateString());
+});

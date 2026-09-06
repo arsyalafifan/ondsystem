@@ -248,7 +248,8 @@ class Pesanan extends Model
      *
      * Untuk kategori "driver" (rute biasa maupun kampas, keduanya lewat
      * kendaraan — lihat `JenisPesanan::kategoriPendapatan()`), pendapatan
-     * mengikuti tanggal KEBERANGKATAN kendaraannya (`RoutingBatch::tanggal`),
+     * mengikuti tanggal KEBERANGKATAN kendaraannya (`Kendaraan::tanggal` —
+     * per kendaraan, bisa beda-beda walau satu batch routing yang sama),
      * bukan kapan tagihannya kebetulan dilunasi — toko yang berangkat
      * dikirim tanggal 20 tapi baru bayar tanggal 22 tetap terhitung sebagai
      * pendapatan tanggal 20, karena dus-nya memang sudah keluar gudang
@@ -256,7 +257,7 @@ class Pesanan extends Model
      * (langsung lunas seketika saat dibuat), jadi tanggal_lunas sudah tepat
      * dan satu-satunya tanggal yang bermakna baginya.
      *
-     * Pemanggil wajib memuat relasi `stop.kendaraan.batch` lebih dulu untuk
+     * Pemanggil wajib memuat relasi `stop.kendaraan` lebih dulu untuk
      * kategori driver — mode ketat model melempar galat kalau belum, alih-
      * alih memicu kueri N+1 diam-diam. Jatuh kembali ke tanggal_lunas kalau
      * rantai relasinya ternyata putus (mis. kendaraan lama yang datanya
@@ -267,7 +268,7 @@ class Pesanan extends Model
     {
         return Attribute::get(function (): CarbonInterface {
             if ($this->jenis->kategoriPendapatan() === 'driver') {
-                $tanggal = $this->stop?->kendaraan?->batch?->tanggal;
+                $tanggal = $this->stop?->kendaraan?->tanggal;
 
                 if ($tanggal !== null) {
                     return $tanggal;
@@ -303,7 +304,7 @@ class Pesanan extends Model
         $query->where(function (Builder $q) use ($dari, $sampai) {
             $q->where(function (Builder $qq) use ($dari, $sampai) {
                 $qq->whereIn('jenis', [JenisPesanan::Normal->value, JenisPesanan::Kampas->value])
-                    ->whereHas('stop.kendaraan.batch', function (Builder $b) use ($dari, $sampai) {
+                    ->whereHas('stop.kendaraan', function (Builder $b) use ($dari, $sampai) {
                         $b->whereDate('tanggal', '>=', $dari)->whereDate('tanggal', '<=', $sampai);
                     });
             })->orWhere(function (Builder $qq) use ($dari, $sampai) {

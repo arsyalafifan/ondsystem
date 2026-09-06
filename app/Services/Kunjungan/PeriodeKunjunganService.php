@@ -2,7 +2,7 @@
 
 namespace App\Services\Kunjungan;
 
-use App\Models\PenugasanSales;
+use App\Models\PenugasanToko;
 use App\Models\PeriodeKunjungan;
 use App\Models\PeriodeSales;
 use App\Models\User;
@@ -68,14 +68,19 @@ class PeriodeKunjunganService
 
     /**
      * Menyiapkan baris progres untuk setiap sales aktif, lengkap dengan
-     * salinan jumlah tanggungannya bulan ini.
+     * salinan jumlah tanggungannya saat ini.
+     *
+     * Jumlahnya diambil dari SELURUH jadwal mingguan sales itu (semua
+     * hari Senin-Minggu) — jadwalnya sendiri berdiri terus (lihat
+     * dokumentasi `PenugasanToko`), tidak per bulan seperti dulu, tapi
+     * angka target di sini tetap SNAPSHOT yang disalin sekali saat
+     * periode dibuka, persis alasan yang sama seperti sebelumnya: supaya
+     * target minggu yang sudah lewat tidak ikut berubah kalau admin
+     * menyusun ulang jadwalnya belakangan (lihat docblock PeriodeSales).
      */
     public function siapkanSales(PeriodeKunjungan $periode): void
     {
-        $bulan = $periode->tanggal_mulai->copy()->startOfMonth()->toDateString();
-
-        $jumlahPerSales = PenugasanSales::query()
-            ->whereDate('bulan', $bulan)
+        $jumlahPerSales = PenugasanToko::query()
             ->selectRaw('sales_id, count(*) as jumlah')
             ->groupBy('sales_id')
             ->pluck('jumlah', 'sales_id');
@@ -95,10 +100,7 @@ class PeriodeKunjunganService
      */
     public function segarkanTarget(PeriodeKunjungan $periode): void
     {
-        $bulan = $periode->tanggal_mulai->copy()->startOfMonth()->toDateString();
-
-        $jumlahPerSales = PenugasanSales::query()
-            ->whereDate('bulan', $bulan)
+        $jumlahPerSales = PenugasanToko::query()
             ->selectRaw('sales_id, count(*) as jumlah')
             ->groupBy('sales_id')
             ->pluck('jumlah', 'sales_id');

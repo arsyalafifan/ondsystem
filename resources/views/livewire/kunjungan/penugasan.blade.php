@@ -1,11 +1,22 @@
 <div>
     <x-judul-halaman :judul="__('kunjungan.judul_penugasan')" :keterangan="__('kunjungan.ket_penugasan')">
         <x-slot:aksi>
-            <input type="month" wire:model.live="bulan"
-                   class="rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-            <button type="button" wire:click="bukaSalin"
-                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
-                {{ __('kunjungan.salin_bulan_lalu') }}
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-500">{{ __('kunjungan.maks_per_hari') }}</label>
+                <input type="number" min="1" wire:model="maksInput"
+                       class="w-20 rounded-lg border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                <button type="button" wire:click="simpanMaks"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.simpan') }}
+                </button>
+            </div>
+            <button type="button" wire:click="jadikanDefault" @disabled($salesDipilih === null)
+                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                {{ __('kunjungan.jadikan_default') }}
+            </button>
+            <button type="button" wire:click="bukaKonfirmasiRestore" @disabled($salesDipilih === null)
+                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                {{ __('kunjungan.restore_default') }}
             </button>
         </x-slot:aksi>
     </x-judul-halaman>
@@ -17,6 +28,25 @@
         </div>
     @endif
 
+    {{-- Tab hari --}}
+    <div class="mb-4 flex flex-wrap gap-1.5">
+        @foreach ($this->hariList as $h)
+            <button type="button" wire:click="pilihHari({{ $h['hari']->value }})"
+                    @class([
+                        'rounded-lg border px-3 py-2 text-sm font-medium',
+                        'border-blue-600 bg-blue-600 text-white' => $hari === $h['hari']->value,
+                        'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => $hari !== $h['hari']->value,
+                    ])>
+                {{ $h['hari']->label() }}
+                <span @class([
+                    'ml-1 rounded px-1 text-xs',
+                    'bg-blue-500 text-white' => $hari === $h['hari']->value,
+                    'bg-gray-100 text-gray-500' => $hari !== $h['hari']->value,
+                ])>{{ $h['jumlah'] }}</span>
+            </button>
+        @endforeach
+    </div>
+
     <div class="grid gap-5 lg:grid-cols-3">
         {{-- Daftar sales --}}
         <div class="lg:col-span-1">
@@ -27,7 +57,6 @@
 
                 <ul class="divide-y divide-gray-100">
                     @forelse ($this->salesList as $s)
-                        @php $penuh = $s->jumlah_toko >= $this->maksToko; @endphp
                         <li>
                             <button type="button" wire:click="pilihSales({{ $s->id }})"
                                     @class([
@@ -38,9 +67,8 @@
                                 <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-base">👤</span>
                                 <span class="min-w-0 flex-1">
                                     <span class="block truncate font-medium text-gray-900">{{ $s->name }}</span>
-                                    <span class="text-xs {{ $penuh ? 'font-medium text-amber-700' : 'text-gray-500' }}">
-                                        {{ __('kunjungan.toko_dipegang', ['jumlah' => $s->jumlah_toko, 'batas' => $this->maksToko]) }}
-                                        @if ($penuh) · {{ __('kunjungan.kuota_penuh') }} @endif
+                                    <span class="text-xs text-gray-500">
+                                        {{ $s->jumlah_toko }} {{ __('umum.toko') }}
                                     </span>
                                 </span>
                                 @if ($salesDipilih === $s->id)
@@ -66,7 +94,7 @@
                         'text-gray-500' => $sisa > 0,
                     ])>
                         {{ count($terpilih) }} / {{ $this->maksToko }}
-                        @if ($sisa > 0) · {{ __('kunjungan.sisa_kuota', ['jumlah' => $sisa]) }} @endif
+                        @if ($sisa > 0) · {{ __('kunjungan.sisa_kuota', ['jumlah' => $sisa]) }} @else · {{ __('kunjungan.kuota_penuh') }} @endif
                     </span>
                 </x-slot:aksi>
 
@@ -135,25 +163,20 @@
         </div>
     </div>
 
-    @if ($konfirmasiSalin)
-        <x-modal :judul="__('kunjungan.judul_salin')" tutup="$set('konfirmasiSalin', false)">
+    @if ($konfirmasiRestore)
+        <x-modal :judul="__('kunjungan.judul_restore_default')" tutup="$set('konfirmasiRestore', false)">
             <div class="space-y-3 p-5">
-                <p class="text-sm text-gray-600">{{ __('kunjungan.ket_salin') }}</p>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('kunjungan.bulan_sumber') }}</label>
-                    <input type="month" wire:model="bulanSumber"
-                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                </div>
+                <p class="text-sm text-gray-600">{{ __('kunjungan.ket_restore_default') }}</p>
             </div>
 
             <x-slot:aksi>
-                <button type="button" wire:click="$set('konfirmasiSalin', false)"
+                <button type="button" wire:click="$set('konfirmasiRestore', false)"
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                     {{ __('umum.batal') }}
                 </button>
-                <button type="button" wire:click="salinDariBulanLalu"
+                <button type="button" wire:click="restoreDefault"
                         class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                    {{ __('umum.simpan') }}
+                    {{ __('kunjungan.restore_default') }}
                 </button>
             </x-slot:aksi>
         </x-modal>

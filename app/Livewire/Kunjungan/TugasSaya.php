@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Kunjungan;
 
+use App\Enums\HariKunjungan;
 use App\Enums\StatusKunjungan;
 use App\Models\Kunjungan;
 use App\Models\PeriodeKunjungan;
@@ -25,6 +26,16 @@ class TugasSaya extends Component
     #[Url(as: 'saring')]
     public string $saringStatus = '';
 
+    /**
+     * Penyaring tampilan berdasarkan hari yang direncanakan (`hari_ini`,
+     * `minggu` untuk seluruh minggu tanpa saring, atau angka HariKunjungan
+     * 1-7). Ini MURNI saringan tampilan di atas tanggungan() yang sama —
+     * sales tetap bisa mengunjungi toko tanggungannya hari apa pun dengan
+     * memilih "Seluruh minggu", lihat dokumentasi `PenugasanToko`.
+     */
+    #[Url(as: 'hari')]
+    public string $saringHari = 'hari_ini';
+
     #[Computed]
     public function periode(): PeriodeKunjungan
     {
@@ -46,6 +57,14 @@ class TugasSaya extends Component
                     if (! $cocok) {
                         return false;
                     }
+                }
+
+                if ($this->saringHari === 'hari_ini' && $toko->penugasanToko?->hari !== HariKunjungan::hariIni()) {
+                    return false;
+                }
+
+                if (is_numeric($this->saringHari) && $toko->penugasanToko?->hari?->value !== (int) $this->saringHari) {
+                    return false;
                 }
 
                 if ($this->saringStatus === '') {

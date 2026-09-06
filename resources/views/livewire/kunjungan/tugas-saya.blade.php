@@ -62,6 +62,17 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('kunjungan.pilih_hari') }}</label>
+                <select wire:model.live="saringHari"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="hari_ini">{{ __('kunjungan.saring_hari_ini') }}</option>
+                    <option value="minggu">{{ __('kunjungan.saring_seluruh_minggu') }}</option>
+                    @foreach (\App\Enums\HariKunjungan::cases() as $h)
+                        <option value="{{ $h->value }}">{{ $h->label() }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <ul class="divide-y divide-gray-100">
@@ -90,6 +101,9 @@
                                 <span class="text-amber-700">{{ __('master.belum_ada_koordinat') }}</span>
                             @endif
                             @if ($toko->wilayah)<span>{{ $toko->wilayah->nama }}</span>@endif
+                            @if ($toko->penugasanToko)
+                                <span class="font-medium text-gray-600">{{ $toko->penugasanToko->hari->label() }}</span>
+                            @endif
                         </p>
 
                         @if ($kunjungan)

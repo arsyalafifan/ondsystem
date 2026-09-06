@@ -205,7 +205,16 @@ describe('rincian sumber pembayaran', function () {
     });
 });
 
-it('pendapatan mengikuti tanggal pelunasan, bukan tanggal pengiriman', function () {
+/**
+ * Judul lama tes ini ("pendapatan mengikuti tanggal pelunasan") menyesatkan
+ * — untuk kategori driver, pendapatan justru mengikuti tanggal KEBERANGKATAN
+ * (lihat `Pesanan::tanggal_pendapatan` dan
+ * `PendapatanTanggalKeberangkatanTest.php`), bukan `tanggal_lunas` sama
+ * sekali. Tes ini sendiri sebenarnya tidak pernah menguji pengelompokan
+ * pendapatan — cuma memastikan `tanggal_lunas` tercatat sesuai kapan
+ * `tandaiLunas()` sungguh dipanggil, bukan kapan pesanannya dibuat.
+ */
+it('tanggal_lunas mengikuti kapan pesanan ditandai lunas, bukan tanggal pesanan dibuat', function () {
     $kendaraan = kendaraanSelesai(1, dusPerToko: 10);
     $pesanan = $kendaraan->stops->first()->pesanan()->first();
 

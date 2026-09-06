@@ -505,7 +505,7 @@
                         </ul>
                     </div>
                 @empty
-                    @if (! $this->adaPenugasanBulanIni)
+                    @if (! $this->adaPenugasan)
                         <x-kosong ikon="user-group" :judul="__('pesanan.toko_tanpa_penugasan')" />
                     @elseif ($this->tokoTidakAktifSemua->isEmpty())
                         <x-kosong ikon="check-circle" :judul="__('pesanan.kosong_toko_tidak_aktif')" />

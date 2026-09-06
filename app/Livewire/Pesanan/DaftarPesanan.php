@@ -4,7 +4,7 @@ namespace App\Livewire\Pesanan;
 
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
-use App\Models\PenugasanSales;
+use App\Models\PenugasanToko;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
@@ -459,12 +459,13 @@ class DaftarPesanan extends Component
     }
 
     /**
-     * Toko yang menjadi tanggungan sales bulan ini (Penugasan Toko) tapi
-     * belum punya pesanan SELESAI dalam 1 bulan terakhir, dikelompokkan
-     * per sales. Dasar hitung "1 bulan"-nya jendela bergulir dari hari ini
-     * (`selesai_at >= sebulan lalu`), bukan batas bulan kalender — toko
-     * yang terakhir pesanannya tuntas 29 hari lalu tetap dianggap aktif
-     * walau sudah berganti bulan kalender.
+     * Toko yang menjadi tanggungan sales saat ini (jadwal mingguan
+     * Penugasan Toko, berdiri terus — lihat dokumentasi `PenugasanToko`)
+     * tapi belum punya pesanan SELESAI dalam 1 bulan terakhir,
+     * dikelompokkan per sales. Dasar hitung "1 bulan"-nya jendela bergulir
+     * dari hari ini (`selesai_at >= sebulan lalu`), bukan batas bulan
+     * kalender — toko yang terakhir pesanannya tuntas 29 hari lalu tetap
+     * dianggap aktif walau sudah berganti bulan kalender.
      *
      * Tidak disaring lewat filterSalesTidakAktif/cariTokoTidakAktif di
      * sini — itu tugas tokoTidakAktif() di bawah — supaya badge jumlah
@@ -476,11 +477,9 @@ class DaftarPesanan extends Component
     #[Computed]
     public function tokoTidakAktifSemua(): Collection
     {
-        $bulanIni = CarbonImmutable::today()->startOfMonth()->toDateString();
         $batasWaktu = CarbonImmutable::now()->subMonth();
 
-        $penugasan = PenugasanSales::query()
-            ->whereDate('bulan', $bulanIni)
+        $penugasan = PenugasanToko::query()
             ->with(['toko:id,nama,kode,wilayah_id', 'toko.wilayah:id,nama', 'sales:id,name'])
             ->get();
 
@@ -496,7 +495,7 @@ class DaftarPesanan extends Component
             ->pluck('toko_id');
 
         return $penugasan
-            ->reject(fn (PenugasanSales $p) => $tokoAktifIds->contains($p->toko_id))
+            ->reject(fn (PenugasanToko $p) => $tokoAktifIds->contains($p->toko_id))
             ->groupBy('sales_id')
             ->map(fn (Collection $grup) => [
                 'sales' => $grup->first()->sales,
@@ -534,11 +533,9 @@ class DaftarPesanan extends Component
 
     /** Membedakan "belum ada penugasan sama sekali" dari "semua toko tanggungan sudah aktif". */
     #[Computed]
-    public function adaPenugasanBulanIni(): bool
+    public function adaPenugasan(): bool
     {
-        return PenugasanSales::query()
-            ->whereDate('bulan', CarbonImmutable::today()->startOfMonth()->toDateString())
-            ->exists();
+        return PenugasanToko::query()->exists();
     }
 
     public function render()

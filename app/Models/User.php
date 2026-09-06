@@ -72,6 +72,13 @@ class User extends Authenticatable
         return $this->hasMany(Kunjungan::class, 'sales_id');
     }
 
+    /** Jadwal kunjungan mingguan sales ini — lihat dokumentasi PenugasanToko. */
+    /** @return HasMany<PenugasanToko, $this> */
+    public function penugasanTokos(): HasMany
+    {
+        return $this->hasMany(PenugasanToko::class, 'sales_id');
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role, [PeranPengguna::Admin, PeranPengguna::Superadmin], true);

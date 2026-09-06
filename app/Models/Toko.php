@@ -111,6 +111,18 @@ class Toko extends Model
         return $this->hasMany(PenugasanSales::class);
     }
 
+    /**
+     * Slot jadwal mingguan toko ini (satu hari, satu sales) — lihat
+     * dokumentasi PenugasanToko. HasOne, bukan HasMany: `unique('toko_id')`
+     * di migrasinya menjamin paling banyak satu baris per toko.
+     *
+     * @return HasOne<PenugasanToko, $this>
+     */
+    public function penugasanToko(): HasOne
+    {
+        return $this->hasOne(PenugasanToko::class);
+    }
+
     /** @return HasMany<Kunjungan, $this> */
     public function kunjungans(): HasMany
     {

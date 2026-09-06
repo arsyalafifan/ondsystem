@@ -1,16 +1,16 @@
 <?php
 
+use App\Enums\HariKunjungan;
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusKunjungan;
 use App\Livewire\Kunjungan\Kunjungi;
 use App\Models\Kunjungan;
-use App\Models\PenugasanSales;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
+use App\Services\Kunjungan\PenugasanTokoService;
 use App\Support\ModeUji;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -40,12 +40,9 @@ beforeEach(function () {
         'sumber_koordinat' => 'manual',
     ]);
 
-    PenugasanSales::create([
-        'sales_id' => $this->sales->id,
-        'toko_id' => $this->toko->id,
-        'bulan' => CarbonImmutable::today()->startOfMonth()->toDateString(),
-        'ditugaskan_oleh' => $this->admin->id,
-    ]);
+    app(PenugasanTokoService::class)->tetapkan(
+        $this->sales, HariKunjungan::Senin, [$this->toko->id], $this->admin,
+    );
 });
 
 it('mati ketika penandanya tidak dinyalakan', function () {

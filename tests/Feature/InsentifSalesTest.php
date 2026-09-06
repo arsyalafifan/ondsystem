@@ -35,15 +35,16 @@ beforeEach(function () {
  * sendiri (yang sudah punya tesnya masing-masing).
  *
  * Insentif Sales sekarang mengelompokkan tanggal lewat
- * `Pesanan::tanggal_pendapatan` (tanggal KEBERANGKATAN kendaraan untuk
- * kategori driver, bukan `selesai_at`) — jadi untuk jenis Normal/Kampas,
- * helper ini juga membuat rantai minimal RoutingBatch → Kendaraan →
- * KendaraanStop langsung lewat Eloquent (bukan RoutingService
- * sesungguhnya, tetap konsisten dengan semangat helper ini), dengan
- * tanggal keberangkatan batch-nya DISAMAKAN dengan `$selesaiAt` supaya
- * parameter yang sama tetap bisa dipakai memanipulasi "tanggal" pada
- * tes-tes penyaring hari/bulan/rentang di bawah. Jenis Pos tidak pernah
- * lewat kendaraan sama sekali, jadi cukup tanggal_lunas yang diisi.
+ * `Pesanan::tanggal_pendapatan` (tanggal KEBERANGKATAN kendaraan — kolom
+ * `Kendaraan::tanggal`, per kendaraan — untuk kategori driver, bukan
+ * `selesai_at`) — jadi untuk jenis Normal/Kampas, helper ini juga membuat
+ * rantai minimal RoutingBatch → Kendaraan → KendaraanStop langsung lewat
+ * Eloquent (bukan RoutingService sesungguhnya, tetap konsisten dengan
+ * semangat helper ini), dengan tanggal keberangkatan kendaraannya
+ * DISAMAKAN dengan `$selesaiAt` supaya parameter yang sama tetap bisa
+ * dipakai memanipulasi "tanggal" pada tes-tes penyaring hari/bulan/rentang
+ * di bawah. Jenis Pos tidak pernah lewat kendaraan sama sekali, jadi cukup
+ * tanggal_lunas yang diisi.
  */
 function buatPesananSelesai(
     User $pembuat,
@@ -108,6 +109,7 @@ function buatPesananSelesai(
             'total_dus' => $totalDus,
             'target_dus' => $totalDus,
             'status' => 'selesai',
+            'tanggal' => $tanggal->toDateString(),
         ]);
 
         KendaraanStop::create([
@@ -122,7 +124,7 @@ function buatPesananSelesai(
         ]);
     }
 
-    return $pesanan->fresh(['stop.kendaraan.batch']);
+    return $pesanan->fresh(['stop.kendaraan']);
 }
 
 it('menolak akses selain admin', function () {

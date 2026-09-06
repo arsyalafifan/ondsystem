@@ -1,18 +1,19 @@
 <?php
 
+use App\Enums\HariKunjungan;
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusKunjungan;
 use App\Livewire\Kunjungan\Kunjungi;
 use App\Models\Kunjungan;
-use App\Models\PenugasanSales;
+use App\Models\PenugasanToko;
 use App\Models\PeriodeKunjungan;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\Kunjungan\KunjunganService;
 use App\Services\Kunjungan\PenguraiQr;
-use App\Services\Kunjungan\PenugasanService;
+use App\Services\Kunjungan\PenugasanTokoService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
@@ -29,7 +30,7 @@ beforeEach(function () {
 
     $this->service = app(KunjunganService::class);
     $this->periodeService = app(PeriodeKunjunganService::class);
-    $this->penugasanService = app(PenugasanService::class);
+    $this->penugasanService = app(PenugasanTokoService::class);
 });
 
 function buatToko(string $assetId = 'IDNAH202528004381', string $nama = 'Toko Uji'): Toko
@@ -47,14 +48,21 @@ function buatToko(string $assetId = 'IDNAH202528004381', string $nama = 'Toko Uj
     ]);
 }
 
-function tugaskan(Toko $toko, User $sales): void
+/**
+ * `PenugasanTokoService::tetapkan()` mengganti SELURUH daftar hari itu,
+ * bukan menambah satu per satu — jadi helper ini menggabungkan toko yang
+ * sudah ada di slot (sales, hari) itu supaya panggilan tugaskan() berkali-
+ * kali untuk sales/hari yang sama tidak saling menimpa.
+ */
+function tugaskan(Toko $toko, User $sales, HariKunjungan $hari = HariKunjungan::Senin): void
 {
-    PenugasanSales::create([
-        'sales_id' => $sales->id,
-        'toko_id' => $toko->id,
-        'bulan' => CarbonImmutable::today()->startOfMonth()->toDateString(),
-        'ditugaskan_oleh' => test()->admin->id,
-    ]);
+    $sudahAda = PenugasanToko::query()
+        ->where('sales_id', $sales->id)
+        ->where('hari', $hari->value)
+        ->pluck('toko_id')
+        ->all();
+
+    app(PenugasanTokoService::class)->tetapkan($sales, $hari, [...$sudahAda, $toko->id], test()->admin);
 }
 
 /** Gambar JPEG kecil, sebagai pengganti bidikan kamera. */
@@ -193,23 +201,28 @@ describe('aturan kunjungan', function () {
         expect(Kunjungan::count())->toBe(0);
     });
 
+    /**
+     * `PenugasanToko::unique('toko_id')` membuat dua sales memegang toko
+     * yang sama pada saat bersamaan mustahil terjadi — jadi skenario yang
+     * realistis untuk memicu galat ini bukan dobel-penugasan, melainkan
+     * PEMINDAHAN toko ke sales lain di tengah minggu yang sama: toko sudah
+     * dikunjungi tuntas oleh sales pertama, lalu admin memindahkan
+     * penugasannya ke sales lain (masih periode yang sama) — sales baru itu
+     * tetap tidak boleh mencatat kunjungan baru ke toko yang periode ini
+     * sudah tuntas.
+     */
     it('menolak toko yang sudah dikunjungi sales lain minggu ini', function () {
         $toko = buatToko();
-        // Ditugaskan ke dua sales lewat basis data langsung, meniru keadaan
-        // data lama sebelum aturan satu-toko-satu-sales diberlakukan.
-        tugaskan($toko, $this->sales);
-        PenugasanSales::withoutEvents(fn () => PenugasanSales::insert([
-            'sales_id' => $this->salesLain->id,
-            'toko_id' => $toko->id,
-            'bulan' => CarbonImmutable::today()->startOfMonth()->toDateString(),
-            'ditugaskan_oleh' => $this->admin->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]));
+        tugaskan($toko, $this->sales, HariKunjungan::Senin);
 
         $pertama = $this->service->mulai($toko, $this->sales);
         lengkapiFoto($pertama);
         $this->service->selesaikan($pertama);
+
+        // Admin melepas toko dari sales pertama, lalu memindahkannya ke
+        // sales lain — masih di periode/minggu yang sama.
+        $this->penugasanService->tetapkan($this->sales, HariKunjungan::Senin, [], $this->admin);
+        tugaskan($toko, $this->salesLain, HariKunjungan::Selasa);
 
         expect(fn () => $this->service->mulai($toko, $this->salesLain))
             ->toThrow(RuntimeException::class);
@@ -243,6 +256,25 @@ describe('aturan kunjungan', function () {
 
         expect($kedua->id)->not->toBe($pertama->id)
             ->and($kedua->periode_kunjungan_id)->not->toBe($pertama->periode_kunjungan_id);
+
+        CarbonImmutable::setTestNow();
+    });
+
+    /**
+     * Hari pada `PenugasanToko` adalah RENCANA admin, bukan kunci yang
+     * membatasi kapan toko itu boleh dikunjungi — lihat dokumentasi
+     * `PenugasanToko` dan `KunjunganService::ditugaskan()`. Sales tetap
+     * bebas mengunjungi toko tanggungannya hari apa pun dalam minggu itu.
+     */
+    it('membolehkan toko yang dijadwalkan hari Rabu dikunjungi pada hari lain', function () {
+        $toko = buatToko();
+        tugaskan($toko, $this->sales, HariKunjungan::Rabu);
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-03')); // Senin
+
+        $kunjungan = $this->service->mulai($toko, $this->sales);
+
+        expect($kunjungan->status)->toBe(StatusKunjungan::Berjalan);
 
         CarbonImmutable::setTestNow();
     });
@@ -401,79 +433,6 @@ describe('toko tutup', function () {
 });
 
 // =====================================================================
-describe('penugasan toko', function () {
-    it('menolak penugasan melebihi batas per sales', function () {
-        $tokoIds = [];
-
-        for ($i = 1; $i <= 3; $i++) {
-            $tokoIds[] = buatToko(sprintf('IDNAH20252800%04d', $i), "Toko {$i}")->id;
-        }
-
-        config(['visit.maks_toko_per_sales' => 2]);
-
-        expect(fn () => $this->penugasanService->tetapkan(
-            $this->sales, $tokoIds, CarbonImmutable::today()->toDateString(), $this->admin,
-        ))->toThrow(RuntimeException::class);
-
-        expect(PenugasanSales::count())->toBe(0);
-    });
-
-    it('mencegah satu toko dipegang dua sales pada bulan yang sama', function () {
-        $toko = buatToko();
-        $bulan = CarbonImmutable::today()->toDateString();
-
-        $this->penugasanService->tetapkan($this->sales, [$toko->id], $bulan, $this->admin);
-        $hasil = $this->penugasanService->tetapkan($this->salesLain, [$toko->id], $bulan, $this->admin);
-
-        expect($hasil['ditambah'])->toBe(0)
-            ->and($hasil['ditolak'])->toHaveCount(1)
-            ->and(PenugasanSales::where('toko_id', $toko->id)->count())->toBe(1)
-            ->and(PenugasanSales::where('toko_id', $toko->id)->value('sales_id'))->toBe($this->sales->id);
-    });
-
-    it('mengganti daftar lama saat penugasan disimpan ulang', function () {
-        $a = buatToko('IDNAH202528000001', 'Toko A');
-        $b = buatToko('IDNAH202528000002', 'Toko B');
-        $c = buatToko('IDNAH202528000003', 'Toko C');
-        $bulan = CarbonImmutable::today()->toDateString();
-
-        $this->penugasanService->tetapkan($this->sales, [$a->id, $b->id], $bulan, $this->admin);
-        $hasil = $this->penugasanService->tetapkan($this->sales, [$b->id, $c->id], $bulan, $this->admin);
-
-        expect($hasil['ditambah'])->toBe(1)
-            ->and($hasil['dihapus'])->toBe(1)
-            ->and(PenugasanSales::where('sales_id', $this->sales->id)->pluck('toko_id')->sort()->values()->all())
-            ->toBe([$b->id, $c->id]);
-    });
-
-    it('menyembunyikan toko yang sudah dipegang sales lain dari daftar pilihan', function () {
-        $a = buatToko('IDNAH202528000001', 'Toko A');
-        $b = buatToko('IDNAH202528000002', 'Toko B');
-        $bulan = CarbonImmutable::today()->toDateString();
-
-        $this->penugasanService->tetapkan($this->salesLain, [$a->id], $bulan, $this->admin);
-
-        $tersedia = $this->penugasanService->tokoTersedia($bulan, $this->sales->id)->pluck('id')->all();
-
-        expect($tersedia)->toContain($b->id)
-            ->and($tersedia)->not->toContain($a->id);
-    });
-
-    it('menyalin penugasan ke bulan berikutnya', function () {
-        $toko = buatToko();
-        $bulanIni = CarbonImmutable::today()->startOfMonth();
-
-        $this->penugasanService->tetapkan($this->sales, [$toko->id], $bulanIni->toDateString(), $this->admin);
-        $jumlah = $this->penugasanService->salinKeBulan(
-            $bulanIni->toDateString(), $bulanIni->addMonth()->toDateString(), $this->admin,
-        );
-
-        expect($jumlah)->toBe(1)
-            ->and(PenugasanSales::count())->toBe(2);
-    });
-});
-
-// =====================================================================
 describe('halaman kunjungan', function () {
     it('menampilkan halaman admin', function (string $rute) {
         $this->actingAs($this->admin)->get(route($rute))->assertOk();
@@ -505,7 +464,10 @@ describe('halaman kunjungan', function () {
 
     it('menampilkan toko tanggungan pada halaman tugas sales', function () {
         $toko = buatToko(nama: 'Toko Tanggungan');
-        tugaskan($toko, $this->sales);
+        // TugasSaya menyaring "hari ini" secara baku — ditugaskan ke hari
+        // ini sungguhan supaya pengujian tidak bergantung pada hari
+        // berjalannya suite dijalankan.
+        tugaskan($toko, $this->sales, HariKunjungan::hariIni());
 
         $this->actingAs($this->sales)
             ->get(route('kunjungan.tugas'))
