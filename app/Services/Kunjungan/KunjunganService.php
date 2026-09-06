@@ -6,7 +6,7 @@ use App\Enums\JenisFotoKunjungan;
 use App\Enums\StatusKunjungan;
 use App\Models\Kunjungan;
 use App\Models\KunjunganFoto;
-use App\Models\PenugasanSales;
+use App\Models\PenugasanToko;
 use App\Models\PeriodeKunjungan;
 use App\Models\PeriodeSales;
 use App\Models\Toko;
@@ -284,43 +284,40 @@ class KunjunganService
             ->whereIn('id', $this->idTanggungan($sales, $periode))
             ->with([
                 'wilayah:id,nama',
+                'penugasanToko',
                 'kunjungans' => fn ($q) => $q->where('periode_kunjungan_id', $periode->id)->with('fotos'),
             ])
             ->orderBy('nama')
             ->get();
     }
 
+    /**
+     * Jadwal MINGGUAN sales ini (`PenugasanToko`) berdiri terus, tidak per
+     * bulan/periode — hari yang tersimpan di sana adalah rencana, bukan
+     * kunci yang membatasi kapan toko itu boleh dikunjungi. `$periode` di
+     * sini cuma dipakai penelusur lain (mis. tanggungan()) untuk
+     * menggabungkan status kunjungan minggu berjalan, bukan untuk
+     * menyaring toko mana yang ditugaskan.
+     */
     private function ditugaskan(Toko $toko, User $sales, PeriodeKunjungan $periode): bool
     {
-        return PenugasanSales::query()
+        return PenugasanToko::query()
             ->where('sales_id', $sales->id)
             ->where('toko_id', $toko->id)
-            ->whereDate('bulan', $this->bulanPeriode($periode))
             ->exists();
     }
 
     /** @return Collection<int, int> */
     private function idTanggungan(User $sales, PeriodeKunjungan $periode)
     {
-        return PenugasanSales::query()
+        return PenugasanToko::query()
             ->where('sales_id', $sales->id)
-            ->whereDate('bulan', $this->bulanPeriode($periode))
             ->pluck('toko_id');
     }
 
     private function jumlahTanggungan(User $sales, PeriodeKunjungan $periode): int
     {
         return $this->idTanggungan($sales, $periode)->count();
-    }
-
-    /**
-     * Penugasan disusun per bulan, sedangkan periode berjalan per minggu.
-     * Minggu yang melintasi pergantian bulan memakai bulan hari Seninnya,
-     * supaya satu periode tidak pernah memakai dua daftar penugasan.
-     */
-    private function bulanPeriode(PeriodeKunjungan $periode): string
-    {
-        return $periode->tanggal_mulai->copy()->startOfMonth()->toDateString();
     }
 
     private function jarakKeToko(Toko $toko, ?float $lat, ?float $lng): ?int

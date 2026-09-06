@@ -125,7 +125,7 @@ class RoutingService
             $jamBerangkat = CarbonImmutable::parse(config('ond.depot.jam_berangkat'));
 
             foreach ($hasil->rute as $i => $rute) {
-                $kendaraan = $this->simpanKendaraan($batch, $rute, $i + 1, $warna, $jamBerangkat);
+                $kendaraan = $this->simpanKendaraan($batch, $rute, $i + 1, $warna, $jamBerangkat, $tanggalKeberangkatan);
 
                 $this->simpanStops($kendaraan, $rute, $jamBerangkat);
             }
@@ -147,6 +147,7 @@ class RoutingService
         int $nomor,
         array $warna,
         CarbonImmutable $jamBerangkat,
+        CarbonImmutable $tanggalKeberangkatan,
     ): Kendaraan {
         $totalMenit = $rute->totalDurasiS / 60 + $rute->totalToko() * config('ond.depot.service_minutes');
 
@@ -163,6 +164,7 @@ class RoutingService
             'estimasi_selesai' => $jamBerangkat->addMinutes((int) round($totalMenit))->format('H:i:s'),
             'geometry' => $rute->geometry,
             'status' => 'draft',
+            'tanggal' => $tanggalKeberangkatan,
         ]);
     }
 
@@ -508,6 +510,7 @@ class RoutingService
             'warna' => $warna[($nomor - 1) % count($warna)],
             'jam_berangkat' => CarbonImmutable::parse(config('ond.depot.jam_berangkat'))->format('H:i:s'),
             'status' => 'draft',
+            'tanggal' => $batch->tanggal,
         ]);
     }
 
@@ -529,8 +532,6 @@ class RoutingService
      */
     public function ubahDriver(Kendaraan $kendaraan, ?User $driver): void
     {
-        $kendaraan->loadMissing('batch');
-
         $sudahJalan = $kendaraan->stops()
             ->get()
             ->contains(fn (KendaraanStop $s) => $s->status->tuntas());
@@ -544,20 +545,22 @@ class RoutingService
                 throw new RuntimeException(__('routing.galat_bukan_driver', ['nama' => $driver->name]));
             }
 
-            // Patokannya tanggal keberangkatan, bukan sekadar status kendaraan
-            // — seorang driver boleh terdaftar di beberapa mobil yang aktif
-            // bersamaan asalkan tanggal berangkatnya berbeda. Yang dicegah
-            // cuma bentrok pada hari yang sama.
+            // Patokannya tanggal keberangkatan kendaraan ini sendiri (kolom
+            // langsung, bisa beda dari kendaraan lain di batch yang sama —
+            // lihat dokumentasi Kendaraan::tanggal), bukan sekadar status
+            // kendaraan — seorang driver boleh terdaftar di beberapa mobil
+            // yang aktif bersamaan asalkan tanggal berangkatnya berbeda.
+            // Yang dicegah cuma bentrok pada hari yang sama.
             $sedangBertugas = Kendaraan::where('driver_id', $driver->id)
                 ->where('id', '!=', $kendaraan->id)
                 ->whereIn('status', ['siap', 'jalan'])
-                ->whereHas('batch', fn ($q) => $q->whereDate('tanggal', $kendaraan->batch->tanggal))
+                ->whereDate('tanggal', $kendaraan->tanggal)
                 ->exists();
 
             if ($sedangBertugas) {
                 throw new RuntimeException(__('routing.galat_driver_sedang_bertugas', [
                     'nama' => $driver->name,
-                    'tanggal' => $kendaraan->batch->tanggal->isoFormat('ll'),
+                    'tanggal' => $kendaraan->tanggal->isoFormat('ll'),
                 ]));
             }
         }
@@ -568,6 +571,45 @@ class RoutingService
             // belum tentu sudah membuka layarnya sendiri.
             'diambil_at' => null,
         ]);
+    }
+
+    /**
+     * Mengubah tanggal keberangkatan SATU kendaraan — sengaja per kendaraan,
+     * bukan per batch (lihat dokumentasi `Kendaraan::tanggal`), supaya mobil
+     * 1 dan mobil 2 dari batch yang sama boleh berangkat di hari berbeda.
+     * Dipagari aturan yang sama persis dengan `ubahDriver()`: boleh diubah
+     * sampai ada satu saja kunjungan yang dituntaskan, dicoret, atau
+     * dibatalkan di kendaraan itu.
+     */
+    public function ubahTanggal(Kendaraan $kendaraan, CarbonImmutable $tanggal): void
+    {
+        $sudahJalan = $kendaraan->stops()
+            ->get()
+            ->contains(fn (KendaraanStop $s) => $s->status->tuntas());
+
+        if ($sudahJalan) {
+            throw new RuntimeException(__('routing.galat_tanggal_sudah_jalan', ['mobil' => $kendaraan->nama]));
+        }
+
+        if ($kendaraan->driver_id !== null) {
+            // Simetris dengan pemeriksaan bentrok di ubahDriver(): pindah
+            // tanggal kendaraan yang sudah punya driver tidak boleh diam-diam
+            // membuat driver itu bertugas dobel di hari yang sama.
+            $sedangBertugas = Kendaraan::where('driver_id', $kendaraan->driver_id)
+                ->where('id', '!=', $kendaraan->id)
+                ->whereIn('status', ['siap', 'jalan'])
+                ->whereDate('tanggal', $tanggal)
+                ->exists();
+
+            if ($sedangBertugas) {
+                throw new RuntimeException(__('routing.galat_driver_sedang_bertugas', [
+                    'nama' => $kendaraan->loadMissing('driver')->driver->name,
+                    'tanggal' => $tanggal->isoFormat('ll'),
+                ]));
+            }
+        }
+
+        $kendaraan->update(['tanggal' => $tanggal]);
     }
 
     public function depot(): Koordinat

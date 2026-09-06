@@ -164,6 +164,9 @@
                                     @foreach ($this->tokoBelumDikunjungi as $toko)
                                         <li class="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700">
                                             {{ $toko->nama }}
+                                            @if ($toko->penugasanToko)
+                                                <span class="text-gray-400">· {{ $toko->penugasanToko->hari->label() }}</span>
+                                            @endif
                                         </li>
                                     @endforeach
                                 </ul>

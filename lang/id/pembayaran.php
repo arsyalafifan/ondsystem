@@ -9,7 +9,7 @@ return [
 
     // Pelunasan
     'judul_pelunasan' => 'Pelunasan',
-    'ket_pelunasan' => 'Tandai toko yang sudah membayar, per mobil per hari. Hanya pesanan berstatus SELESAI yang bisa diproses.',
+    'ket_pelunasan' => 'Tandai toko yang sudah membayar, per mobil per tanggal keberangkatan. Hanya pesanan berstatus SELESAI yang bisa diproses.',
     'tombol_lunas' => 'Lunas',
     'tombol_belum_lunas' => 'Belum Lunas',
     'konfirmasi_lunas_judul' => 'Tandai Lunas',
@@ -33,7 +33,7 @@ return [
 
     // Pendapatan
     'judul_pendapatan' => 'Pendapatan',
-    'ket_pendapatan' => 'Rekap pendapatan menurut tanggal pelunasan, bukan tanggal pengiriman.',
+    'ket_pendapatan' => 'Rekap pendapatan menurut tanggal keberangkatan kendaraan untuk kategori Pengantaran Driver, dan tanggal pelunasan untuk kategori Point of Sale.',
     'mode_hari' => 'Harian',
     'mode_bulan' => 'Bulanan',
     'mode_rentang' => 'Rentang',

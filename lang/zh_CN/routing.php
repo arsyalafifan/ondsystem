@@ -90,6 +90,8 @@ return [
     'driver_terkunci' => '已经开始配送，无法更改',
     'notif_driver_diubah' => ':mobil 的司机已设为 :driver。',
     'galat_driver_sudah_jalan' => ':mobil 已经在现场开始配送，司机无法再更改。',
+    'notif_tanggal_diubah' => ':mobil 的发车日期已改为 :tanggal。',
+    'galat_tanggal_sudah_jalan' => ':mobil 已经在现场开始配送，发车日期无法再更改。',
     'galat_bukan_driver' => ':nama 不是司机角色的账号。',
     'galat_driver_sedang_bertugas' => ':nama 已在同一天（:tanggal）驾驶另一辆车。',
 ];

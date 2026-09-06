@@ -154,15 +154,18 @@ class GenerateRouting extends Component
     }
 
     /**
-     * Kendaraan yang driver-nya masih boleh diganti — belum ada satu pun
-     * kunjungannya yang dituntaskan, dicoret, atau dibatalkan. Dihitung
+     * Kendaraan yang driver DAN tanggal keberangkatannya masih boleh
+     * diganti — belum ada satu pun kunjungannya yang dituntaskan, dicoret,
+     * atau dibatalkan. Satu predikat dipakai untuk MENGGERBANG KEDUA
+     * kontrol (dropdown driver, input tanggal) karena aturannya persis
+     * sama — lihat `RoutingService::ubahDriver()`/`ubahTanggal()`. Dihitung
      * sekali di sini, bukan per baris di Blade, supaya tidak memicu kueri
      * berulang saat daftar kendaraan dirender.
      *
      * @return array<int, bool>
      */
     #[Computed]
-    public function driverBisaDiubah(): array
+    public function kendaraanBisaDiubah(): array
     {
         return $this->batch === null ? [] : $this->batch->kendaraans
             ->mapWithKeys(fn (Kendaraan $k) => [
@@ -411,6 +414,27 @@ class GenerateRouting extends Component
         ]), jenis: 'info');
     }
 
+    public function ubahTanggal(int $kendaraanId, string $tanggal, RoutingService $service): void
+    {
+        $kendaraan = Kendaraan::findOrFail($kendaraanId);
+
+        try {
+            $service->ubahTanggal($kendaraan, CarbonImmutable::parse($tanggal));
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+            $this->segarkan();
+
+            return;
+        }
+
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('routing.notif_tanggal_diubah', [
+            'mobil' => $kendaraan->nama,
+            'tanggal' => CarbonImmutable::parse($tanggal)->isoFormat('ll'),
+        ]), jenis: 'info');
+    }
+
     public function tambahKendaraan(RoutingService $service): void
     {
         $this->pastikanMasihDraft($this->batchId);
@@ -489,7 +513,7 @@ class GenerateRouting extends Component
     {
         unset(
             $this->batch, $this->dataPeta, $this->pesananMenunggu, $this->ringkasanMenunggu,
-            $this->driverBisaDiubah,
+            $this->kendaraanBisaDiubah,
         );
 
         $this->dispatch('peta-diperbarui', data: $this->dataPeta);

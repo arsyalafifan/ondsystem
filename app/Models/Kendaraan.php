@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
 #[Fillable([
     'routing_batch_id', 'wilayah_id', 'nomor', 'nama', 'warna', 'total_toko',
     'total_dus', 'target_dus', 'total_jarak_m', 'total_durasi_s', 'jam_berangkat',
-    'estimasi_selesai', 'geometry', 'driver_id', 'diambil_at', 'status',
+    'estimasi_selesai', 'geometry', 'driver_id', 'diambil_at', 'status', 'tanggal',
 ])]
 class Kendaraan extends Model
 {
@@ -30,6 +30,7 @@ class Kendaraan extends Model
             'total_jarak_m' => 'integer',
             'total_durasi_s' => 'integer',
             'diambil_at' => 'datetime',
+            'tanggal' => 'date',
         ];
     }
 

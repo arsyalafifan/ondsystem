@@ -61,7 +61,7 @@ final class EscpPackingListBuilder
         $b .= self::baris('Nama Mobil    : '.$kendaraan->nama).self::crlf();
         $b .= self::baris('Jumlah Faktur : '.$kendaraan->stops_packing->count()).self::crlf();
         $b .= self::baris('Jumlah Dus    : '.$kendaraan->stops_packing->sum('total_dus')).self::crlf();
-        $b .= self::baris('Tanggal Berangkat : '.$kendaraan->batch->tanggal->format('d/m/Y')).self::crlf();
+        $b .= self::baris('Tanggal Berangkat : '.$kendaraan->tanggal->format('d/m/Y')).self::crlf();
 
         return $b;
     }

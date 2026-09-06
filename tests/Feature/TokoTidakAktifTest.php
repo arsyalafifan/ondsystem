@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Livewire\Pesanan\DaftarPesanan;
@@ -8,20 +9,21 @@ use App\Models\Produk;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
-use App\Services\Kunjungan\PenugasanService;
+use App\Services\Kunjungan\PenugasanTokoService;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
 /**
  * "Toko Belum Pesan 1 Bulan" di menu Pesanan: toko yang jadi tanggungan
- * sales bulan ini (Penugasan Toko) tapi belum punya pesanan SELESAI dalam
- * 1 bulan terakhir, dikelompokkan per sales.
+ * sales saat ini (jadwal mingguan Penugasan Toko, berdiri terus) tapi
+ * belum punya pesanan SELESAI dalam 1 bulan terakhir, dikelompokkan per
+ * sales.
  */
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
     $this->wilayah = Wilayah::create(['kode' => 'W1', 'nama' => 'Wilayah Satu']);
     $this->produk = Produk::create(['kode' => 'P1', 'nama' => 'Produk Uji', 'stok' => 1_000, 'harga' => 10_000]);
-    $this->penugasan = app(PenugasanService::class);
+    $this->penugasan = app(PenugasanTokoService::class);
 });
 
 function buatTokoTA(string $nama): Toko
@@ -69,11 +71,11 @@ function buatPesananSelesaiTA(Toko $toko, CarbonImmutable $selesaiAt): Pesanan
     return $pesanan;
 }
 
-it('menampilkan toko yang ditugaskan bulan ini tapi belum pernah pesan sama sekali', function () {
+it('menampilkan toko yang ditugaskan tapi belum pernah pesan sama sekali', function () {
     $sales = User::factory()->create(['role' => PeranPengguna::Sales, 'name' => 'Sales A']);
     $toko = buatTokoTA('Toko Belum Pernah Pesan');
 
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
 
@@ -87,7 +89,7 @@ it('menampilkan toko yang pesanan terakhirnya selesai LEBIH dari 1 bulan lalu', 
     $toko = buatTokoTA('Toko Lama Tidak Pesan');
     buatPesananSelesaiTA($toko, CarbonImmutable::now()->subDays(40));
 
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
 
@@ -100,7 +102,7 @@ it('TIDAK menampilkan toko yang pesanan terakhirnya selesai KURANG dari 1 bulan 
     $toko = buatTokoTA('Toko Baru Saja Pesan');
     buatPesananSelesaiTA($toko, CarbonImmutable::now()->subDays(10));
 
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
 
@@ -122,7 +124,7 @@ it('pesanan yang belum SELESAI tidak membuat toko dianggap aktif', function () {
         'tanggal' => today(), 'total_dus' => 5, 'total_nilai' => 50_000,
     ]);
 
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
 
@@ -130,7 +132,7 @@ it('pesanan yang belum SELESAI tidak membuat toko dianggap aktif', function () {
         ->and($hasil[0]['tokos']->pluck('id'))->toContain($toko->id);
 });
 
-it('tidak menampilkan toko yang tidak ditugaskan ke sales mana pun bulan ini, meski tidak aktif', function () {
+it('tidak menampilkan toko yang tidak ditugaskan ke sales mana pun, meski tidak aktif', function () {
     buatTokoTA('Toko Tanpa Penugasan');
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
@@ -145,9 +147,8 @@ it('mengelompokkan toko per sales, bukan satu daftar gabungan', function () {
     $tokoA2 = buatTokoTA('Toko A2');
     $tokoB1 = buatTokoTA('Toko B1');
 
-    $bulan = $this->penugasan->bulan();
-    $this->penugasan->tetapkan($salesA, [$tokoA1->id, $tokoA2->id], $bulan, $this->admin);
-    $this->penugasan->tetapkan($salesB, [$tokoB1->id], $bulan, $this->admin);
+    $this->penugasan->tetapkan($salesA, HariKunjungan::Senin, [$tokoA1->id, $tokoA2->id], $this->admin);
+    $this->penugasan->tetapkan($salesB, HariKunjungan::Selasa, [$tokoB1->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)->instance()->tokoTidakAktifSemua();
 
@@ -166,9 +167,8 @@ it('filter sales menyaring daftar yang ditampilkan', function () {
     $tokoA = buatTokoTA('Toko A');
     $tokoB = buatTokoTA('Toko B');
 
-    $bulan = $this->penugasan->bulan();
-    $this->penugasan->tetapkan($salesA, [$tokoA->id], $bulan, $this->admin);
-    $this->penugasan->tetapkan($salesB, [$tokoB->id], $bulan, $this->admin);
+    $this->penugasan->tetapkan($salesA, HariKunjungan::Senin, [$tokoA->id], $this->admin);
+    $this->penugasan->tetapkan($salesB, HariKunjungan::Selasa, [$tokoB->id], $this->admin);
 
     $test = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)
         ->set('filterSalesTidakAktif', (string) $salesA->id);
@@ -188,8 +188,7 @@ it('pencarian menyaring toko lewat nama atau kode', function () {
     $tokoCocok = buatTokoTA('Toko Mangga Dua');
     $tokoLain = buatTokoTA('Toko Kelapa Gading');
 
-    $bulan = $this->penugasan->bulan();
-    $this->penugasan->tetapkan($sales, [$tokoCocok->id, $tokoLain->id], $bulan, $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$tokoCocok->id, $tokoLain->id], $this->admin);
 
     $hasil = Livewire::actingAs($this->admin)->test(DaftarPesanan::class)
         ->set('cariTokoTidakAktif', 'mangga')
@@ -203,7 +202,7 @@ it('pencarian menyaring toko lewat nama atau kode', function () {
 it('tutupTokoTidakAktif mengosongkan filter', function () {
     $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
     $toko = buatTokoTA('Toko X');
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     Livewire::actingAs($this->admin)->test(DaftarPesanan::class)
         ->set('filterSalesTidakAktif', (string) $sales->id)
@@ -229,9 +228,8 @@ it('halaman tampil dengan beberapa sales dan toko sekaligus tanpa lazy load', fu
     $tokoB = buatTokoTA('Toko Beta');
     $tokoC = buatTokoTA('Toko Gamma');
 
-    $bulan = $this->penugasan->bulan();
-    $this->penugasan->tetapkan($salesA, [$tokoA->id, $tokoB->id], $bulan, $this->admin);
-    $this->penugasan->tetapkan($salesB, [$tokoC->id], $bulan, $this->admin);
+    $this->penugasan->tetapkan($salesA, HariKunjungan::Senin, [$tokoA->id, $tokoB->id], $this->admin);
+    $this->penugasan->tetapkan($salesB, HariKunjungan::Selasa, [$tokoC->id], $this->admin);
 
     Livewire::actingAs($this->admin)
         ->test(DaftarPesanan::class)
@@ -243,7 +241,7 @@ it('halaman tampil dengan beberapa sales dan toko sekaligus tanpa lazy load', fu
         ->assertOk();
 });
 
-it('menampilkan pesan khusus kalau belum ada penugasan toko sama sekali bulan ini', function () {
+it('menampilkan pesan khusus kalau belum ada penugasan toko sama sekali', function () {
     Livewire::actingAs($this->admin)
         ->test(DaftarPesanan::class)
         ->call('bukaTokoTidakAktif')
@@ -255,7 +253,7 @@ it('menampilkan pesan "semua aktif" kalau penugasan ada tapi semua toko sudah pe
     $toko = buatTokoTA('Toko Rajin Pesan');
     buatPesananSelesaiTA($toko, CarbonImmutable::now()->subDays(3));
 
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     Livewire::actingAs($this->admin)
         ->test(DaftarPesanan::class)
@@ -266,7 +264,7 @@ it('menampilkan pesan "semua aktif" kalau penugasan ada tapi semua toko sudah pe
 it('badge jumlah tampil di tombol pada halaman', function () {
     $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
     $toko = buatTokoTA('Toko Badge');
-    $this->penugasan->tetapkan($sales, [$toko->id], $this->penugasan->bulan(), $this->admin);
+    $this->penugasan->tetapkan($sales, HariKunjungan::Senin, [$toko->id], $this->admin);
 
     $test = Livewire::actingAs($this->admin)->test(DaftarPesanan::class);
 

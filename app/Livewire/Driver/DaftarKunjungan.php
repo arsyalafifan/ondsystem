@@ -696,7 +696,7 @@ class DaftarKunjungan extends Component
 
     private function folderNota(): string
     {
-        return 'nota/'.$this->kendaraan->batch->tanggal->format('Y-m-d');
+        return 'nota/'.$this->kendaraan->tanggal->format('Y-m-d');
     }
 
     private function segarkan(): void

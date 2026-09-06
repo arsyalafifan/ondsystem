@@ -89,7 +89,7 @@ class InsentifSales extends Component
         return Pesanan::query()
             ->where('status', StatusPesanan::Selesai)
             ->whereHas('pembuat', fn ($q) => $q->where('role', PeranPengguna::Sales))
-            ->with(['items', 'pembuat:id,name', 'stop.kendaraan.batch'])
+            ->with(['items', 'pembuat:id,name', 'stop.kendaraan'])
             ->when($this->mode === 'hari', fn ($q) => $q->tanggalPendapatanAntara($this->tanggal, $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');

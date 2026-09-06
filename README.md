@@ -469,15 +469,25 @@ kunjungan yang disusun sembarangan, total waktu perjalanan turun sekitar 31%.
 
 Routing sering disiapkan lebih awal dari hari mobil sungguhan berangkat, jadi
 **Tanggal keberangkatan** adalah kolom wajib tersendiri di halaman Generate
-Routing — bukan otomatis hari ini. `RoutingBatch.tanggal` menyimpan tanggal
-ini, terpisah dari `created_at` (kapan batch-nya dibuat). Dashboard memakai
-kolom ini (`whereDate('tanggal', ...)`) untuk memutuskan mobil mana yang
-"jalan hari ini", jadi routing yang dibuat untuk minggu depan tidak akan
-nyasar muncul di dashboard hari ini.
+Routing — bukan otomatis hari ini. Bawaannya terisi hari ini (kasus paling
+umum), tapi admin bebas menggantinya. Panggilan terprogram
+(`RoutingService::generate()`) tetap memakai hari ini sebagai bawaan bila
+`tanggalKeberangkatan` tidak diisi.
 
-Bawaannya terisi hari ini (kasus paling umum), tapi admin bebas
-menggantinya. Panggilan terprogram (`RoutingService::generate()`) tetap
-memakai hari ini sebagai bawaan bila `tanggalKeberangkatan` tidak diisi.
+Tanggal ini disimpan di DUA tempat dengan peran berbeda: `RoutingBatch.tanggal`
+tetap ada sebagai **bawaan saat batch digenerate** (dipakai mengisi tanggal
+awal tiap kendaraan yang baru dibuat, dan tetap tampil apa adanya di Riwayat
+Routing sebagai "tanggal batch ini"), sementara `Kendaraan.tanggal` adalah
+**tanggal keberangkatan OPERASIONAL per kendaraan** — sumber kebenaran yang
+sesungguhnya dibaca semua fitur hilir (Dashboard, Pendapatan, Pelunasan,
+Insentif Sales, Barang Terjual, packing list, folder unggah nota). Awalnya
+sama persis dengan `RoutingBatch.tanggal` saat kendaraan itu dibuat, tapi
+begitu digenerate, **tanggal tiap kendaraan bisa diubah individual** —
+persis seperti driver (lihat bagian berikutnya) — jadi mobil 1 dan mobil 2
+dari satu kali Generate Routing yang sama boleh akhirnya berangkat di hari
+yang berbeda. Dashboard memakai `Kendaraan.tanggal` langsung
+(`whereDate('tanggal', ...)`, plus `whereHas('batch', ...)` terpisah untuk
+status disetujui) untuk memutuskan mobil mana yang "jalan hari ini".
 
 ### Menetapkan driver dari layar Generate Routing
 
@@ -501,13 +511,27 @@ diam-diam.
 Dua penjagaan lain: akun yang dipilih harus benar berperan Driver (bukan
 sekadar siapa saja yang bisa membuka halamannya), dan tidak sedang membawa
 mobil aktif lain (`status` `siap`/`jalan`) **pada tanggal keberangkatan yang
-sama** — patokannya `RoutingBatch.tanggal`, bukan sekadar status
-kendaraannya. Seorang driver boleh terdaftar di beberapa mobil yang sama-sama
-masih aktif selama tanggal berangkatnya berbeda (mis. mobil hari ini dan
-mobil untuk lusa); yang dicegah cuma dua mobil pada hari yang sama. Memilih
-"Belum ditentukan" mengosongkannya lagi, berguna kalau mobil kadung terambil
-ke akun yang salah (persis kasus admin/superadmin di atas) — tidak perlu
-lagi turun ke `tinker` untuk membukanya.
+sama** — patokannya `Kendaraan.tanggal` milik kendaraan itu sendiri (lihat
+bagian sebelumnya), bukan sekadar status kendaraannya. Seorang driver boleh
+terdaftar di beberapa mobil yang sama-sama masih aktif selama tanggal
+berangkatnya berbeda (mis. mobil hari ini dan mobil untuk lusa); yang
+dicegah cuma dua mobil pada hari yang sama. Memilih "Belum ditentukan"
+mengosongkannya lagi, berguna kalau mobil kadung terambil ke akun yang salah
+(persis kasus admin/superadmin di atas) — tidak perlu lagi turun ke
+`tinker` untuk membukanya.
+
+Tepat di sebelah pilihan Driver, tiap kartu mobil juga punya kontrol
+**Tanggal keberangkatan** sendiri (`RoutingService::ubahTanggal()`) —
+aturan penguncinya SAMA PERSIS dengan Driver: bisa diubah bebas sampai ada
+satu saja kunjungan yang tuntas (upload nota, coret nota, atau dibatalkan
+di lapangan) di mobil itu, lalu terkunci jadi teks biasa. Mengubah tanggal
+kendaraan yang sudah punya driver ikut memeriksa bentrok — kalau driver
+itu ternyata sudah membawa kendaraan lain yang berangkat di tanggal baru
+yang diminta, perubahan ditolak dengan pesan yang sama seperti penjagaan
+Driver di atas (simetris: bentrok yang sama dicegah dari kedua arah,
+ganti driver maupun ganti tanggal). Inilah yang memungkinkan mobil 1 dan
+mobil 2 dari satu batch yang sama akhirnya berangkat di hari yang
+berbeda-beda.
 
 ### Menyunting draf routing
 
@@ -554,7 +578,8 @@ untuk alasan lengkap kenapa ESC/P mentah dipakai, bukan hasil rasterisasi):
 - **Packing list** — dari detail batch (Riwayat Routing → Lihat, atau layar
   Generate Routing setelah disetujui), satu per kendaraan. Berisi kop
   perusahaan, ringkasan (nama mobil, jumlah faktur/toko, jumlah dus, dan
-  **tanggal keberangkatan** — dari kolom yang sama dengan bagian
+  **tanggal keberangkatan** — dari `Kendaraan.tanggal` milik kendaraan itu
+  sendiri, lihat
   [Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)
   di atas, bukan tanggal batch dibuat), lalu dua tabel: rekap dus per produk
   digabung dari seluruh toko di mobil itu, dan rincian dus per toko. Tiap
@@ -647,7 +672,7 @@ Transaksinya berjenjang: **periode mingguan → sales → kunjungan per toko →
 foto bukti**.
 
 ```
-Admin   Penugasan Toko          tetapkan daftar toko per sales (bulanan, maks 120)
+Admin   Penugasan Toko          jadwal mingguan tetap: toko → sales → hari (Senin-Minggu)
         ↓
 Sistem  Periode mingguan        dibuka otomatis tiap Senin, ditutup Sabtu
         ↓
@@ -660,6 +685,54 @@ Admin   Pantau progres, tinjau laporan toko tutup
 
 Periode lama tidak pernah dihapus — hitungan dimulai dari nol tiap Senin, tapi
 riwayat minggu-minggu sebelumnya tetap bisa dibuka.
+
+### Penugasan Toko — jadwal mingguan per hari
+
+Penugasan toko bukan lagi daftar yang disusun ulang tiap bulan, melainkan
+**jadwal tetap (standing)**: admin menentukan toko mana yang menjadi
+tanggungan sales tertentu pada hari tertentu (Senin sampai Sabtu, dengan
+Minggu tersedia sebagai hari ke-7 biasa tanpa saklar khusus) lewat layar
+[`Penugasan`](app/Livewire/Kunjungan/Penugasan.php) yang bertab per hari.
+Jadwal ini **berlaku terus** sampai admin sendiri yang mengubahnya — tidak
+ada siklus bulanan atau fitur salin-bulan-lalu lagi.
+
+Aturan intinya: **satu toko hanya menempati satu slot (sales, hari)**,
+berlaku global (bukan cuma dalam satu hari yang sama) — begitu toko masuk ke
+jadwal hari Senin seorang sales, ia tidak bisa dipilih untuk hari lain atau
+sales lain sampai dilepas dulu dari Senin. Ini dijaga oleh batasan unik
+`toko_id` pada tabel `penugasan_tokos`
+([`PenugasanTokoService::tetapkan()`](app/Services/Kunjungan/PenugasanTokoService.php)
+menangkap `QueryException` dari situ dan melaporkannya, bukan menimpa paksa).
+
+Target mingguan sengaja **fleksibel**, bukan angka tetap — totalnya adalah
+apa pun hasil penjumlahan penugasan admin di ketujuh hari, bisa kurang bisa
+lebih dari sales lain. Yang tetap dibatasi adalah **jumlah toko per hari**,
+lewat pengaturan `maks_toko_per_hari` yang bisa admin ubah sendiri langsung
+dari layar Penugasan Toko (bukan lagi env `VISIT_MAKS_TOKO_PER_SALES` yang
+dihapus).
+
+Hari pada `PenugasanToko` adalah **rencana/target admin, bukan kunci yang
+mengunci hari kunjungan** — sales tetap bebas mengunjungi toko
+tanggungannya hari apa pun dalam minggu itu, persis seperti sebelumnya.
+Yang berubah hanyalah cara admin menyusun dan melihat rencana mingguannya;
+layar Tugas Saya sales menyaring tampilan (bukan tindakan) berdasarkan hari
+lewat filter "Hari ini" / "Seluruh minggu" / hari tertentu.
+
+**Jadikan Default / Kembalikan ke Default.** Karena jadwalnya sekarang
+berdiri terus, admin bisa menyimpan susunan jadwal seorang sales sebagai
+baseline (`Jadikan Default`) — lalu, kalau kondisi visit toko berubah
+sewaktu-waktu (toko tutup sementara, sales cuti, dsb.) dan jadwalnya
+diubah-ubah secara ad-hoc, admin bisa mengembalikannya ke baseline itu
+dalam satu klik (`Kembalikan ke Default`) tanpa mengedit satu per satu.
+Toko default yang ternyata sudah direbut sales lain sejak terakhir
+disimpan dilewati dan dilaporkan, bukan direbut paksa.
+
+> **Migrasi dari sistem lama.** Tabel `penugasan_sales` (penugasan bulanan)
+> tidak memiliki informasi hari, jadi tidak ada cara otomatis menurunkan
+> jadwal per hari darinya — jadwal baru dimulai **kosong**, dan admin perlu
+> menyusunnya ulang lewat layar Penugasan Toko. `penugasan_sales` sendiri
+> dibiarkan apa adanya untuk riwayat, tidak lagi ditulis atau dibaca fitur
+> mana pun.
 
 ### Pengenalan toko lewat QR code freezer
 
@@ -745,16 +818,19 @@ memeriksanya.
 
 ### Aturan yang dijaga sistem
 
-- **Satu toko satu sales.** Admin tidak bisa menaruh toko yang sama di daftar
-  dua sales dalam bulan yang sama; ditolak oleh batasan unik di basis data,
-  bukan hanya oleh formulir.
+- **Satu toko satu sales, satu hari.** Admin tidak bisa menaruh toko yang
+  sama di jadwal dua sales atau dua hari sekaligus; ditolak oleh batasan
+  unik di basis data, bukan hanya oleh formulir.
 - **Satu toko satu kunjungan per minggu.** Sales kedua yang memindai QR toko
   yang sudah dikunjungi akan ditolak, dengan keterangan siapa yang sudah
   mengunjunginya.
 - **Hanya toko yang ditugaskan.** Memindai QR toko di luar daftar tanggungan
-  ditolak, sehingga angka target tidak bisa dikaburkan.
+  ditolak, sehingga angka target tidak bisa dikaburkan. Hari penugasannya
+  sendiri tidak membatasi — toko boleh dikunjungi hari apa pun dalam minggu
+  itu, lihat [Penugasan Toko](#penugasan-toko--jadwal-mingguan-per-hari).
 - **Enam foto wajib lengkap** sebelum kunjungan bisa diselesaikan.
-- **Maksimal 120 toko per sales**, diatur lewat `VISIT_MAKS_TOKO_PER_SALES`.
+- **Maksimal N toko per hari**, N diatur admin sendiri lewat layar Penugasan
+  Toko (`maks_toko_per_hari`, bukan lagi env tetap).
 
 ### Toko tutup
 
@@ -762,8 +838,8 @@ Sales tidak bisa menyatakan sendiri sebuah toko tutup. Ia mengirim laporan
 beserta keterangan keadaannya, lalu admin membenarkan atau menolak.
 
 Toko yang laporannya **dibenarkan keluar dari penyebut target minggu itu** —
-kalau tanggungannya 120 toko dan 5 di antaranya tutup, progres dihitung dari
-115. Sales tidak dirugikan oleh keadaan yang bukan kendalinya. Laporan yang
+kalau tanggungannya 40 toko dan 5 di antaranya tutup, progres dihitung dari
+35. Sales tidak dirugikan oleh keadaan yang bukan kendalinya. Laporan yang
 **ditolak** mengembalikan toko ke daftar wajib kunjung.
 
 ### Menguji dari ponsel
@@ -1019,7 +1095,8 @@ seperti sebelumnya:
 
 | Tabel              | Kenapa belum aman langsung disalakan |
 | ------------------ | ------------------------------------- |
-| `penugasan_sales`   | batasan unik (`toko_id`, `bulan`) dipakai sebagai mekanisme deteksi "toko sudah dipegang sales lain" — `PenugasanService::tetapkan()` menangkap `QueryException` dari situ. Baris yang di-soft-delete tetap menghuni batasan unik itu, jadi toko yang sudah dilepas dari satu sales bisa keliru dianggap masih dipegangnya saat ditugaskan ke sales lain. |
+| `penugasan_sales`   | tabel penugasan bulanan LAMA — sejak redesain jadwal mingguan per hari (lihat [Visit Sales](#visit-sales--kunjungan-rutin-sales-ke-toko)), tidak ada fitur yang menulis atau membacanya lagi; dibiarkan apa adanya sebagai riwayat. `penugasan_tokos` menggantikan perannya ke depan. |
+| `penugasan_tokos`   | batasan unik (`toko_id`) dipakai sebagai mekanisme deteksi "toko sudah dipegang sales/hari lain" — `PenugasanTokoService::tetapkan()`/`restoreDefault()` menangkap `QueryException` dari situ. Baris yang di-soft-delete tetap menghuni batasan unik itu, jadi toko yang sudah dilepas dari satu sales bisa keliru dianggap masih dipegangnya saat ditugaskan ke sales/hari lain. |
 | `kunjungan_fotos`   | foto lama dihapus dari disk begitu diulang (`KunjunganService::simpanFoto`), dan `jenis` per kunjungan dibatasi unik satu baris. Menjadikannya soft delete berarti keputusan produk dulu: apakah foto lama tetap disimpan sebagai riwayat, dan bagaimana alur "ambil ulang" bekerja terhadap baris yang di-soft-delete. |
 
 Kolom itu memang belum dipakai, tapi sudah tersedia kalau kelak ada kebutuhan
@@ -1042,14 +1119,15 @@ Semua di `.env`, dibaca lewat [`config/ond.php`](config/ond.php):
 | `OSRM_ENABLED`                           | `false` untuk memaksa hitung garis lurus |
 | `NOMINATIM_EMAIL`                        | kontak wajib untuk pemakaian Nominatim   |
 | `TRUSTED_PROXIES`                        | proksi yang headernya dipercaya (`127.0.0.1,::1`) |
-| `VISIT_MAKS_TOKO_PER_SALES`              | batas dan target toko per sales (120)    |
 | `VISIT_JARAK_WAJAR_M`                    | selisih GPS yang masih wajar (300 m)     |
 | `VISIT_FOTO_LEBAR_MAKS`                  | lebar foto setelah diperkecil (1280 px)  |
 | `APP_LOCALE`                             | bahasa bawaan (`id`)                     |
 | `APP_FALLBACK_LOCALE`                    | cadangan bila kunci belum diterjemahkan (`en`) |
 
 Batas 25 toko / 220 dus juga bisa diubah sesaat di halaman Generate Routing
-tanpa menyentuh `.env`.
+tanpa menyentuh `.env`. Begitu pula batas toko per hari pada Penugasan Toko
+(`maks_toko_per_hari`) — sudah bukan variabel `.env` sama sekali, melainkan
+baris `pengaturan_kunjungans` yang admin ubah langsung dari layarnya.
 
 ### Kalau volume sudah besar
 
@@ -1381,8 +1459,8 @@ BERSAMA oleh `Pendapatan::pesanans()` maupun `InsentifSales::pesanans()`
 supaya logikanya tidak pernah dobel-tulis dan diam-diam melenceng:
 
 - **Accessor `tanggal_pendapatan`** — untuk kategori driver mengambil
-  `stop->kendaraan->batch->tanggal` (`RoutingBatch::tanggal`, tanggal
-  keberangkatan yang sama dengan bagian
+  `stop->kendaraan->tanggal` (`Kendaraan::tanggal`, per kendaraan — lihat
+  bagian
   [Tanggal keberangkatan berbeda dari tanggal dibuat](#tanggal-keberangkatan-berbeda-dari-tanggal-dibuat)),
   jatuh kembali ke `tanggal_lunas` kalau rantai relasinya ternyata putus
   (mis. data lama yang tidak lengkap), supaya layar-layar ini tidak
@@ -1662,16 +1740,28 @@ memakai tiap promo, dan sebagai guard penghapusan di atas.
 php artisan test
 ```
 
-615 tes, mencakup:
+633 tes, mencakup:
 
+- **[`tests/Feature/PenugasanTokoTest.php`](tests/Feature/PenugasanTokoTest.php)** —
+  jadwal mingguan per hari: `tetapkan()` mengganti daftar SATU hari saja,
+  hari lain tidak tersentuh; batas jumlah toko per hari (`PengaturanKunjungan`,
+  bukan lagi angka tetap); satu toko yang sudah dijadwalkan tidak bisa masuk
+  hari ATAU sales lain sampai dilepas, dilaporkan lewat `ditolak` bukan
+  dilempar sebagai galat; `tokoTersedia()` mengecualikan toko milik
+  sales/hari lain tapi tetap menampilkan pilihan slot sendiri;
+  `jadikanDefault()`/`restoreDefault()` round-trip penuh, termasuk
+  menimpa default lama sepenuhnya (bukan menambah) dan melaporkan (bukan
+  merebut paksa) toko default yang sudah direbut sales lain; galat saat
+  belum pernah ada default tersimpan; `ubahMaksPerHari()`.
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
-  toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
-  terakhirnya SELESAI lebih dari 1 bulan lalu, keduanya masuk daftar;
-  toko yang selesai KURANG dari 1 bulan lalu tidak masuk; pesanan yang
-  belum SELESAI tidak membuat toko dianggap aktif; toko yang tidak
-  ditugaskan ke sales mana pun bulan ini tidak pernah muncul meski tidak
-  aktif; pengelompokan per sales, penyaring sales dan pencarian toko;
-  badge jumlah pada tombol TIDAK terpengaruh penyaring yang sedang aktif
+  toko yang ditugaskan (jadwal mingguan berdiri terus, bukan bulanan) tapi
+  belum pernah pesan, atau pesanan terakhirnya SELESAI lebih dari 1 bulan
+  lalu, keduanya masuk daftar; toko yang selesai KURANG dari 1 bulan lalu
+  tidak masuk; pesanan yang belum SELESAI tidak membuat toko dianggap
+  aktif; toko yang tidak ditugaskan ke sales mana pun tidak pernah muncul
+  meski tidak aktif; pengelompokan per sales, penyaring sales dan
+  pencarian toko; badge jumlah pada tombol TIDAK terpengaruh penyaring
+  yang sedang aktif
   di modal; pesan kosong yang beda antara "belum ada penugasan sama
   sekali" dan "semua toko tanggungan sudah aktif"; dan halaman tampil
   dengan BEBERAPA sales dan toko sekaligus tanpa lazy load — pelajaran
@@ -1742,7 +1832,7 @@ php artisan test
   pesanan kategori driver yang kendaraannya berangkat tanggal 20 tapi baru
   lunas tanggal 22 tetap terhitung sebagai pendapatan tanggal 20:
   `Pesanan::tanggal_pendapatan` mengambil tanggal keberangkatan
-  (`RoutingBatch::tanggal`) bukan `tanggal_lunas`; mode "hari" pada tanggal
+  (`Kendaraan::tanggal`) bukan `tanggal_lunas`; mode "hari" pada tanggal
   keberangkatan menemukannya, mode "hari" pada tanggal pelunasan TIDAK
   (tidak terhitung dua kali); `ringkasanHarian()`/grafik mengelompokkannya
   ke tanggal keberangkatan; mode "rentang" yang mencakup tanggal
@@ -1754,7 +1844,23 @@ php artisan test
   waktu `00:00:00` (kebiasaan SQLite yang dipakai pengujian, beda dari
   MySQL asli yang memotongnya bersih karena tipe kolom `DATE` fisik) —
   diperbaiki jadi `whereDate()`, yang kebal dari perbedaan format
-  penyimpanan antar driver basis data.
+  penyimpanan antar driver basis data. Ditambah kemudian: dua kendaraan
+  dari batch generate yang sama diedit ke tanggal keberangkatan
+  berbeda-beda lewat `RoutingService::ubahTanggal()`, dan
+  `tanggal_pendapatan` tiap pesanan tetap ikut tanggal kendaraannya
+  sendiri-sendiri, bukan tanggal bawaan batch — membuktikan tanggal per
+  kendaraan (lihat `RoutingDriverTest.php` di bawah) tidak merusak
+  penghitungan pendapatan.
+- **[`tests/Feature/PelunasanTanggalKeberangkatanTest.php`](tests/Feature/PelunasanTanggalKeberangkatanTest.php)** —
+  menu Pelunasan disinkronkan dengan pola `tanggal_pendapatan` di atas:
+  kendaraan yang berangkat tanggal 20 tapi baru tuntas dikirim
+  (`Pesanan::selesai_at`) tanggal 22 tetap muncul di Pelunasan tanggal 20,
+  bukan 22 — sebelumnya `Pelunasan::kendaraans()` menyaring langsung lewat
+  `whereDate('selesai_at', ...)`, sehingga rute yang berangkat satu hari
+  tapi baru tuntas dikirim keesokan harinya (atau lebih) muncul di tanggal
+  yang beda dari tanggal pendapatan/keberangkatannya sendiri; stop yang
+  masih PENDING (belum tuntas dikirim) tetap tidak muncul walau tanggal
+  keberangkatan kendaraannya cocok.
 - **[`tests/Feature/PosTest.php`](tests/Feature/PosTest.php)** —
   `PesananService::buatPos()` langsung SELESAI+LUNAS tanpa membuat
   `KendaraanStop`, stok fisik berkurang seketika (bukan lewat reservasi),
@@ -2048,6 +2154,19 @@ php artisan test
   diganti bebas sejak draft dibuat (bukan cuma sebelum disetujui), terkunci
   begitu ada kunjungan yang selesai/dicoret/dibatalkan, dan alur lewat
   komponen Livewire-nya langsung termasuk notifikasi galat saat ditolak.
+  Ditambah `describe('RoutingService::ubahTanggal')` untuk tanggal
+  keberangkatan PER KENDARAAN (fitur baru — sebelumnya tanggal hanya milik
+  batch): berhasil mengubah tanggal kendaraan yang belum mulai dikerjakan;
+  **dua kendaraan dari batch generate yang sama berhasil disetel ke
+  tanggal berbeda satu sama lain** (skenario inti fiturnya); ditolak begitu
+  kendaraan itu sudah punya kunjungan tuntas — pagar yang sama persis
+  dengan driver; ditolak juga kalau kendaraan itu sudah punya driver dan
+  perubahan tanggalnya bikin driver itu bentrok dengan kendaraan lain di
+  tanggal baru itu (simetris dengan penjagaan bentrok driver di atas),
+  tapi diizinkan kalau kendaraannya belum punya driver sama sekali; dan
+  lewat komponen Livewire-nya (kartu kendaraan menampilkan `<input
+  type=date>` atau teks read-only mengikuti aturan kunci yang sama dengan
+  Driver).
 - **[`tests/Feature/PilihMobilTest.php`](tests/Feature/PilihMobilTest.php)** —
   superadmin/admin yang membuka mobil kosong tidak ikut mengunci
   `driver_id`-nya (beda dari driver sungguhan yang memang menguncinya),
@@ -2095,10 +2214,12 @@ php artisan test
 - **[`tests/Feature/KunjunganTest.php`](tests/Feature/KunjunganTest.php)** —
   penguraian QR (termasuk titik dua lebar), periode Senin–Sabtu dan
   pergantiannya, penolakan kunjungan ganda dan toko di luar daftar,
-  kelengkapan enam foto, watermark, perhitungan target saat toko tutup, serta
+  kelengkapan enam foto, watermark, perhitungan target saat toko tutup,
   pencarian ketik untuk toko tanpa stiker QR — termasuk pembatasannya hanya
   pada tanggungan sales yang bersangkutan dan yang belum dikunjungi minggu
-  itu.
+  itu — serta bukti eksplisit bahwa hari pada jadwal Penugasan Toko adalah
+  RENCANA, bukan kunci: toko yang dijadwalkan hari Rabu tetap bisa
+  dikunjungi hari lain dalam minggu yang sama.
 - **[`tests/Feature/ModeUjiTest.php`](tests/Feature/ModeUjiTest.php)** —
   jalan pintas pengujian mati di luar lingkungan lokal dan mati bila
   penandanya tidak dinyalakan, serta tetap menerapkan seluruh aturan kunjungan

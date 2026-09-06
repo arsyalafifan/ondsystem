@@ -1,11 +1,11 @@
 <?php
 
+use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
-use App\Models\PenugasanSales;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
-use Carbon\CarbonImmutable;
+use App\Services\Kunjungan\PenugasanTokoService;
 
 /**
  * Menjaga agar wadah pemindai QR tidak pernah lagi disembunyikan lewat kelas
@@ -35,12 +35,9 @@ beforeEach(function () {
         'sumber_koordinat' => 'belum',
     ]);
 
-    PenugasanSales::create([
-        'sales_id' => $this->sales->id,
-        'toko_id' => $toko->id,
-        'bulan' => CarbonImmutable::today()->startOfMonth()->toDateString(),
-        'ditugaskan_oleh' => $this->admin->id,
-    ]);
+    app(PenugasanTokoService::class)->tetapkan(
+        $this->sales, HariKunjungan::hariIni(), [$toko->id], $this->admin,
+    );
 });
 
 /** Mengambil tag pembuka sebuah elemen ber-id dari HTML. */

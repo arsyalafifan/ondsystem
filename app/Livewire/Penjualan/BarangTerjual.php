@@ -250,7 +250,7 @@ class BarangTerjual extends Component
                         });
                 });
             })
-            ->with(['produk:id,nama,kode', 'pesanan:id,kode,jenis,toko_id,tanggal_lunas', 'pesanan.toko:id,nama', 'pesanan.stop.kendaraan.batch'])
+            ->with(['produk:id,nama,kode', 'pesanan:id,kode,jenis,toko_id,tanggal_lunas', 'pesanan.toko:id,nama', 'pesanan.stop.kendaraan'])
             ->latest('id')
             ->paginate(15);
     }

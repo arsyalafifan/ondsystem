@@ -153,7 +153,7 @@
                 <tr><td class="label">Nama Mobil</td><td>: {{ $kendaraan->nama }}</td></tr>
                 <tr><td class="label">Jumlah Faktur</td><td>: {{ $stops->count() }}</td></tr>
                 <tr><td class="label">Jumlah Dus</td><td>: {{ $stops->sum('total_dus') }}</td></tr>
-                <tr><td class="label">Tanggal Berangkat</td><td>: {{ $kendaraan->batch->tanggal->format('d/m/Y') }}</td></tr>
+                <tr><td class="label">Tanggal Berangkat</td><td>: {{ $kendaraan->tanggal->format('d/m/Y') }}</td></tr>
             </table>
         </div>
     </div>

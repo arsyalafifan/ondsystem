@@ -80,7 +80,7 @@ class Pendapatan extends Component
     {
         return Pesanan::query()
             ->where('status_bayar', StatusBayar::Lunas)
-            ->with(['items', 'toko:id,nama', 'stop.kendaraan.batch'])
+            ->with(['items', 'toko:id,nama', 'stop.kendaraan'])
             ->when($this->mode === 'hari', fn ($q) => $q->tanggalPendapatanAntara($this->tanggal, $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');

@@ -90,6 +90,8 @@ return [
     'driver_terkunci' => 'already underway, cannot be changed',
     'notif_driver_diubah' => ':mobil driver set to :driver.',
     'galat_driver_sudah_jalan' => ':mobil has already started in the field — its driver can no longer be changed.',
+    'notif_tanggal_diubah' => ':mobil departure date changed to :tanggal.',
+    'galat_tanggal_sudah_jalan' => ':mobil has already started in the field — its departure date can no longer be changed.',
     'galat_bukan_driver' => ':nama is not a driver-role account.',
     'galat_driver_sedang_bertugas' => ':nama is already driving another vehicle departing on the same date (:tanggal).',
 ];

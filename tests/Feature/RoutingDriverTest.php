@@ -203,13 +203,109 @@ describe('RoutingService::ubahDriver', function () {
     });
 });
 
+/**
+ * Tanggal keberangkatan sekarang per KENDARAAN, bukan per batch — mobil 1
+ * dan mobil 2 dari `generate()` yang sama boleh berangkat di hari berbeda.
+ * Aturan mengubahnya sama persis dengan driver: boleh diganti sampai ada
+ * satu saja kunjungan yang tuntas (selesai/dicoret/dibatalkan) di kendaraan
+ * itu, dan mengubahnya juga diperiksa terhadap bentrok driver kalau
+ * kendaraan itu sudah punya driver — simetris dengan ubahDriver().
+ */
+describe('RoutingService::ubahTanggal', function () {
+    it('berhasil mengubah tanggal kendaraan yang belum mulai dikerjakan', function () {
+        $kendaraan = kendaraanUjiDriver();
+        $baru = CarbonImmutable::today()->addWeek();
+
+        $this->routingService->ubahTanggal($kendaraan, $baru);
+
+        expect($kendaraan->fresh()->tanggal->toDateString())->toBe($baru->toDateString());
+    });
+
+    it('dua kendaraan dari batch yang sama bisa disetel ke tanggal berbeda satu sama lain', function () {
+        $wilayah = Wilayah::create(['kode' => 'W-RD2M', 'nama' => 'Wilayah Dua Mobil']);
+        $produk = Produk::create(['kode' => 'RD2M', 'nama' => 'Produk Dua Mobil', 'stok' => 1000, 'harga' => 50_000]);
+
+        foreach ([1, 2] as $i) {
+            $toko = Toko::create([
+                'kode' => "TK-RD2M{$i}", 'nama' => "Toko RD2M {$i}", 'wilayah_id' => $wilayah->id,
+                'alamat' => 'Jl. RD2M', 'latitude' => -6.20 + $i * 0.05, 'longitude' => 106.80 + $i * 0.05,
+                'sumber_koordinat' => 'manual',
+            ]);
+            $pesanan = app(PesananService::class)->buat($toko, [['produk_id' => $produk->id, 'jumlah_dus' => 10]], $this->sales);
+            app(PesananService::class)->setujui($pesanan, $this->admin);
+        }
+
+        // maxToko: 1 supaya kedua toko dipecah ke dua kendaraan berbeda,
+        // bukan digabung satu mobil.
+        $batch = $this->routingService->generate($this->admin, maxToko: 1, pisahPerWilayah: false);
+        $this->routingService->setujui($batch, $this->admin);
+
+        $kendaraans = $batch->fresh()->kendaraans;
+        expect($kendaraans)->toHaveCount(2);
+
+        [$kendaraan1, $kendaraan2] = [$kendaraans[0], $kendaraans[1]];
+        $tanggal1 = CarbonImmutable::today()->addDays(3);
+        $tanggal2 = CarbonImmutable::today()->addDays(10);
+
+        $this->routingService->ubahTanggal($kendaraan1, $tanggal1);
+        $this->routingService->ubahTanggal($kendaraan2, $tanggal2);
+
+        expect($kendaraan1->fresh()->tanggal->toDateString())->toBe($tanggal1->toDateString())
+            ->and($kendaraan2->fresh()->tanggal->toDateString())->toBe($tanggal2->toDateString());
+    });
+
+    it('menolak mengubah tanggal setelah ada kunjungan yang selesai (upload nota)', function () {
+        Storage::fake('public');
+
+        $kendaraan = kendaraanUjiDriver();
+
+        $stop = $kendaraan->fresh()->stops->first();
+        $path = UploadedFile::fake()->image('nota.jpg')->store('nota', 'public');
+        app(PesananService::class)->selesaikanPengiriman($stop, $path, $this->driver);
+
+        $tanggalAsli = $kendaraan->fresh()->tanggal;
+
+        expect(fn () => $this->routingService->ubahTanggal($kendaraan->fresh(), CarbonImmutable::today()->addWeek()))
+            ->toThrow(RuntimeException::class);
+
+        expect($kendaraan->fresh()->tanggal->toDateString())->toBe($tanggalAsli->toDateString());
+    });
+
+    it('menolak mengubah tanggal kalau drivernya jadi bentrok dengan kendaraan lain di tanggal baru itu', function () {
+        $kendaraan1 = kendaraanUjiDriverTanggal(CarbonImmutable::today());
+        $kendaraan2 = kendaraanUjiDriverTanggal(CarbonImmutable::today()->addWeek());
+
+        $this->routingService->ubahDriver($kendaraan1, $this->driver);
+        $this->routingService->ubahDriver($kendaraan2->fresh(), $this->driver);
+
+        // Menggeser kendaraan2 ke tanggal yang sama dengan kendaraan1 —
+        // driver yang sama jadi bertugas dobel di hari itu.
+        expect(fn () => $this->routingService->ubahTanggal($kendaraan2->fresh(), CarbonImmutable::today()))
+            ->toThrow(RuntimeException::class);
+
+        expect($kendaraan2->fresh()->tanggal->toDateString())->toBe(CarbonImmutable::today()->addWeek()->toDateString());
+    });
+
+    it('mengizinkan mengubah tanggal kendaraan yang belum punya driver, tanpa perlu cek bentrok', function () {
+        $kendaraan1 = kendaraanUjiDriverTanggal(CarbonImmutable::today());
+        $kendaraan2 = kendaraanUjiDriverTanggal(CarbonImmutable::today()->addWeek());
+
+        $this->routingService->ubahDriver($kendaraan1, $this->driver);
+        // kendaraan2 sengaja tidak diberi driver.
+
+        $this->routingService->ubahTanggal($kendaraan2->fresh(), CarbonImmutable::today());
+
+        expect($kendaraan2->fresh()->tanggal->toDateString())->toBe(CarbonImmutable::today()->toDateString());
+    });
+});
+
 describe('layar Generate Routing', function () {
     it('menampilkan pilihan driver dan menyimpannya lewat komponen', function () {
         $kendaraan = kendaraanUjiDriver();
 
         Livewire::actingAs($this->admin)
             ->test(GenerateRouting::class, ['batch' => $kendaraan->batch])
-            ->assertSet('driverBisaDiubah.'.$kendaraan->id, true)
+            ->assertSet('kendaraanBisaDiubah.'.$kendaraan->id, true)
             ->call('ubahDriver', $kendaraan->id, $this->driver->id)
             ->assertHasNoErrors();
 
@@ -229,7 +325,7 @@ describe('layar Generate Routing', function () {
         expect($kendaraan2->fresh()->driver_id)->toBeNull();
     });
 
-    it('menandai driverBisaDiubah false begitu kendaraan sudah mulai dikerjakan', function () {
+    it('menandai kendaraanBisaDiubah false begitu kendaraan sudah mulai dikerjakan', function () {
         Storage::fake('public');
 
         $kendaraan = kendaraanUjiDriver();
@@ -241,6 +337,55 @@ describe('layar Generate Routing', function () {
 
         Livewire::actingAs($this->admin)
             ->test(GenerateRouting::class, ['batch' => $kendaraan->fresh()->batch])
-            ->assertSet('driverBisaDiubah.'.$kendaraan->id, false);
+            ->assertSet('kendaraanBisaDiubah.'.$kendaraan->id, false);
+    });
+
+    it('menampilkan input tanggal dan menyimpannya lewat komponen', function () {
+        $kendaraan = kendaraanUjiDriver();
+        $baru = CarbonImmutable::today()->addWeek()->toDateString();
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class, ['batch' => $kendaraan->batch])
+            ->call('ubahTanggal', $kendaraan->id, $baru)
+            ->assertHasNoErrors();
+
+        expect($kendaraan->fresh()->tanggal->toDateString())->toBe($baru);
+    });
+
+    it('menampilkan notifikasi galat tanpa memutus halaman kalau perubahan tanggal ditolak', function () {
+        Storage::fake('public');
+
+        $kendaraan = kendaraanUjiDriver();
+        $this->routingService->ubahDriver($kendaraan, $this->driver);
+
+        $stop = $kendaraan->fresh()->stops->first();
+        $path = UploadedFile::fake()->image('nota.jpg')->store('nota', 'public');
+        app(PesananService::class)->selesaikanPengiriman($stop, $path, $this->driver);
+
+        $tanggalAsli = $kendaraan->fresh()->tanggal->toDateString();
+
+        Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class, ['batch' => $kendaraan->fresh()->batch])
+            ->call('ubahTanggal', $kendaraan->id, CarbonImmutable::today()->addWeek()->toDateString())
+            ->assertDispatched('notifikasi');
+
+        expect($kendaraan->fresh()->tanggal->toDateString())->toBe($tanggalAsli);
+    });
+
+    it('kartu kendaraan menampilkan tanggal read-only, bukan input, begitu kendaraan sudah mulai dikerjakan', function () {
+        Storage::fake('public');
+
+        $kendaraan = kendaraanUjiDriver();
+        $this->routingService->ubahDriver($kendaraan, $this->driver);
+
+        $stop = $kendaraan->fresh()->stops->first();
+        $path = UploadedFile::fake()->image('nota.jpg')->store('nota', 'public');
+        app(PesananService::class)->selesaikanPengiriman($stop, $path, $this->driver);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(GenerateRouting::class, ['batch' => $kendaraan->fresh()->batch])
+            ->html();
+
+        expect($html)->not->toContain('wire:change="ubahTanggal('.$kendaraan->id.',');
     });
 });

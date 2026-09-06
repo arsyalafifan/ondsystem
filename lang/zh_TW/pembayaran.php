@@ -9,7 +9,7 @@ return [
 
     // Pelunasan
     'judul_pelunasan' => '結算',
-    'ket_pelunasan' => '按車輛、按天標記哪些商店已付款。只有已完成的訂單才能處理。',
+    'ket_pelunasan' => '按車輛、按發車日期標記哪些商店已付款。只有已完成的訂單才能處理。',
     'tombol_lunas' => '已付款',
     'tombol_belum_lunas' => '未付款',
     'konfirmasi_lunas_judul' => '標記為已付款',
@@ -33,7 +33,7 @@ return [
 
     // Pendapatan
     'judul_pendapatan' => '收入',
-    'ket_pendapatan' => '按結算日期而非配送日期統計的收入彙總。',
+    'ket_pendapatan' => '司機配送類別按車輛發車日期統計收入，門市直銷類別按結算日期統計。',
     'mode_hari' => '每日',
     'mode_bulan' => '每月',
     'mode_rentang' => '區間',

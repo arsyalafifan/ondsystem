@@ -259,7 +259,7 @@
                              dituntaskan, dicoret, atau dibatalkan di kendaraan ini. --}}
                         <div class="border-t border-gray-100 px-4 py-2.5">
                             <label class="block text-xs font-medium text-gray-600">{{ __('routing.driver') }}</label>
-                            @if ($this->driverBisaDiubah[$kendaraan->id] ?? false)
+                            @if ($this->kendaraanBisaDiubah[$kendaraan->id] ?? false)
                                 <select wire:change="ubahDriver({{ $kendaraan->id }}, $event.target.value || null)"
                                         class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     <option value="">{{ __('routing.driver_belum_ditentukan') }}</option>
@@ -272,6 +272,20 @@
                                     {{ $kendaraan->driver?->name ?? __('routing.driver_belum_ditentukan') }}
                                     {{-- <span class="ml-1 text-xs text-gray-400">({{ __('routing.driver_terkunci') }})</span> --}}
                                 </p>
+                            @endif
+                        </div>
+
+                        {{-- Tanggal keberangkatan: bisa diubah per kendaraan sampai ada
+                             kunjungan yang dituntaskan, dicoret, atau dibatalkan di
+                             kendaraan ini — sama seperti driver. --}}
+                        <div class="border-t border-gray-100 px-4 py-2.5">
+                            <label class="block text-xs font-medium text-gray-600">{{ __('routing.tanggal_keberangkatan') }}</label>
+                            @if ($this->kendaraanBisaDiubah[$kendaraan->id] ?? false)
+                                <input type="date" value="{{ $kendaraan->tanggal->toDateString() }}"
+                                       wire:change="ubahTanggal({{ $kendaraan->id }}, $event.target.value)"
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            @else
+                                <p class="mt-1 text-sm text-gray-900">{{ $kendaraan->tanggal->isoFormat('ll') }}</p>
                             @endif
                         </div>
 

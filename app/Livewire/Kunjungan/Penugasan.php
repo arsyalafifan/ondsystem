@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Kunjungan;
 
-use App\Models\PenugasanSales;
+use App\Enums\HariKunjungan;
+use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
-use App\Services\Kunjungan\PenugasanService;
+use App\Services\Kunjungan\PenugasanTokoService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -15,15 +15,15 @@ use Livewire\Component;
 use RuntimeException;
 
 /**
- * Menyusun daftar toko yang menjadi tanggungan tiap sales untuk satu bulan.
- *
- * Toko yang sudah dipegang sales lain tidak muncul sebagai pilihan, sehingga
- * bentrok dicegah sejak di layar, bukan baru ketahuan saat disimpan.
+ * Menyusun jadwal kunjungan MINGGUAN tiap sales, per hari — lihat
+ * dokumentasi `PenugasanToko`. Jadwalnya berdiri terus (bukan disusun ulang
+ * tiap bulan): sekali toko masuk ke satu (sales, hari), ia tidak bisa
+ * dipilih untuk (sales, hari) lain sampai dilepas dulu di sini.
  */
 class Penugasan extends Component
 {
-    #[Url(as: 'bulan')]
-    public string $bulan = '';
+    #[Url(as: 'hari')]
+    public int $hari = 0;
 
     public ?int $salesDipilih = null;
 
@@ -32,29 +32,38 @@ class Penugasan extends Component
     /** @var array<int, int> */
     public array $terpilih = [];
 
-    public bool $konfirmasiSalin = false;
+    public bool $konfirmasiRestore = false;
 
-    public string $bulanSumber = '';
+    public string $maksInput = '';
 
     public function mount(): void
     {
-        if ($this->bulan === '') {
-            $this->bulan = CarbonImmutable::today()->format('Y-m');
+        if ($this->hari < 1 || $this->hari > 7) {
+            $this->hari = HariKunjungan::hariIni()->value;
         }
 
         $this->salesDipilih = User::sales()->orderBy('name')->value('id');
+        $this->maksInput = (string) app(PenugasanTokoService::class)->maksPerHari();
         $this->muatTerpilih();
     }
 
-    private function tanggalBulan(): string
+    /** @return array<int, array{hari: HariKunjungan, jumlah: int}> */
+    #[Computed]
+    public function hariList(): array
     {
-        return app(PenugasanService::class)->bulan($this->bulan.'-01');
+        $jumlah = $this->salesDipilih === null
+            ? []
+            : app(PenugasanTokoService::class)->jumlahPerHariUntukSales($this->salesDipilih);
+
+        return collect(HariKunjungan::cases())
+            ->map(fn (HariKunjungan $h) => ['hari' => $h, 'jumlah' => $jumlah[$h->value] ?? 0])
+            ->all();
     }
 
     #[Computed]
     public function salesList(): Collection
     {
-        $jumlah = app(PenugasanService::class)->jumlahPerSales($this->tanggalBulan());
+        $jumlah = app(PenugasanTokoService::class)->jumlahPerSales();
 
         return User::sales()
             ->orderBy('name')
@@ -66,7 +75,7 @@ class Penugasan extends Component
             });
     }
 
-    /** Toko yang boleh dipilih: belum dipegang siapa pun, atau sudah milik sales ini. */
+    /** Toko yang boleh dipilih untuk slot (sales, hari) yang sedang aktif. */
     #[Computed]
     public function tokoTersedia(): Collection
     {
@@ -74,8 +83,8 @@ class Penugasan extends Component
             return collect();
         }
 
-        return app(PenugasanService::class)
-            ->tokoTersedia($this->tanggalBulan(), $this->salesDipilih)
+        return app(PenugasanTokoService::class)
+            ->tokoTersedia(HariKunjungan::from($this->hari), $this->salesDipilih)
             ->with('wilayah:id,nama')
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('nama', 'like', "%{$this->cari}%")
@@ -90,14 +99,14 @@ class Penugasan extends Component
     #[Computed]
     public function maksToko(): int
     {
-        return app(PenugasanService::class)->maksToko();
+        return app(PenugasanTokoService::class)->maksPerHari();
     }
 
-    /** Toko aktif yang belum dipegang sales mana pun pada bulan ini. */
+    /** Toko aktif yang belum dijadwalkan sama sekali, di hari mana pun. */
     #[Computed]
     public function jumlahBelumDitugaskan(): int
     {
-        return app(PenugasanService::class)->tokoTersedia($this->tanggalBulan())->count();
+        return Toko::aktif()->whereDoesntHave('penugasanToko')->count();
     }
 
     #[Computed]
@@ -106,10 +115,12 @@ class Penugasan extends Component
         return Toko::aktif()->whereNull('asset_id')->count();
     }
 
-    public function updatedBulan(): void
+    public function pilihHari(int $hari): void
     {
+        $this->hari = $hari;
+        $this->cari = '';
         $this->muatTerpilih();
-        unset($this->salesList, $this->tokoTersedia, $this->jumlahBelumDitugaskan);
+        unset($this->tokoTersedia);
     }
 
     public function pilihSales(int $salesId): void
@@ -117,22 +128,22 @@ class Penugasan extends Component
         $this->salesDipilih = $salesId;
         $this->cari = '';
         $this->muatTerpilih();
-        unset($this->tokoTersedia);
+        unset($this->tokoTersedia, $this->hariList);
     }
 
     private function muatTerpilih(): void
     {
         $this->terpilih = $this->salesDipilih === null
             ? []
-            : PenugasanSales::query()
+            : PenugasanToko::query()
                 ->where('sales_id', $this->salesDipilih)
-                ->whereDate('bulan', $this->tanggalBulan())
+                ->where('hari', $this->hari)
                 ->pluck('toko_id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
     }
 
-    /** Memilih seluruh toko yang sedang tampil, sebatas sisa kuota. */
+    /** Memilih seluruh toko yang sedang tampil, sebatas sisa kuota hari ini. */
     public function pilihSemuaTampil(): void
     {
         $sisa = $this->maksToko - count($this->terpilih);
@@ -154,7 +165,7 @@ class Penugasan extends Component
         $this->terpilih = [];
     }
 
-    public function simpan(PenugasanService $service): void
+    public function simpan(PenugasanTokoService $service): void
     {
         if ($this->salesDipilih === null) {
             return;
@@ -163,8 +174,8 @@ class Penugasan extends Component
         try {
             $hasil = $service->tetapkan(
                 sales: User::findOrFail($this->salesDipilih),
+                hari: HariKunjungan::from($this->hari),
                 tokoIds: $this->terpilih,
-                bulan: $this->tanggalBulan(),
                 admin: auth()->user(),
             );
         } catch (RuntimeException $e) {
@@ -173,14 +184,9 @@ class Penugasan extends Component
             return;
         }
 
-        // Target periode berjalan ikut disegarkan supaya perubahan langsung
-        // terlihat pada halaman pemantauan, bukan menunggu minggu berikutnya.
-        app(PeriodeKunjunganService::class)->segarkanTarget(
-            app(PeriodeKunjunganService::class)->periodeBerjalan()
-        );
-
+        $this->segarkanTargetPeriode();
         $this->muatTerpilih();
-        unset($this->salesList, $this->tokoTersedia, $this->jumlahBelumDitugaskan);
+        unset($this->salesList, $this->tokoTersedia, $this->hariList, $this->jumlahBelumDitugaskan);
 
         $pesan = __('kunjungan.notif_penugasan_tersimpan', [
             'ditambah' => $hasil['ditambah'],
@@ -194,31 +200,73 @@ class Penugasan extends Component
         $this->dispatch('notifikasi', pesan: $pesan, jenis: $hasil['ditolak'] !== [] ? 'info' : 'sukses');
     }
 
-    public function salinDariBulanLalu(PenugasanService $service): void
+    public function jadikanDefault(PenugasanTokoService $service): void
+    {
+        if ($this->salesDipilih === null) {
+            return;
+        }
+
+        $service->jadikanDefault(User::findOrFail($this->salesDipilih));
+
+        $this->dispatch('notifikasi', pesan: __('kunjungan.default_tersimpan'));
+    }
+
+    public function bukaKonfirmasiRestore(): void
+    {
+        $this->konfirmasiRestore = true;
+    }
+
+    public function restoreDefault(PenugasanTokoService $service): void
+    {
+        if ($this->salesDipilih === null) {
+            return;
+        }
+
+        try {
+            $hasil = $service->restoreDefault(User::findOrFail($this->salesDipilih), auth()->user());
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+            $this->konfirmasiRestore = false;
+
+            return;
+        }
+
+        $this->konfirmasiRestore = false;
+        $this->segarkanTargetPeriode();
+        $this->muatTerpilih();
+        unset($this->salesList, $this->tokoTersedia, $this->hariList, $this->jumlahBelumDitugaskan);
+
+        $pesan = __('kunjungan.default_dipulihkan', ['dipulihkan' => $hasil['dipulihkan']]);
+
+        if ($hasil['ditolak'] !== []) {
+            $pesan .= ' '.implode(' ', $hasil['ditolak']);
+        }
+
+        $this->dispatch('notifikasi', pesan: $pesan, jenis: $hasil['ditolak'] !== [] ? 'info' : 'sukses');
+    }
+
+    public function simpanMaks(PenugasanTokoService $service): void
     {
         try {
-            $jumlah = $service->salinKeBulan(
-                dariBulan: $this->bulanSumber.'-01',
-                keBulan: $this->tanggalBulan(),
-                admin: auth()->user(),
-            );
+            $service->ubahMaksPerHari((int) $this->maksInput);
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
 
             return;
         }
 
-        $this->konfirmasiSalin = false;
-        $this->muatTerpilih();
-        unset($this->salesList, $this->tokoTersedia, $this->jumlahBelumDitugaskan);
-
-        $this->dispatch('notifikasi', pesan: __('kunjungan.notif_penugasan_disalin', ['jumlah' => $jumlah]));
+        unset($this->maksToko);
+        $this->dispatch('notifikasi', pesan: __('kunjungan.maks_per_hari_disimpan'));
     }
 
-    public function bukaSalin(): void
+    /**
+     * Target periode berjalan ikut disegarkan supaya perubahan langsung
+     * terlihat pada halaman pemantauan, bukan menunggu minggu berikutnya.
+     */
+    private function segarkanTargetPeriode(): void
     {
-        $this->bulanSumber = CarbonImmutable::parse($this->tanggalBulan())->subMonth()->format('Y-m');
-        $this->konfirmasiSalin = true;
+        $service = app(PeriodeKunjunganService::class);
+        $service->segarkanTarget($service->periodeBerjalan());
     }
 
     public function render()

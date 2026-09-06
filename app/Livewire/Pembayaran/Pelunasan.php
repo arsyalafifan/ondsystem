@@ -41,25 +41,24 @@ class Pelunasan extends Component
     }
 
     /**
-     * "Per hari" di sini mengikuti tanggal pesanan benar-benar tuntas
-     * dikirim (`Pesanan::selesai_at`), bukan tanggal rute-nya dibuat
-     * (`RoutingBatch::tanggal`). Rute bisa dibuat jauh sebelum driver
-     * benar-benar menuntaskan kunjungannya, jadi memakai tanggal batch
-     * membuat pesanan yang baru selesai hari ini tidak pernah muncul kalau
-     * rutenya dibuat di hari lain.
+     * "Per hari" di sini mengikuti tanggal KEBERANGKATAN kendaraannya
+     * (`Kendaraan::tanggal` — per kendaraan, bukan lagi per batch), sinkron
+     * dengan `Pesanan::tanggal_pendapatan` dan menu Pendapatan/Insentif
+     * Sales — toko yang berangkat dikirim tanggal 20 tapi baru benar-benar
+     * tuntas dikirim (`selesai_at`) tanggal 22 tetap tampil di Pelunasan
+     * tanggal 20, bukan 22, supaya ketiganya (keberangkatan → Pelunasan →
+     * Pendapatan) selalu memakai hari yang sama untuk pesanan yang sama.
+     * Status tetap disaring SELESAI saja — pesanan yang belum tuntas
+     * dikirim belum layak ditagih.
      */
     #[Computed]
     public function kendaraans(): Collection
     {
         return Kendaraan::query()
-            ->whereHas('stops', fn ($q) => $q
-                ->whereHas('pesanan', fn ($q2) => $q2
-                    ->where('status', StatusPesanan::Selesai)
-                    ->whereDate('selesai_at', $this->tanggal)))
+            ->whereDate('tanggal', $this->tanggal)
+            ->whereHas('stops.pesanan', fn ($q) => $q->where('status', StatusPesanan::Selesai))
             ->with(['wilayah:id,nama', 'driver:id,name', 'stops' => fn ($q) => $q
-                ->whereHas('pesanan', fn ($q2) => $q2
-                    ->where('status', StatusPesanan::Selesai)
-                    ->whereDate('selesai_at', $this->tanggal))
+                ->whereHas('pesanan', fn ($q2) => $q2->where('status', StatusPesanan::Selesai))
                 ->with(['toko:id,nama,kode', 'pesanan.items'])])
             ->orderBy('nomor')
             ->get();
