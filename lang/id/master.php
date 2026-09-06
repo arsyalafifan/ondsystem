@@ -4,6 +4,8 @@ return [
     'judul_toko' => 'Master Toko',
     'ket_toko' => 'Toko wajib punya titik koordinat agar bisa ikut proses routing.',
     'impor_csv' => '⬆ Impor CSV/Excel',
+    'ekspor_excel' => '⬇ Ekspor Excel',
+    'ket_ekspor_sebelum_impor' => 'Ingin mengedit toko yang sudah ada lewat Excel? Unduh dulu seluruh toko saat ini sebagai titik awal, edit di Excel, lalu unggah kembali di sini:',
     'toko_baru' => '+ Toko Baru',
     'peringatan_koordinat' => ':jumlah toko aktif belum punya koordinat dan akan dilewati saat routing.',
     'peringatan_wilayah' => ':jumlah toko aktif belum punya wilayah dan belum bisa dipesan atau ikut routing sampai dilengkapi.',

@@ -4,6 +4,8 @@ return [
     'judul_toko' => 'Stores',
     'ket_toko' => 'A store needs coordinates before it can be routed.',
     'impor_csv' => '⬆ Import CSV/Excel',
+    'ekspor_excel' => '⬇ Export Excel',
+    'ket_ekspor_sebelum_impor' => 'Want to edit existing stores in Excel? Download all current stores as a starting point, edit it in Excel, then upload it back here:',
     'toko_baru' => '+ New Store',
     'peringatan_koordinat' => ':jumlah active stores have no coordinates and will be skipped when routing.',
     'peringatan_wilayah' => ':jumlah active stores have no region yet and cannot be ordered or routed until set.',

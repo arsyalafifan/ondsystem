@@ -4,6 +4,8 @@ return [
     'judul_toko' => '商店主檔',
     'ket_toko' => '商店必須有座標才能參與路線規劃。',
     'impor_csv' => '⬆ 匯入 CSV/Excel',
+    'ekspor_excel' => '⬇ 匯出 Excel',
+    'ket_ekspor_sebelum_impor' => '想在 Excel 中編輯現有商店資料嗎？先下載目前所有商店作為起點，在 Excel 中編輯後，再上傳回這裡：',
     'toko_baru' => '+ 新增商店',
     'peringatan_koordinat' => '有 :jumlah 家啟用商店尚無座標，排線時將被跳過。',
     'peringatan_wilayah' => '有 :jumlah 家啟用商店尚未設定區域，設定前無法下單或排線。',
