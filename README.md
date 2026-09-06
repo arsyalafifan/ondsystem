@@ -235,10 +235,17 @@ setelah seluruh produk terisi.
 
 ### Bonus produk (admin/superadmin)
 
-Khusus akun admin/superadmin, Input Pesanan punya langkah tambahan **"3.
-Pilih Bonus Produk & Jumlah Dus"** di antara Pilih Produk dan Catatan (yang
-untuk admin/superadmin ikut bergeser jadi nomor 4). Sales sama sekali tidak
-melihat langkah ini — tidak ada perubahan apa pun di layarnya.
+Khusus akun admin/superadmin, Input Pesanan punya langkah tambahan **"Pilih
+Bonus Produk & Jumlah Dus"** di antara Pilih Produk dan Catatan. Sales sama
+sekali tidak melihat langkah ini — tidak ada perubahan apa pun di layarnya.
+Nomor langkahnya dihitung dinamis (`$langkahBonus`/`$langkahCatatan` di
+`buat-pesanan.blade.php`), bukan angka tetap: begitu ada promo yang sedang
+berjalan (lihat [Promo](#promo) di bawah), langkah **"Bonus Promo"** ikut
+disisipkan SEBELUM langkah ini — nomor keduanya bergeser mengikuti, bukan
+saling menimpa. Bonus manual di sini dan bonus promo di sana adalah DUA
+mekanisme yang sengaja terpisah total (beda gerbang akses, beda validasi,
+beda sumber produk yang boleh dipilih) — cuma berakhir sebagai `is_bonus =
+true` yang sama di `pesanan_items`.
 
 - **Fungsinya sama seperti Pilih Produk biasa**, tapi harganya **SELALU
   Rp 0** — apa pun produknya dan berapa pun jumlah dusnya. Ini perlakuan
@@ -1380,7 +1387,7 @@ per akun, dipecah per peran karena cara menghitungnya beda:
 
 ### Insentif Sales
 
-Tiga aturan yang menentukan dus mana yang dihitung:
+Empat aturan yang menentukan dus mana yang dihitung:
 
 - **Hanya pesanan berstatus SELESAI** — pesanan yang masih ORDER/PROCESS/
   DELIVERY belum jadi apa-apa buat sales, dan yang CANCEL memang tidak
@@ -1398,6 +1405,18 @@ Tiga aturan yang menentukan dus mana yang dihitung:
   diinput ADMIN sengaja tidak dihitung sebagai insentif sales, sementara
   POS yang diinput sales sendiri tetap ikut — insentif ini soal siapa yang
   menjual, bukan soal jalur penjualannya (driver vs POS).
+- **Dus bonus PROMO ikut dihitung penuh, dus bonus MANUAL tidak** — beli
+  15 dus dapat 1 dus bonus promo berarti 16 dus yang dihitung, bukan 15,
+  karena bonus promo adalah jatah yang sales benar-benar peroleh dari
+  pencapaian jualan mereka sendiri (lihat [Promo](#promo)). Bonus MANUAL
+  (langkah "Bonus Produk" admin/superadmin) tetap dikecualikan seperti
+  semula — pemberian sepihak admin, bukan hasil jualan sales, dan secara
+  struktural cuma bisa muncul pada pesanan yang penginputnya admin (jadi
+  sudah otomatis tersaring oleh aturan ketiga di atas juga). Dibedakan
+  lewat `Pesanan::promo_id` (terisi = seluruh item pesanan itu, biasa
+  maupun bonus, dihitung; kosong = item bonusnya dikecualikan seperti
+  sebelumnya), bukan `is_bonus` sendirian — lihat
+  `InsentifSales::perSales()`.
 
 Tanggalnya mengikuti `Pesanan::tanggal_pendapatan` lewat
 `tanggalPendapatanAntara()` — SAMA persis dengan Pendapatan (lihat
@@ -1473,13 +1492,119 @@ dipilih, penyaring tabel cuma mempersempit tabelnya sendiri.
 
 ---
 
+## Promo
+
+Menu **Master → Master Promo** (`/master/promo`, admin/superadmin —
+`App\Livewire\Master\DaftarPromo`) mengatur promo periodik "beli N dus
+gratis M dus" yang depot kadang jalankan — mis. beli 15 dus, gratis 1 dus
+dari produk tertentu. Empat hal yang diatur per promo:
+
+- **Periode** (`tanggal_mulai`/`tanggal_selesai`) — murni yang menentukan
+  kapan promo tampil di Input Pesanan dan kapan hilang. **Tidak ada tombol
+  aktif/nonaktif terpisah**: begitu tanggal hari ini masuk rentangnya,
+  promo otomatis aktif (`Promo::aktifPada()`); begitu lewat, otomatis
+  berhenti muncul — tidak ada state tersembunyi yang bisa lupa dimatikan.
+- **Minimal dus** (`minimal_dus`) — ambang total dus pada langkah "Pilih
+  Produk" (langkah 2), dari **produk apa pun**, bukan cuma yang ikut
+  promo. Sengaja TIDAK menghitung dus bonus manual maupun dus bonus promo
+  itu sendiri ke ambang ini — "minimal pembelian" berarti yang benar-benar
+  dibeli, bukan yang sudah gratis.
+- **Produk yang berhak** (`promo_produk`, pivot ke Master Produk lewat
+  checklist) — daftar produk yang boleh dipilih sebagai item bonus. Item
+  bonus TIDAK BOLEH dari luar daftar ini, diperiksa ulang di server
+  (`PesananService::buat()`), bukan cuma disembunyikan dari pilihan di
+  layar.
+- **Bonus dus** (`bonus_dus`) — jatah bonus FLAT begitu ambang tercapai,
+  berapa pun kelebihan pembeliannya dari ambang (beli 15 atau 45 dus sama
+  sama dapat jatah yang sama; tidak berlipat per kelipatan ambang). Boleh
+  dipecah ke beberapa produk berhak sekaligus (mis. 1 dus bonus = 1 dus
+  produk A, atau 1 dus produk B — bebas, asal totalnya tidak melebihi
+  jatah).
+
+**V1 cuma mendukung SATU promo aktif dalam satu waktu** — `DaftarPromo::simpan()`
+menolak periode baru/sunting yang tumpang tindih dengan promo LAIN mana
+pun, termasuk yang periodenya masih di masa depan (bentrok yang baru
+kelihatan nanti tetap dicegah sejak awal, bukan menunggu sampai tanggalnya
+tiba). Promo yang sudah pernah dipakai pesanan (`pesanans.promo_id`) tidak
+bisa dihapus — dijaga lewat guard yang sama polanya dengan
+`Wilayah::hapus()` yang menolak menghapus wilayah yang masih dipakai toko.
+Sengaja **tidak soft-delete**: beda dari Wilayah (yang riwayat
+penghapusannya berharga untuk dipulihkan), sebuah Promo yang belum pernah
+dipakai pesanan tidak punya apa pun yang berarti untuk "dipulihkan" — kalau
+sudah pernah dipakai, guard di atas sudah mencegah penghapusannya sama
+sekali.
+
+### Bonus promo di Input Pesanan — terbuka untuk SEMUA peran
+
+Beda mendasar dari [Bonus produk (admin/superadmin)](#bonus-produk-adminsuperadmin)
+di atas: promo adalah aturan bisnis dari depot, bukan keputusan admin,
+jadi langkah **"Bonus Promo"** terbuka untuk **sales maupun
+admin/superadmin** begitu ada promo yang sedang berjalan
+(`BuatPesanan::promoAktif()`), disisipkan sebagai langkah tersendiri
+sebelum langkah bonus manual (yang tetap admin-only, tidak berubah sama
+sekali). Dua mekanisme ini SENGAJA dipisah total — beda gerbang akses, beda
+sumber produk yang boleh dipilih, beda batas jumlah — bukan digabung jadi
+satu langkah dengan percabangan.
+
+Begitu total dus pada langkah 2 mencapai `minimal_dus`
+(`BuatPesanan::memenuhiSyaratPromo()`), banner hijau **"Pesanan memenuhi
+syarat promo ... — pilih hingga N dus bonus"** muncul dan tabel pemilihan
+item terbuka, dibatasi ke produk berhak promo itu saja dan dus totalnya
+tidak boleh melebihi `bonus_dus`. Sebelum ambang tercapai, tabelnya belum
+ditampilkan sama sekali (bukan sekadar dinonaktifkan visual) — cuma
+banner keterangan berapa dus lagi yang dibutuhkan, `:sisa` dihitung
+`max(0, minimal_dus - totalDus)`. Begitu dus reguler turun lagi di bawah
+ambang (mis. baris dihapus), pilihan bonus promo yang sudah terisi
+otomatis dikosongkan (`BuatPesanan::updatedBaris()`) — sekadar kenyamanan
+tampilan, BUKAN satu-satunya pertahanan: `simpan()` sama sekali tidak
+pernah mengirim `barisPromoBonus` ke `PesananService::buat()` kalau
+`memenuhiSyaratPromo()` sedang `false`, apa pun isi state komponennya.
+
+**Server tidak pernah mempercayai promo dari klien.** `PesananService::buat()`
+menerima parameter baru `promoBonusItems`, tapi ia SENDIRI yang mencari
+promo yang benar-benar aktif hari itu (`Promo::aktifPada(today())`) —
+bukan menerima id promo dari pemanggil — lalu memvalidasi ulang dari nol:
+ambang minimal dus reguler tercapai, jumlah bonus tidak melebihi
+`bonus_dus`, dan tiap produknya ada di daftar berhak. Pola yang sama
+persis dengan `$bisaBonus`/`atasNamaSales` yang selalu diturunkan ulang
+dari `auth()->user()`, bukan dipercaya dari properti komponen.
+
+**Bonus manual dan bonus promo digabung sebelum disimpan.** `pesanan_items`
+punya batasan unik `(pesanan_id, produk_id, is_bonus)` — kalau produk yang
+sama dipilih di KEDUA langkah bonus (manual dan promo) pada pesanan yang
+sama, dua baris `is_bonus = true` terpisah untuk produk itu akan bentrok
+di basis data. `PesananService::buat()` menggabungkan `bonusItems` dan
+`promoBonusItems` jadi satu pool (dijumlah per produk) sebelum diperiksa
+stok dan disimpan — konsekuensinya, kalau produk yang sama kebetulan
+dipilih di kedua langkah, baris fakturnya menyatu jadi satu jumlah
+gabungan (bukan dua baris terpisah seperti kombinasi bonus-manual +
+item-biasa) — batasan yang diterima sadar untuk V1, mengingat kombinasi
+begini sendiri jarang terjadi dalam praktik.
+
+Sama seperti bonus manual: dus bonus promo tetap dus fisik yang sungguh
+keluar dari gudang (`kunciStok()` yang sama), ikut dihitung ke `total_dus`
+dan ke batas minimal pesanan (`config('ond.min_dus_per_toko')`), dan harga
+& subtotal SELALU 0 (jadi tetap Rp 0 di Pendapatan tanpa kode tambahan,
+sama seperti bonus manual). **Beda dari bonus manual**: dus bonus promo
+JUSTRU ikut dihitung penuh ke Insentif Sales (lihat
+[Insentif Sales](#insentif-sales)) — itu jatah yang sales benar-benar
+peroleh dari pencapaian jualan mereka sendiri, bukan pemberian sepihak
+seperti bonus manual, jadi tidak masuk akal kalau dikecualikan.
+`pesanans.promo_id` dicatat begitu pesanan memakai bonus promo — dipakai
+`InsentifSales::perSales()` untuk membedakan bonus promo (ikut dihitung)
+dari bonus manual (tetap dikecualikan), dipakai `DaftarPromo`
+(`withCount('pesanans')`) untuk menghitung berapa pesanan yang sudah
+memakai tiap promo, dan sebagai guard penghapusan di atas.
+
+---
+
 ## Pengujian
 
 ```bash
 php artisan test
 ```
 
-579 tes, mencakup:
+608 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1524,10 +1649,13 @@ php artisan test
   [Tanggal pendapatan & insentif kategori driver](#tanggal-pendapatan--insentif-kategori-driver-mengikuti-tanggal-keberangkatan-bukan-tanggal-lunasselesai));
   dan halaman tampil dengan BEBERAPA sales
   sekaligus tanpa lazy load — pelajaran yang sama seperti
-  `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`; dan dus dari item
-  bonus (`is_bonus = true`) tetap dikecualikan dari jumlahnya sebagai
-  pertahanan lapis kedua, sekalipun secara hipotetis muncul pada pesanan
-  yang penginputnya berperan sales.
+  `rute:perbaiki-geometry` dan `DaftarPesananFilterTest`; dus dari item
+  bonus MANUAL (`is_bonus = true`, `promo_id` kosong) tetap dikecualikan
+  dari jumlahnya sebagai pertahanan lapis kedua, sekalipun secara
+  hipotetis muncul pada pesanan yang penginputnya berperan sales; dan
+  **dus dari item bonus PROMO (`promo_id` terisi) justru ikut dihitung
+  penuh** — pesanan 15 dus + 1 dus bonus promo terhitung 16, bukan 15,
+  beda persis dari perlakuan bonus manual di atas.
 - **[`tests/Feature/BarangTerjualTest.php`](tests/Feature/BarangTerjualTest.php)** —
   hanya admin yang bisa akses (sales/driver ditolak); dus dihitung dari
   `terkirim` (bukan `jumlah_dus`) — nota yang dicoret mengurangi angkanya
@@ -1776,15 +1904,50 @@ php artisan test
   (biasa+bonus per produk, bukan dua kali terpisah); produk yang sama di
   kedua daftar tersimpan sebagai DUA baris terpisah, bukan digabung;
   visibilitas langkah bonus di komponen Livewire (tersembunyi total untuk
-  sales, termasuk penomoran ulang Catatan jadi langkah 4 untuk
-  admin/superadmin); dan tes keamanan yang memastikan sales yang memaksa
-  mengisi `barisBonus`/`salesId` lewat `$wire.set()` langsung tetap TIDAK
-  tersimpan sebagai bonus — pertahanannya di server (`isAdmin()` dicek
-  ulang saat `simpan()`), bukan sekadar disembunyikan di tampilan. Ditambah:
-  SELURUH pesanan yang diinput admin (baris biasa maupun bonus di
-  dalamnya, sekalipun sudah terkirim tuntas sampai SELESAI) sama sekali
-  tidak masuk Insentif Sales — penyaringnya memakai peran PENGINPUT
-  (`dibuat_oleh`/`pembuat`), bukan menyaring per baris item.
+  sales, termasuk penomoran ulang langkah Catatan yang bergeser ke nomor
+  berikutnya untuk admin/superadmin); dan tes keamanan yang memastikan sales
+  yang memaksa mengisi `barisBonus`/`salesId` lewat `$wire.set()` langsung
+  tetap TIDAK tersimpan sebagai bonus — pertahanannya di server
+  (`isAdmin()` dicek ulang saat `simpan()`), bukan sekadar disembunyikan di
+  tampilan. Ditambah: SELURUH pesanan yang diinput admin (baris biasa
+  maupun bonus di dalamnya, sekalipun sudah terkirim tuntas sampai
+  SELESAI) sama sekali tidak masuk Insentif Sales — penyaringnya memakai
+  peran PENGINPUT (`dibuat_oleh`/`pembuat`), bukan menyaring per baris
+  item.
+- **[`tests/Feature/PromoTest.php`](tests/Feature/PromoTest.php)** —
+  Master Promo: hanya admin yang bisa akses; membuat & menyunting promo
+  beserta `sync()` produk yang berhak; menolak formulir tanpa produk
+  terpilih dan tanggal selesai sebelum tanggal mulai; bentrok periode
+  ditolak terhadap SEMUA promo lain (termasuk yang periodenya masih di
+  masa depan, bukan cuma yang aktif hari ini), tapi menyunting periode
+  promo itu sendiri tidak dianggap bentrok dengan dirinya sendiri;
+  penghapusan diblokir kalau promo sudah pernah dipakai pesanan
+  (`pesanans_count`), berhasil kalau belum pernah; dan `Promo::aktifPada()`
+  menemukan promo yang tepat pada tanggal awal/akhir/tengah rentangnya,
+  tidak menemukan di luar rentang.
+- **[`tests/Feature/PesananPromoTest.php`](tests/Feature/PesananPromoTest.php)** —
+  bonus promo di `PesananService::buat()`: harga 0 dan stok tetap dikunci
+  begitu dus reguler mencapai `minimal_dus`; server SELALU mencari promo
+  aktifnya sendiri (`Promo::aktifPada(today())`), bukan mempercayai id
+  promo dari pemanggil — ditolak kalau tidak ada promo aktif sama sekali,
+  kalau dus reguler belum cukup (dihitung ulang dari `$items` yang
+  dikirim, bukan klaim pemanggil), kalau jumlah bonus melebihi
+  `bonus_dus`, atau kalau produknya bukan dari daftar berhak; **produk
+  yang sama di bonus manual DAN bonus promo pada pesanan yang sama
+  digabung jadi satu baris** — regresi untuk batasan unik
+  `(pesanan_id, produk_id, is_bonus)` pada `pesanan_items` yang akan
+  bentrok kalau keduanya tetap dua baris `is_bonus=true` terpisah; dus
+  bonus promo ikut `total_dus` dan batas minimal pesanan; `promo_id`
+  tercatat pada pesanan yang memakainya. Sisi `BuatPesanan` (Livewire):
+  sales melihat langkah "Bonus Promo" (beda dari bonus manual yang
+  admin-only); langkah itu sama sekali tidak ada kalau tidak ada promo
+  aktif; tabel pemilihan item baru muncul begitu ambang tercapai — sebelum
+  itu cuma banner keterangan; end-to-end dari Input Pesanan sampai
+  tersimpan; dan tes keamanan: state komponen yang dipaksa terisi lewat
+  `$wire.set()` saat belum memenuhi syarat tetap tidak tersimpan sebagai
+  bonus, sedangkan produk tidak berhak/jumlah berlebih yang dipaksakan
+  SAAT sudah memenuhi syarat tetap ditolak service (server tidak pernah
+  mempercayai apa pun yang tampilan mestinya sudah cegah).
 - **[`tests/Feature/PemindaiQrTampilTest.php`](tests/Feature/PemindaiQrTampilTest.php)** —
   penjaga kerusakan yang gagal tanpa jejak: wadah pemindai tidak disembunyikan
   lewat kelas dari server, `video.play()` tidak pernah dipanggil tanpa

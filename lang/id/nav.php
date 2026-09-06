@@ -21,6 +21,7 @@ return [
     'master_toko' => 'Master Toko',
     'master_produk' => 'Master Produk',
     'master_wilayah' => 'Master Wilayah',
+    'master_promo' => 'Master Promo',
     'manage_pengguna' => 'Manajemen Pengguna',
     'pengiriman' => 'Pengiriman',
     'pengiriman_driver' => 'Pengiriman Driver',

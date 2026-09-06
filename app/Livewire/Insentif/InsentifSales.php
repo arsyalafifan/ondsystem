@@ -28,6 +28,14 @@ use Livewire\Component;
  * secara eksplisit), dan penjualan POS yang diinput ADMIN sengaja tidak
  * dihitung sebagai insentif sales — hanya POS yang diinput sales sendiri
  * yang ikut terhitung.
+ *
+ * Dus BONUS dihitung beda-beda menurut asalnya (lihat perSales()): bonus
+ * MANUAL (admin/superadmin, lihat "Bonus produk" di Input Pesanan/POS)
+ * dikecualikan — itu pemberian sepihak admin, bukan hasil jualan sales.
+ * Bonus PROMO (`Promo::aktifPada()`, lihat [Promo] di README) justru ikut
+ * dihitung penuh — itu jatah yang sales benar-benar peroleh dari
+ * pencapaian jualan mereka sendiri (15 dus terjual → dapat 1 dus bonus,
+ * keduanya sama-sama usaha sales), bukan pemberian sepihak siapa pun.
  */
 class InsentifSales extends Component
 {
@@ -110,16 +118,23 @@ class InsentifSales extends Component
                 return [
                     'user_id' => $pembuat->id,
                     'nama' => $pembuat->name,
-                    // is_bonus dikecualikan sebagai pertahanan berlapis: secara
-                    // struktural item bonus tidak seharusnya pernah muncul di
-                    // sini sama sekali (cuma admin/superadmin yang bisa
-                    // menginputnya, dan whereHas('pembuat', role Sales) di atas
-                    // sudah menyaring pesanan yang dibuat admin), tapi baris ini
-                    // memastikan dus bonus TETAP tidak ikut terhitung sekalipun
-                    // asumsi itu suatu saat berubah.
-                    'total_dus' => (int) $grup->sum(
-                        fn (Pesanan $p) => $p->items->where('is_bonus', false)->sum->terkirim
-                    ),
+                    // Item bonus MANUAL tetap dikecualikan (secara struktural
+                    // tidak pernah muncul di sini sama sekali — cuma
+                    // admin/superadmin yang bisa menginputnya, dan
+                    // whereHas('pembuat', role Sales) di atas sudah menyaring
+                    // pesanan yang dibuat admin — baris ini cuma pertahanan
+                    // berlapis, jaga-jaga kalau asumsi itu berubah). Item
+                    // bonus PROMO (promo_id terisi) justru IKUT dihitung: itu
+                    // jatah yang sales peroleh dari pencapaian jualan mereka
+                    // sendiri, bukan pemberian sepihak seperti bonus manual —
+                    // dibedakan lewat promo_id pesanan, bukan is_bonus item
+                    // saja, karena satu pesanan dengan promo bisa punya baris
+                    // biasa DAN baris bonus yang sama-sama harus terhitung.
+                    'total_dus' => (int) $grup->sum(function (Pesanan $p) {
+                        return $p->items
+                            ->filter(fn ($item) => ! $item->is_bonus || $p->promo_id !== null)
+                            ->sum->terkirim;
+                    }),
                     'total_pesanan' => $grup->count(),
                     'total_toko' => $grup->pluck('toko_id')->unique()->count(),
                 ];

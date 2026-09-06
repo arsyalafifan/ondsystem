@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
 use RuntimeException;
 
 #[Fillable([
-    'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'sales_id', 'status', 'jenis',
+    'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'sales_id', 'promo_id', 'status', 'jenis',
     'kurang_kirim', 'status_bayar', 'tanggal_lunas', 'dilunasi_oleh',
     'nominal_cash', 'nominal_transfer',
     'tanggal', 'total_dus', 'total_nilai', 'catatan',
@@ -103,6 +103,19 @@ class Pesanan extends Model
     public function sales(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sales_id');
+    }
+
+    /**
+     * Promo yang menyumbang item bonus pada pesanan ini, kalau ada — null
+     * berarti pesanan ini tidak memakai promo mana pun. Dicatat di sini
+     * (level pesanan, bukan per item) karena V1 cuma mendukung satu promo
+     * aktif dalam satu waktu, lihat `Promo::aktifPada()`.
+     *
+     * @return BelongsTo<Promo, $this>
+     */
+    public function promo(): BelongsTo
+    {
+        return $this->belongsTo(Promo::class);
     }
 
     /** @return BelongsTo<User, $this> */

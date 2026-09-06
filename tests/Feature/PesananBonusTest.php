@@ -167,9 +167,8 @@ describe('BuatPesanan (Livewire): visibilitas langkah bonus', function () {
     it('sales sama sekali tidak melihat langkah bonus, dan langkah catatan tetap nomor 3', function () {
         Livewire::actingAs($this->sales)
             ->test(BuatPesanan::class)
-            ->assertSee(__('pesanan.langkah_catatan'))
+            ->assertSee('3. '.__('pesanan.langkah_catatan'))
             ->assertDontSee(__('pesanan.langkah_bonus'))
-            ->assertDontSee(__('pesanan.langkah_catatan_admin'))
             ->assertSet('barisBonus', []);
     });
 
@@ -177,8 +176,8 @@ describe('BuatPesanan (Livewire): visibilitas langkah bonus', function () {
         Livewire::actingAs($this->admin)
             ->test(BuatPesanan::class)
             ->assertSee(__('pesanan.langkah_bonus'))
-            ->assertSee(__('pesanan.langkah_catatan_admin'))
-            ->assertDontSee(__('pesanan.langkah_catatan'));
+            ->assertSee('4. '.__('pesanan.langkah_catatan'))
+            ->assertDontSee('3. '.__('pesanan.langkah_catatan'));
     });
 
     it('admin tidak bisa menyimpan pesanan tanpa memilih sales', function () {

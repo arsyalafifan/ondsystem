@@ -21,6 +21,7 @@ return [
     'master_toko' => '商店主檔',
     'master_produk' => '產品主檔',
     'master_wilayah' => '區域主檔',
+    'master_promo' => '促銷主檔',
     'manage_pengguna' => '用戶管理',
     'pengiriman' => '配送',
     'pengiriman_driver' => '司機配送',

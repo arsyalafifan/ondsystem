@@ -49,7 +49,18 @@
         },
         letakkan() {
             const r = this.$refs.masukan.getBoundingClientRect();
-            this.posisi = { top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width };
+            const tepi = 8;
+            // Diperlebar sampai 16rem kalau kotaknya sendiri lebih sempit
+            // dari itu (mis. terjepit di kolom tabel yang sempit di HP),
+            // tapi tidak pernah melebihi lebar layar — supaya baris pilihan
+            // tetap nyaman disentuh tanpa meluber ke luar layar.
+            const lebar = Math.min(Math.max(r.width, 256), window.innerWidth - tepi * 2);
+            let kiri = r.left;
+            if (kiri + lebar > window.innerWidth - tepi) {
+                kiri = window.innerWidth - tepi - lebar;
+            }
+            kiri = Math.max(tepi, kiri);
+            this.posisi = { top: r.bottom + window.scrollY, left: kiri + window.scrollX, width: lebar };
         },
         buka() {
             this.terbuka = true;
@@ -91,21 +102,29 @@
            x-on:keydown.up.prevent="naik()"
            x-on:keydown.enter.prevent="pilihSorot()"
            placeholder="{{ $placeholder }}"
-           {{ $attributes->merge(['class' => 'block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20']) }}>
+           {{--
+               text-base (16px), bukan text-sm (14px): di bawah 16px, Safari
+               iOS otomatis mem-zoom seluruh halaman begitu kotak ini
+               difokuskan — itulah sumber paling umum keluhan "kecil sekali,
+               susah diisi dari HP". py-3 (bukan py-2.5) + min-w memberi
+               target sentuh yang lebih lega, dan mencegah kolom produk pada
+               tabel diperas terlalu sempit di layar sempit.
+           --}}
+           {{ $attributes->merge(['class' => 'block w-full min-w-40 rounded-lg border-gray-400 bg-gray-50 px-4 py-3 text-base text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20']) }}>
 
     <template x-teleport="body">
         <div x-show="terbuka" x-cloak
              x-on:mousedown.prevent=""
              :style="`top: ${posisi.top}px; left: ${posisi.left}px; width: ${posisi.width}px;`"
-             class="absolute z-50 mt-1 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+             class="absolute z-50 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
             <template x-for="(o, i) in hasil" :key="o.value">
                 <button type="button" x-text="o.label"
                         x-on:mousedown.prevent="pilih(o)"
                         x-on:mouseenter="sorot = i"
                         :class="sorot === i ? 'bg-blue-50 text-blue-700' : 'text-gray-900'"
-                        class="block w-full px-3 py-2 text-left text-sm"></button>
+                        class="block w-full px-3 py-3 text-left text-base"></button>
             </template>
-            <p x-show="hasil.length === 0" class="px-3 py-2 text-sm text-gray-500">{{ __('umum.tidak_ada_hasil') }}</p>
+            <p x-show="hasil.length === 0" class="px-3 py-3 text-base text-gray-500">{{ __('umum.tidak_ada_hasil') }}</p>
         </div>
     </template>
 </div>

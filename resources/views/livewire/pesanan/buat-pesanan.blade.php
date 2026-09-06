@@ -205,9 +205,109 @@
                 @error('baris') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
             </x-kartu>
 
-            {{-- Langkah 3 (khusus admin/superadmin): bonus produk --}}
-            @if ($this->bisaInputBonus())
-                <x-kartu :judul="__('pesanan.langkah_bonus')">
+            @php
+                // Dihitung sekali di muka sebagai nilai biasa (BUKAN
+                // $langkah++ di dalam atribut komponen): Blade mengevaluasi
+                // ekspresi atribut komponen lebih dari sekali saat menyusun
+                // $attributes (sekali untuk bag lengkap, sekali lagi untuk
+                // @props yang diekstrak) — increment di dalamnya diam-diam
+                // berjalan dua kali dan melompati satu nomor.
+                $adaPromo = $this->promoAktif !== null;
+                $adaBonus = $this->bisaInputBonus();
+                $langkahPromo = 3;
+                $langkahBonus = 3 + ($adaPromo ? 1 : 0);
+                $langkahCatatan = 3 + ($adaPromo ? 1 : 0) + ($adaBonus ? 1 : 0);
+            @endphp
+
+            {{-- Langkah promo: terbuka untuk SEMUA peran (bukan cuma
+                 admin/superadmin seperti bonus manual di bawah), begitu ada
+                 promo yang periodenya sedang berjalan. Bagian pemilih item
+                 baru muncul begitu syaratnya terpenuhi — sebelum itu cuma
+                 banner keterangan berapa dus lagi yang dibutuhkan. --}}
+            @if ($adaPromo)
+                <x-kartu :judul="$langkahPromo.'. '.__('pesanan.langkah_promo_bonus')">
+                    @if ($this->memenuhiSyaratPromo)
+                        <x-slot:aksi>
+                            <button type="button" wire:click="tambahBarisPromoBonus"
+                                    class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                                {{ __('pesanan.tambah_baris_promo_bonus') }}
+                            </button>
+                        </x-slot:aksi>
+                    @endif
+
+                    <p class="px-4 pt-3 text-xs text-gray-500">
+                        {{-- {{ __('pesanan.ket_promo_bonus', ['nama' => $this->promoAktif->nama]) }} --}}
+                    </p>
+
+                    @if ($this->memenuhiSyaratPromo)
+                        <div class="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                            <x-heroicon-s-check-circle class="size-5 shrink-0 text-emerald-500" />
+                            {{ __('pesanan.banner_promo_memenuhi_syarat', ['nama' => $this->promoAktif->nama, 'maks' => $this->promoAktif->bonus_dus]) }}
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                                    <tr>
+                                        <th class="px-4 py-2 font-medium">{{ __('umum.produk') }}</th>
+                                        <th class="w-32 px-4 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
+                                        <th class="w-28 px-4 py-2 text-right font-medium">{{ __('pesanan.tersedia') }}</th>
+                                        <th class="w-10 px-4 py-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @php
+                                        $opsiProdukPromo = $this->promoAktif->produks->map(fn ($p) => ['value' => $p->id, 'label' => $p->nama.' ('.$p->kode.')'])->all();
+                                    @endphp
+                                    @foreach ($barisPromoBonus as $i => $b)
+                                        @php $produkPromo = $this->promoAktif->produks->firstWhere('id', (int) $b['produk_id']); @endphp
+                                        <tr wire:key="baris-promo-{{ $i }}">
+                                            <td class="px-4 py-2">
+                                                <x-pilih-cari :opsi="$opsiProdukPromo" :nilai="$b['produk_id']"
+                                                               set="barisPromoBonus.{{ $i }}.produk_id"
+                                                               placeholder="{{ __('pesanan.pilih_produk') }}" />
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <input type="number" min="1" wire:model.live.debounce.400ms="barisPromoBonus.{{ $i }}.jumlah_dus"
+                                                       class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            </td>
+                                            <td class="px-4 py-2 text-right {{ $produkPromo && (int) ($b['jumlah_dus'] ?: 0) > $produkPromo->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
+                                                {{ $produkPromo ? \App\Support\Bahasa::angka($produkPromo->stok_tersedia) : '—' }}
+                                            </td>
+                                            <td class="px-4 py-2 text-right">
+                                                <button type="button" wire:click="hapusBarisPromoBonus({{ $i }})"
+                                                        class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                                    <x-heroicon-o-trash class="size-5" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="bg-gray-50 font-medium">
+                                    <tr>
+                                        <td class="px-4 py-2 text-right">{{ __('umum.total') }}</td>
+                                        <td class="px-4 py-2 tabular-nums {{ $this->totalDusPromoBonus > $this->promoAktif->bonus_dus ? 'text-red-600' : '' }}" colspan="2">
+                                            @angka($this->totalDusPromoBonus) / @angka($this->promoAktif->bonus_dus) {{ __('umum.satuan_dus') }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        @error('barisPromoBonus') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @else
+                        @php $sisaPromo = max(0, $this->promoAktif->minimal_dus - $this->totalDus); @endphp
+                        <div class="mx-4 mb-3 mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                            {{ __('pesanan.banner_promo_belum_memenuhi_syarat', ['nama' => $this->promoAktif->nama, 'sisa' => $sisaPromo]) }}
+                        </div>
+                    @endif
+                </x-kartu>
+            @endif
+
+            {{-- Langkah bonus manual (khusus admin/superadmin) --}}
+            @if ($adaBonus)
+                <x-kartu :judul="$langkahBonus.'. '.__('pesanan.langkah_bonus')">
                     <x-slot:aksi>
                         <button type="button" wire:click="tambahBarisBonus"
                                 class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
@@ -283,7 +383,7 @@
                 </x-kartu>
             @endif
 
-            <x-kartu :judul="$this->bisaInputBonus() ? __('pesanan.langkah_catatan_admin') : __('pesanan.langkah_catatan')">
+            <x-kartu :judul="$langkahCatatan.'. '.__('pesanan.langkah_catatan')">
                 <div class="p-4">
                     <textarea wire:model="catatan" rows="2" placeholder="{{ __('pesanan.catatan_contoh') }}"
                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
@@ -304,6 +404,12 @@
                         ];
                         if ($this->bisaInputBonus()) {
                             $periksa[] = ['lulus' => ! $this->adaHalangan('sales'), 'teks' => __('pesanan.periksa_sales')];
+                        }
+                        if ($this->memenuhiSyaratPromo) {
+                            $periksa[] = [
+                                'lulus' => ! $this->adaHalangan('promo_bonus_lebih') && ! $this->adaHalangan('promo_bonus_produk'),
+                                'teks' => __('pesanan.periksa_promo_bonus'),
+                            ];
                         }
                     @endphp
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Pesanan;
 use App\Enums\StatusPesanan;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\Promo;
 use App\Models\Toko;
 use App\Models\User;
 use App\Services\Kunjungan\PenguraiQr;
@@ -39,6 +40,17 @@ class BuatPesanan extends Component
     public array $barisBonus = [];
 
     /**
+     * Item bonus dari promo yang sedang aktif (lihat promoAktif()) — beda
+     * dari $barisBonus: terbuka untuk SEMUA peran (bukan cuma
+     * admin/superadmin), cuma bisa diisi begitu pesanan memenuhi syarat
+     * (lihat memenuhiSyaratPromo()), dan dibatasi ke produk yang berhak
+     * pada promo itu sampai maksimal Promo::bonus_dus.
+     *
+     * @var array<int, array{produk_id: int|string, jumlah_dus: int|string}>
+     */
+    public array $barisPromoBonus = [];
+
+    /**
      * "Atas nama sales siapa" — wajib diisi untuk admin/superadmin karena
      * merekalah yang mengetik, bukan sales, tapi faktur tetap perlu
      * menampilkan nama sales yang sebenarnya bertanggung jawab.
@@ -53,6 +65,10 @@ class BuatPesanan extends Component
 
         if ($this->bisaInputBonus()) {
             $this->tambahBarisBonus();
+        }
+
+        if ($this->promoAktif !== null) {
+            $this->tambahBarisPromoBonus();
         }
     }
 
@@ -89,6 +105,47 @@ class BuatPesanan extends Component
 
         if ($this->barisBonus === []) {
             $this->tambahBarisBonus();
+        }
+    }
+
+    public function tambahBarisPromoBonus(): void
+    {
+        $this->barisPromoBonus[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBarisPromoBonus(int $indeks): void
+    {
+        unset($this->barisPromoBonus[$indeks]);
+        $this->barisPromoBonus = array_values($this->barisPromoBonus);
+
+        if ($this->barisPromoBonus === []) {
+            $this->tambahBarisPromoBonus();
+        }
+    }
+
+    /**
+     * Mengosongkan pilihan bonus promo begitu total dus reguler turun lagi
+     * di bawah ambang — sekadar kenyamanan tampilan (baris yang sudah
+     * terisi tidak nyangkut dalam keadaan disabled), BUKAN satu-satunya
+     * pertahanan: simpan() sama sekali tidak pernah mengirim barisPromoBonus
+     * ke service kalau memenuhiSyaratPromo() sedang false, apa pun isi
+     * state komponen ini.
+     *
+     * Sebaliknya, begitu BARU memenuhi syarat dan baris promo masih kosong
+     * (baru saja dikosongkan tadi, atau memang belum pernah diisi), satu
+     * baris kosong langsung disediakan — sama seperti mount() menyediakan
+     * baris pertama. Tanpa ini, baris kosong tidak pernah muncul lagi
+     * setelah sempat dikosongkan, dan `set()` langsung ke indeks yang tidak
+     * ada (baik dari pengujian maupun dari input yang terlanjur terkirim
+     * sebelum baris sempat digambar ulang) akan membuat baris cacat yang
+     * cuma punya sebagian kolom, bukan {produk_id, jumlah_dus} lengkap.
+     */
+    public function updatedBaris(): void
+    {
+        if (! $this->memenuhiSyaratPromo) {
+            $this->barisPromoBonus = [];
+        } elseif ($this->barisPromoBonus === []) {
+            $this->tambahBarisPromoBonus();
         }
     }
 
@@ -276,6 +333,38 @@ class BuatPesanan extends Component
         return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->barisBonus));
     }
 
+    /**
+     * Promo yang periodenya mencakup hari ini, kalau ada — null berarti
+     * tidak ada promo yang sedang berjalan, dan seluruh bagian promo bonus
+     * di layar ini tersembunyi total. Beda dari promoAktif() di
+     * PesananService (yang dipanggil ulang saat simpan(), tidak pernah
+     * mempercayai hasil computed ini) — computed ini murni untuk tampilan.
+     */
+    #[Computed]
+    public function promoAktif(): ?Promo
+    {
+        return Promo::query()->with('produks')->aktifPada(today()->toDateString())->first();
+    }
+
+    /**
+     * Pesanan memenuhi syarat promo begitu total dus REGULER (bukan bonus
+     * apa pun) sudah mencapai ambang minimal_dus promo yang aktif — sama
+     * seperti validasi di PesananService::buat(), $this->totalDus di sini
+     * cuma menjumlahkan $baris, tidak ikut menghitung barisBonus maupun
+     * barisPromoBonus.
+     */
+    #[Computed]
+    public function memenuhiSyaratPromo(): bool
+    {
+        return $this->promoAktif !== null && $this->totalDus >= $this->promoAktif->minimal_dus;
+    }
+
+    #[Computed]
+    public function totalDusPromoBonus(): int
+    {
+        return array_sum(array_map(fn (array $b) => (int) ($b['jumlah_dus'] ?: 0), $this->barisPromoBonus));
+    }
+
     /** Daftar sales untuk "atas nama sales" — cuma dipakai kalau bisaInputBonus(). */
     #[Computed]
     public function salesList(): Collection
@@ -316,9 +405,12 @@ class BuatPesanan extends Component
             ];
         }
 
-        // Dus bonus tetap dus fisik yang sungguh dimuat ke mobil, jadi ikut
-        // dihitung ke batas minimal — sama seperti PesananService::buat().
-        $totalDusGabungan = $this->totalDus + ($this->bisaInputBonus() ? $this->totalDusBonus : 0);
+        // Dus bonus (manual maupun promo) tetap dus fisik yang sungguh
+        // dimuat ke mobil, jadi ikut dihitung ke batas minimal — sama
+        // seperti PesananService::buat().
+        $totalDusGabungan = $this->totalDus
+            + ($this->bisaInputBonus() ? $this->totalDusBonus : 0)
+            + ($this->memenuhiSyaratPromo ? $this->totalDusPromoBonus : 0);
 
         if ($totalDusGabungan < $minDus) {
             $masalah[] = [
@@ -331,14 +423,38 @@ class BuatPesanan extends Component
             $masalah[] = ['jenis' => 'sales', 'pesan' => __('pesanan.halangan_sales_wajib')];
         }
 
+        if ($this->memenuhiSyaratPromo && $this->totalDusPromoBonus > $this->promoAktif->bonus_dus) {
+            $masalah[] = [
+                'jenis' => 'promo_bonus_lebih',
+                'pesan' => __('pesanan.halangan_promo_melebihi_batas', ['maks' => $this->promoAktif->bonus_dus]),
+            ];
+        }
+
+        if ($this->memenuhiSyaratPromo) {
+            $produkLayakPromo = $this->promoAktif->produks->pluck('id')->all();
+
+            foreach ($this->barisPromoBonus as $b) {
+                $id = (int) $b['produk_id'];
+
+                if ($id > 0 && ! in_array($id, $produkLayakPromo, true)) {
+                    $masalah[] = ['jenis' => 'promo_bonus_produk', 'pesan' => __('pesanan.halangan_promo_produk_tak_layak')];
+                    break;
+                }
+            }
+        }
+
         $produks = $this->produks->keyBy('id');
         // Sama seperti PesananService::buat(): stok diperiksa atas
-        // permintaan GABUNGAN biasa+bonus per produk, bukan dua kali
-        // terpisah — produk yang sama boleh muncul di kedua daftar, dan
-        // keduanya berbagi rak yang sama.
+        // permintaan GABUNGAN biasa+bonus manual+bonus promo per produk,
+        // bukan dipisah-pisah — produk yang sama boleh muncul di beberapa
+        // daftar sekaligus, dan semuanya berbagi rak yang sama.
         $diminta = [];
 
-        $sumberBaris = $this->bisaInputBonus() ? [...$this->baris, ...$this->barisBonus] : $this->baris;
+        $sumberBaris = [
+            ...$this->baris,
+            ...($this->bisaInputBonus() ? $this->barisBonus : []),
+            ...($this->memenuhiSyaratPromo ? $this->barisPromoBonus : []),
+        ];
 
         foreach ($sumberBaris as $b) {
             $id = (int) $b['produk_id'];
@@ -395,13 +511,15 @@ class BuatPesanan extends Component
             return;
         }
 
-        // Bonus dan "atas nama sales" TIDAK PERNAH dikirim ke service kalau
-        // penggunanya bukan admin/superadmin — bukan sekadar disembunyikan
-        // di tampilan. State komponen ($barisBonus/$salesId) tidak pernah
-        // dipercaya begitu saja; siapa yang benar-benar login itulah yang
-        // menentukan, sama seperti pastikanBisaBertindak() di
-        // DaftarKunjungan untuk kasus yang serupa.
+        // Bonus manual, "atas nama sales", dan bonus promo TIDAK PERNAH
+        // dikirim ke service kalau syaratnya tidak terpenuhi di server —
+        // bukan sekadar disembunyikan di tampilan. State komponen
+        // ($barisBonus/$salesId/$barisPromoBonus) tidak pernah dipercaya
+        // begitu saja; siapa yang benar-benar login dan promo yang benar-
+        // benar aktif itulah yang menentukan, sama seperti
+        // pastikanBisaBertindak() di DaftarKunjungan untuk kasus serupa.
         $bisaBonus = $this->bisaInputBonus();
+        $promoBerlaku = $this->memenuhiSyaratPromo;
 
         try {
             $pesanan = $service->buat(
@@ -411,12 +529,14 @@ class BuatPesanan extends Component
                 catatan: $this->catatan ?: null,
                 bonusItems: $bisaBonus ? $this->barisBonus : [],
                 atasNamaSales: $bisaBonus && $this->salesId !== null ? User::find($this->salesId) : null,
+                promoBonusItems: $promoBerlaku ? $this->barisPromoBonus : [],
             );
         } catch (ValidationException $e) {
             foreach ($e->errors() as $kolom => $pesan) {
                 $kolomTampil = match ($kolom) {
                     'items' => 'baris',
                     'atasNamaSales' => 'salesId',
+                    'promoBonusItems' => 'barisPromoBonus',
                     default => $kolom,
                 };
 
@@ -430,11 +550,15 @@ class BuatPesanan extends Component
 
         $this->kodeTerakhir = $pesanan->kode;
 
-        $this->reset(['tokoId', 'catatan', 'baris', 'barisBonus', 'salesId', 'cariToko']);
+        $this->reset(['tokoId', 'catatan', 'baris', 'barisBonus', 'barisPromoBonus', 'salesId', 'cariToko']);
         $this->tambahBaris();
 
         if ($bisaBonus) {
             $this->tambahBarisBonus();
+        }
+
+        if ($this->promoAktif !== null) {
+            $this->tambahBarisPromoBonus();
         }
 
         $this->dispatch('notifikasi', pesan: __('pesanan.notif_tersimpan', ['kode' => $pesanan->kode]));

@@ -26,6 +26,7 @@
             ['rute' => 'master.toko', 'label' => __('nav.master_toko'), 'ikon' => 'building-storefront'],
             ['rute' => 'master.produk', 'label' => __('nav.master_produk'), 'ikon' => 'cube'],
             ['rute' => 'master.wilayah', 'label' => __('nav.master_wilayah'), 'ikon' => 'map-pin'],
+            ['rute' => 'master.promo', 'label' => __('nav.master_promo'), 'ikon' => 'gift'],
         ]],
         ['label' => __('nav.pengiriman'), 'ikon' => 'truck', 'anak' => [
             ['rute' => 'driver.pilih-mobil', 'label' => __('nav.pengiriman_driver'), 'ikon' => 'truck'],

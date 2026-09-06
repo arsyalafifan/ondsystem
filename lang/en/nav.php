@@ -21,6 +21,7 @@ return [
     'master_toko' => 'Stores',
     'master_produk' => 'Products',
     'master_wilayah' => 'Regions',
+    'master_promo' => 'Promos',
     'manage_pengguna' => 'Manage Users',
     'pengiriman' => 'Deliveries',
     'pengiriman_driver' => 'Driver Deliveries',
