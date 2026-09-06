@@ -10,6 +10,7 @@ use App\Enums\StatusStop;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\Promo;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
@@ -41,6 +42,18 @@ class PesananService
      * @param  ?User  $atasNamaSales  wajib diisi kalau $pembuat admin/superadmin — dicatat di
      *                                Pesanan::sales_id supaya faktur tetap menampilkan nama sales
      *                                yang sebenarnya, bukan nama admin yang mengetik
+     * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $promoBonusItems  item bonus dari
+     *                                                                               promo aktif (`Promo::aktifPada()`) — berbeda dari $bonusItems:
+     *                                                                               terbuka untuk SEMUA peran (bukan cuma admin/superadmin), dan
+     *                                                                               divalidasi terhadap aturan promo yang SUNGGUH aktif saat ini
+     *                                                                               (bukan dipercaya dari klien): total dus $items harus sudah
+     *                                                                               mencapai `Promo::minimal_dus`, jumlahnya tidak boleh melebihi
+     *                                                                               `Promo::bonus_dus`, dan produknya harus ada di daftar berhak
+     *                                                                               promo itu. Digabung dengan $bonusItems sebelum disimpan (lihat
+     *                                                                               di bawah) — keduanya sama-sama berakhir sebagai baris
+     *                                                                               `is_bonus = true`, dan `pesanan_items` punya batasan unik
+     *                                                                               (pesanan_id, produk_id, is_bonus) yang akan bentrok kalau
+     *                                                                               produk yang sama muncul sebagai DUA baris bonus terpisah.
      *
      * @throws ValidationException
      */
@@ -51,11 +64,13 @@ class PesananService
         ?string $catatan = null,
         array $bonusItems = [],
         ?User $atasNamaSales = null,
+        array $promoBonusItems = [],
     ): Pesanan {
         $items = $this->bersihkanItems($items);
         $bonusItems = $this->bersihkanItems($bonusItems);
+        $promoBonusItems = $this->bersihkanItems($promoBonusItems);
 
-        if ($items === [] && $bonusItems === []) {
+        if ($items === [] && $bonusItems === [] && $promoBonusItems === []) {
             throw ValidationException::withMessages([
                 'items' => __('pesanan.galat_minimal_satu'),
             ]);
@@ -77,11 +92,62 @@ class PesananService
             ]);
         }
 
+        $promo = null;
+
+        if ($promoBonusItems !== []) {
+            // Server SELALU mencari promo aktifnya sendiri — TIDAK PERNAH
+            // menerima atau mempercayai id promo dari pemanggil, persis
+            // seperti $bisaBonus di BuatPesanan::simpan() tidak pernah
+            // dipercaya dari state komponen.
+            $promo = Promo::query()->with('produks')->aktifPada(today()->toDateString())->first();
+
+            if ($promo === null) {
+                throw ValidationException::withMessages([
+                    'promoBonusItems' => __('pesanan.galat_promo_tidak_aktif'),
+                ]);
+            }
+
+            $totalDusReguler = array_sum(array_column($items, 'jumlah_dus'));
+
+            if ($totalDusReguler < $promo->minimal_dus) {
+                throw ValidationException::withMessages([
+                    'promoBonusItems' => __('pesanan.galat_promo_syarat_belum', [
+                        'min' => $promo->minimal_dus,
+                        'sekarang' => $totalDusReguler,
+                    ]),
+                ]);
+            }
+
+            $totalPromoBonus = array_sum(array_column($promoBonusItems, 'jumlah_dus'));
+
+            if ($totalPromoBonus > $promo->bonus_dus) {
+                throw ValidationException::withMessages([
+                    'promoBonusItems' => __('pesanan.galat_promo_melebihi_batas', ['maks' => $promo->bonus_dus]),
+                ]);
+            }
+
+            $produkLayak = $promo->produks->pluck('id')->all();
+
+            foreach ($promoBonusItems as $item) {
+                if (! in_array($item['produk_id'], $produkLayak, true)) {
+                    throw ValidationException::withMessages([
+                        'promoBonusItems' => __('pesanan.galat_promo_produk_tak_layak'),
+                    ]);
+                }
+            }
+        }
+
+        // Bonus manual dan bonus promo digabung jadi SATU pool sebelum
+        // disimpan — lihat docblock $promoBonusItems di atas soal batasan
+        // unik yang akan bentrok kalau keduanya tetap dua array terpisah.
+        $semuaBonus = $this->bersihkanItems([...$bonusItems, ...$promoBonusItems]);
+
         $minDus = (int) config('ond.min_dus_per_toko');
-        // Dus bonus tetap dus fisik yang sungguh dimuat ke mobil — ikut
-        // dihitung ke batas minimal dan total_dus, walau harganya 0.
+        // Dus bonus (manual maupun promo) tetap dus fisik yang sungguh
+        // dimuat ke mobil — ikut dihitung ke batas minimal dan total_dus,
+        // walau harganya 0.
         $totalDus = array_sum(array_column($items, 'jumlah_dus'))
-            + array_sum(array_column($bonusItems, 'jumlah_dus'));
+            + array_sum(array_column($semuaBonus, 'jumlah_dus'));
 
         if ($totalDus < $minDus) {
             throw ValidationException::withMessages([
@@ -105,7 +171,7 @@ class PesananService
             ]);
         }
 
-        return DB::transaction(function () use ($toko, $items, $bonusItems, $pembuat, $catatan, $totalDus, $atasNamaSales): Pesanan {
+        return DB::transaction(function () use ($toko, $items, $semuaBonus, $pembuat, $catatan, $totalDus, $atasNamaSales, $promo): Pesanan {
             // Dikunci di dalam transaksi supaya dua sales yang menekan simpan
             // bersamaan tidak sama-sama lolos pemeriksaan pesanan aktif.
             $adaPesananAktif = Pesanan::query()
@@ -127,7 +193,7 @@ class PesananService
             // seolah-olah keduanya tidak berbagi rak yang sama.
             $gabunganPermintaan = [];
 
-            foreach ([...$items, ...$bonusItems] as $item) {
+            foreach ([...$items, ...$semuaBonus] as $item) {
                 $gabunganPermintaan[$item['produk_id']] = ($gabunganPermintaan[$item['produk_id']] ?? 0) + $item['jumlah_dus'];
             }
 
@@ -159,6 +225,7 @@ class PesananService
                 'wilayah_id' => $toko->wilayah_id,
                 'dibuat_oleh' => $pembuat->id,
                 'sales_id' => $atasNamaSales?->id,
+                'promo_id' => $promo?->id,
                 'status' => StatusPesanan::Order,
                 'tanggal' => today(),
                 'total_dus' => $totalDus,
@@ -184,13 +251,14 @@ class PesananService
                 $this->kunciStok($produk, $item['jumlah_dus'], $pesanan, $pembuat);
             }
 
-            // Item bonus: harga & subtotal SELALU 0, berapa pun jumlah
-            // dus-nya atau berapa pun harga produk sebenarnya — inilah
-            // "perlakuan khusus" bonus. Stoknya tetap dikunci sama seperti
-            // item biasa (baris kunciStok() di bawah tidak beda sama sekali
-            // dari baris biasa di atas): dus bonus tetap fisik keluar dari
-            // gudang saat pengiriman, cuma tidak ditagihkan.
-            foreach ($bonusItems as $item) {
+            // Item bonus (manual maupun promo, sudah digabung jadi
+            // $semuaBonus di atas): harga & subtotal SELALU 0, berapa pun
+            // jumlah dus-nya atau berapa pun harga produk sebenarnya —
+            // inilah "perlakuan khusus" bonus. Stoknya tetap dikunci sama
+            // seperti item biasa (baris kunciStok() di bawah tidak beda
+            // sama sekali dari baris biasa di atas): dus bonus tetap fisik
+            // keluar dari gudang saat pengiriman, cuma tidak ditagihkan.
+            foreach ($semuaBonus as $item) {
                 $produk = $produks->get($item['produk_id']);
 
                 $pesanan->items()->create([

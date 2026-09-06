@@ -21,6 +21,7 @@ return [
     'master_toko' => '商店主数据',
     'master_produk' => '产品主数据',
     'master_wilayah' => '区域主数据',
+    'master_promo' => '促销主数据',
     'manage_pengguna' => '用户管理',
     'pengiriman' => '配送',
     'pengiriman_driver' => '司机配送',

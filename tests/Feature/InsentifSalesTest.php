@@ -8,6 +8,7 @@ use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\Promo;
 use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
@@ -348,14 +349,15 @@ it('halaman tampil dengan beberapa sales sekaligus tanpa lazy load', function ()
 });
 
 /**
- * Item bonus (langkah 3 admin/superadmin di Input Pesanan) secara
- * struktural sudah tidak mungkin lolos whereHas('pembuat', role Sales) di
- * atas — cuma admin yang bisa menginputnya. Baris ini menguji lapis
- * pertahanan KEDUA di perSales(): dus is_bonus=true tetap dikecualikan
- * sekalipun (secara hipotetis) muncul pada pesanan yang penginputnya
- * berperan sales.
+ * Item bonus MANUAL (langkah "Bonus Produk" admin/superadmin di Input
+ * Pesanan/POS) secara struktural sudah tidak mungkin lolos
+ * whereHas('pembuat', role Sales) di atas — cuma admin yang bisa
+ * menginputnya. Baris ini menguji lapis pertahanan KEDUA di perSales():
+ * dus is_bonus=true TANPA promo_id (bukan hasil promo — pemberian sepihak
+ * admin) tetap dikecualikan sekalipun (secara hipotetis) muncul pada
+ * pesanan yang penginputnya berperan sales.
  */
-it('dus bonus tidak pernah ikut terhitung, bahkan pada pesanan yang penginputnya sales', function () {
+it('dus bonus tanpa promo tidak pernah ikut terhitung, bahkan pada pesanan yang penginputnya sales', function () {
     $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
 
     $pesanan = buatPesananSelesai($sales, totalDus: 10);
@@ -373,6 +375,43 @@ it('dus bonus tidak pernah ikut terhitung, bahkan pada pesanan yang penginputnya
         ->instance()->perSales();
 
     expect($perSales[0]['total_dus'])->toBe(10);
+});
+
+/**
+ * Beda dari bonus manual di atas: dus bonus PROMO adalah jatah yang sales
+ * benar-benar peroleh dari pencapaian jualan mereka sendiri (bukan
+ * pemberian sepihak siapa pun), jadi ikut dihitung penuh ke insentif —
+ * persis skenario yang dikonfirmasi pengguna: pesanan 15 dus + 1 dus bonus
+ * promo = 16 dus yang dihitung, bukan cuma 15.
+ */
+it('dus bonus promo ikut terhitung penuh, beda dari bonus manual', function () {
+    $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
+
+    $promo = Promo::create([
+        'nama' => 'Promo Insentif Uji',
+        'tanggal_mulai' => today()->subDay(),
+        'tanggal_selesai' => today()->addDay(),
+        'minimal_dus' => 15,
+        'bonus_dus' => 1,
+    ]);
+    $promo->produks()->sync([$this->produk->id]);
+
+    $pesanan = buatPesananSelesai($sales, totalDus: 15);
+    $pesanan->update(['promo_id' => $promo->id]);
+    $pesanan->items()->create([
+        'produk_id' => $this->produk->id,
+        'jumlah_dus' => 1,
+        'harga_satuan' => 0,
+        'subtotal' => 0,
+        'is_bonus' => true,
+    ]);
+
+    $perSales = Livewire::actingAs($this->admin)
+        ->test(InsentifSales::class)
+        ->set('mode', 'semua')
+        ->instance()->perSales();
+
+    expect($perSales[0]['total_dus'])->toBe(16);
 });
 
 it('halaman /insentif/sales memuat lewat HTTP sungguhan', function () {

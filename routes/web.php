@@ -14,6 +14,7 @@ use App\Livewire\Kunjungan\Kunjungi;
 use App\Livewire\Kunjungan\Penugasan;
 use App\Livewire\Kunjungan\TugasSaya;
 use App\Livewire\Master\DaftarProduk;
+use App\Livewire\Master\DaftarPromo;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Master\DaftarWilayah;
 use App\Livewire\Pembayaran\BelumLunas;
@@ -99,6 +100,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
         Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah');
+        Route::get('/master/promo', DaftarPromo::class)->name('master.promo');
     });
 
     // --- Sales dan Admin ---
