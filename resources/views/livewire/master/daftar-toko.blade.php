@@ -1,6 +1,10 @@
 <div>
     <x-judul-halaman :judul="__('master.judul_toko')" :keterangan="__('master.ket_toko')">
         <x-slot:aksi>
+            <button type="button" wire:click="unduhExcel"
+                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                {{ __('master.ekspor_excel') }}
+            </button>
             <button type="button" wire:click="$set('imporTerbuka', true)"
                     class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                 {{ __('master.impor_csv') }}
@@ -354,6 +358,11 @@
                         </p>
                         <button type="button" wire:click="unduhContohCsv"
                                 class="mt-2 text-xs font-semibold text-blue-600 underline">{{ __('master.unduh_contoh') }}</button>
+                        <p class="mt-2 text-xs text-gray-500">
+                            {{ __('master.ket_ekspor_sebelum_impor') }}
+                            <button type="button" wire:click="unduhExcel"
+                                    class="font-semibold text-blue-600 underline">{{ __('master.ekspor_excel') }}</button>
+                        </p>
                     </div>
 
                     <div>

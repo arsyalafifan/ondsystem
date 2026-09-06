@@ -873,6 +873,64 @@ koordinatnya besar, urutan lama bisa jadi tidak lagi efisien untuk lokasi
 barunya; admin perlu menekan hitung ulang rute (atau generate ulang) di
 halaman Generate Routing kalau urutannya juga perlu dioptimalkan lagi.
 
+### Ekspor toko ke Excel — checkpoint sebelum mengedit lewat impor
+
+Tombol **"⬇ Ekspor Excel"** di Master Toko (`DaftarToko::unduhExcel()`)
+mengunduh SELURUH toko sebagai satu berkas `.xlsx`, dengan kolom yang
+PERSIS sama dengan yang dikenali **Impor CSV** di atas (`kode`, `nama`,
+`pemilik`, `nik`, `alamat`, `kelurahan`, `kecamatan`, `kota`, `kode_pos`,
+`telepon`, `latitude`, `longitude`, `wilayah`, `asset_id`) — bukan
+kebetulan, berkas ini memang dirancang untuk dipakai sebagai **checkpoint**:
+diunduh, diedit di Excel (mengubah data toko yang sudah ada, atau
+menambah baris baru di bawahnya), lalu diunggah kembali lewat "Impor
+CSV/Excel" yang sudah ada. Toko dikenali kembali lewat `asset_id` atau
+`kode` — sama seperti alur impor biasa — jadi baris yang tidak diubah
+sama sekali tetap aman diimpor ulang tanpa efek samping.
+
+Tiga keputusan desainnya:
+
+- **SELALU seluruh toko**, tidak peduli penyaring cari/wilayah/koordinat
+  yang sedang aktif di layar saat tombolnya ditekan. Checkpoint yang
+  diam-diam terpotong penyaring bisa membuat admin salah kira itu daftar
+  lengkap — toko lain di luar penyaring tetap ada tapi tidak ikut
+  ter-*backup*, dan kalau admin lupa itu sedang tersaring, edit massal
+  berikutnya bisa terasa "kehilangan" toko yang sebenarnya baik-baik saja.
+- **`Toko::internal()`** (baris semu "Tanpa Toko" untuk transaksi POS tanpa
+  toko sungguhan, lihat [Tanpa Toko](#tanpa-toko--transaksi-yang-tidak-diikat-ke-toko-tertentu-adminsuperadmin))
+  dikecualikan — mengimpornya kembali tidak ada gunanya dan berisiko
+  keliru dianggap toko sungguhan sekali ia lolos ke suatu baris Excel.
+- **Kolom rawan salah baca Excel ditulis sebagai teks SUNGGUHAN** (NIK,
+  kode pos, telepon, latitude, longitude, nomor aset), bukan sekadar
+  diberi format tampilan teks setelahnya. `PhpSpreadsheet::fromArray()`
+  otomatis mendeteksi nilai yang "terlihat angka" dan menyimpannya
+  sebagai tipe numerik asli — nol di depan sudah hilang dan NIK 16 digit
+  sudah kehilangan presisi (Excel cuma andal sampai ±15 digit signifikan)
+  SEBELUM format tampilan sempat berpengaruh, karena format itu cuma
+  metadata TAMPILAN, bukan tipe datanya. `setCellValueExplicit(...,
+  DataType::TYPE_STRING)` dipakai untuk kolom-kolom itu supaya nilainya
+  benar-benar tersimpan sebagai teks sejak awal — pola yang sama juga
+  seharusnya berlaku untuk *contoh* berkas impor (`unduhContohCsv()`),
+  yang untuk sekarang masih mengandalkan literal string PHP (`'TK-0001'`
+  dst.) yang kebetulan sudah otomatis dibaca PhpSpreadsheet sebagai teks
+  karena diawali huruf, bukan lewat `setCellValueExplicit()` — cukup aman
+  untuk data contoh yang tetap, tapi bukan pola yang diikuti di sini
+  karena data ekspornya nyata dan bisa berupa angka murni (mis. NIK yang
+  semuanya digit).
+
+Sempat ditemukan lewat pengujian *round-trip* fitur ini (ekspor lalu impor
+ulang persis berkasnya) satu bug lama yang sudah ada sebelum fitur ekspor
+ini dibuat: `lanjutkanImporCsv()` mengambil toko yang sudah ada hanya
+dengan kolom `id, kode, asset_id` (`Toko::query()->select([...])`) untuk
+mempercepat pencocokan baris pada berkas besar, tapi beberapa baris di
+bawahnya membaca `$tokoLama->latitude`/`->longitude` — kolom yang tidak
+ikut diambil. Di lingkungan lokal/pengujian (`Model::shouldBeStrict()`
+menyala) ini melempar galat; di production (mode ketat mati) ini diam-diam
+selalu membaca `null`, membuat pemeriksaan "koordinatnya benar-benar
+berubah" SELALU bernilai benar setiap kali barisnya punya lat/lng —
+memicu `hitungUlangUntukToko()` (dan pemanggilan OSRM) berulang kali untuk
+toko yang koordinatnya sebenarnya tidak berubah sama sekali. Diperbaiki
+dengan menambahkan `latitude`/`longitude` ke `select()` awal itu.
+
 #### Membereskan rute lama yang terlanjur basi
 
 Rute yang dibuat SEBELUM perilaku di atas ada tetap menyimpan garis rute
@@ -1604,7 +1662,7 @@ memakai tiap promo, dan sebagai guard penghapusan di atas.
 php artisan test
 ```
 
-608 tes, mencakup:
+615 tes, mencakup:
 
 - **[`tests/Feature/TokoTidakAktifTest.php`](tests/Feature/TokoTidakAktifTest.php)** —
   toko yang ditugaskan bulan ini tapi belum pernah pesan, atau pesanan
@@ -1802,6 +1860,23 @@ php artisan test
   dan jarak kendaraan yang belum selesai dan memuat toko itu; toko yang
   disunting tanpa mengubah koordinatnya tidak memicu apa-apa; kendaraan yang
   sudah berstatus `selesai` tidak disentuh lagi.
+- **[`tests/Feature/TokoEksporTest.php`](tests/Feature/TokoEksporTest.php)** —
+  hanya admin yang bisa akses; header kolom berkas ekspor PERSIS sama
+  dengan yang dikenali Impor CSV/Excel; seluruh toko dengan datanya
+  masing-masing muncul di baris yang benar, termasuk kolom yang sengaja
+  dikosongkan (null, bukan string `"null"`); `Toko::internal()` ("Tanpa
+  Toko" untuk POS) tidak ikut terekspor; ekspornya SELALU seluruh toko,
+  tidak ikut penyaring cari/wilayah yang sedang aktif di layar; kolom
+  rawan salah baca Excel (nik, kode pos, telepon, latitude, longitude,
+  asset_id) benar-benar berformat teks; dan **pengujian round-trip
+  penuh**: berkas hasil ekspor diunggah lagi lewat `mulaiImporCsv()`/
+  `lanjutkanImporCsv()`, dipastikan tidak membuat toko baru maupun
+  mengubah data yang sudah ada. Pengujian round-trip inilah yang
+  menemukan bug lama pada `lanjutkanImporCsv()` (lihat
+  [Ekspor toko ke Excel](#ekspor-toko-ke-excel--checkpoint-sebelum-mengedit-lewat-impor)):
+  kueri pencocokan baris toko lupa mengambil kolom `latitude`/`longitude`
+  padahal keduanya dibaca lagi di bawahnya untuk memutuskan perlu-tidaknya
+  hitung ulang rute.
 - **[`tests/Feature/DriverPetaRuteTest.php`](tests/Feature/DriverPetaRuteTest.php)** —
   peta driver hanya berisi kendaraannya sendiri (bukan seluruh armada),
   kunjungan yang sudah terkirim ditandai centang + hijau, yang dibatalkan di

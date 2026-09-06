@@ -17,6 +17,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -609,9 +610,15 @@ class DaftarToko extends Component
         // depan tiap batch (bukan satu query per baris) — berkas
         // beratus/beribu baris sebelumnya bisa memicu ribuan query kecil dan
         // membuat impor melebihi batas waktu di production. Hanya kolom yang
-        // dipakai untuk pencocokan yang diambil, supaya ringan walau
-        // toko-nya banyak.
-        $tokoRingkas = Toko::query()->select(['id', 'kode', 'asset_id'])->get();
+        // benar-benar dipakai di bawah ikut diambil supaya tetap ringan
+        // walau toko-nya banyak — id/kode/asset_id untuk pencocokan baris,
+        // latitude/longitude WAJIB ikut karena dibaca lagi sebagai
+        // "$latSebelum"/"$lngSebelum" nanti (menentukan apakah koordinatnya
+        // SUNGGUH berubah, dasar keputusan perlu-tidaknya hitung ulang
+        // rute) — tanpa keduanya di sini, perbandingannya selalu
+        // membandingkan terhadap null dan rute dihitung ulang terus-menerus
+        // sekalipun koordinatnya tidak berubah sama sekali.
+        $tokoRingkas = Toko::query()->select(['id', 'kode', 'asset_id', 'latitude', 'longitude'])->get();
         $tokoPerKode = $tokoRingkas->keyBy('kode');
         $tokoPerAssetId = $tokoRingkas->whereNotNull('asset_id')->keyBy('asset_id');
 
@@ -994,6 +1001,103 @@ class DaftarToko extends Component
         return response()->streamDownload(function () use ($spreadsheet): void {
             (new Xlsx($spreadsheet))->save('php://output');
         }, 'contoh-import-toko.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Ekspor seluruh toko sebagai berkas Excel, dengan urutan dan nama
+     * kolom PERSIS sama dengan yang dikenali impor (lihat kolom-kolom yang
+     * dibaca lewat $data[...] di lanjutkanImporCsv()) — supaya berkas ini
+     * bisa langsung dipakai sebagai checkpoint: diedit di Excel, lalu
+     * diunggah lagi lewat "Impor CSV/Excel" untuk memperbarui data yang
+     * sudah ada (dicocokkan lewat asset_id/kode) atau menambah toko baru.
+     *
+     * SELALU seluruh toko, tidak mengikuti penyaring cari/wilayah/koordinat
+     * yang sedang aktif di layar — checkpoint yang terpotong penyaring
+     * bisa membuat admin salah kira itu daftar lengkap, padahal toko lain
+     * di luar penyaring tetap ada dan tidak ikut ter-backup. Toko::internal()
+     * (baris semu "Tanpa Toko" untuk transaksi POS, lihat dokumentasinya di
+     * Toko.php) dikecualikan — mengimpornya kembali tidak ada gunanya dan
+     * berisiko keliru dianggap toko sungguhan.
+     */
+    public function unduhExcel()
+    {
+        $tokos = Toko::query()
+            ->with('wilayah:id,nama')
+            ->where('kode', '!=', Toko::KODE_INTERNAL)
+            ->orderBy('kode')
+            ->get();
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->fromArray([
+            'kode', 'nama', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
+            'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id',
+        ], null, 'A1');
+
+        $baris = 2;
+
+        foreach ($tokos as $toko) {
+            $sheet->fromArray([
+                $toko->kode,
+                $toko->nama,
+                $toko->nama_pemilik,
+                null, // nik — ditulis eksplisit sebagai teks di bawah, lihat catatan
+                $toko->alamat,
+                $toko->kelurahan,
+                $toko->kecamatan,
+                $toko->kota,
+                null, // kode_pos — idem
+                null, // telepon — idem
+                null, // latitude — idem
+                null, // longitude — idem
+                $toko->wilayah?->nama,
+                null, // asset_id — idem
+            ], null, "A{$baris}");
+
+            // Ditulis eksplisit bertipe STRING, bukan cuma diformat tampilan
+            // sesudahnya: fromArray() otomatis mendeteksi nilai yang
+            // "terlihat angka" (nik, kode pos, dst.) dan menyimpannya
+            // sebagai tipe NUMERIK asli — nol di depan sudah hilang dan NIK
+            // 16 digit sudah kehilangan presisi (Excel cuma andal sampai
+            // ~15 digit signifikan) SEBELUM NumberFormat::FORMAT_TEXT di
+            // bawah sempat berpengaruh, karena itu cuma gaya tampilan,
+            // bukan tipe datanya. setCellValueExplicit(TYPE_STRING) di sini
+            // memaksa nilainya tersimpan sebagai teks sejak awal.
+            foreach ([
+                'D'.$baris => $toko->nik_pemilik,
+                'I'.$baris => $toko->kode_pos,
+                'J'.$baris => $toko->telepon,
+                'K'.$baris => $toko->latitude,
+                'L'.$baris => $toko->longitude,
+                'N'.$baris => $toko->asset_id,
+            ] as $sel => $nilai) {
+                if ($nilai !== null) {
+                    $sheet->setCellValueExplicit($sel, (string) $nilai, DataType::TYPE_STRING);
+                }
+            }
+
+            $baris++;
+        }
+
+        $barisTerakhir = max(1, $baris - 1);
+
+        // Format tampilan teks tetap dipasang di seluruh kolom (termasuk
+        // baris yang kosong) supaya kalau kelak diisi manual di Excel pun
+        // tidak berubah jadi notasi ilmiah/pemisah ribuan yang keliru.
+        foreach (['D', 'I', 'J', 'K', 'L', 'N'] as $kolom) {
+            $sheet->getStyle("{$kolom}1:{$kolom}{$barisTerakhir}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+
+        foreach (range('A', 'N') as $kolom) {
+            $sheet->getColumnDimension($kolom)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'toko-'.now()->format('Y-m-d').'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
