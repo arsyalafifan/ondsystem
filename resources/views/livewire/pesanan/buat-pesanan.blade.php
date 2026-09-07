@@ -396,7 +396,7 @@
             <x-kartu :judul="__('pesanan.validasi_sistem')">
                 <div class="space-y-3 p-4">
                     @php
-                        $minDus = (int) config('ond.min_dus_per_toko');
+                        $minDus = $this->minDusPerToko();
                         $periksa = [
                             ['lulus' => ! $this->adaHalangan('min_dus'), 'teks' => __('pesanan.periksa_min_dus', ['jumlah' => $minDus])],
                             ['lulus' => ! $this->adaHalangan('stok'), 'teks' => __('pesanan.periksa_stok')],

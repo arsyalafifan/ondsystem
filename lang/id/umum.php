@@ -58,4 +58,5 @@ return [
     'pilih_bahasa' => 'Pilih bahasa',
     'bahasa_diubah' => 'Bahasa diubah ke :bahasa.',
     'pulihkan' => 'Pulihkan',
+    'semua_depot' => 'Semua Depot',
 ];

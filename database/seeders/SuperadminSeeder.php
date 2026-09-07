@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\PeranPengguna;
+use App\Models\Scopes\DepotScope;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -26,12 +27,19 @@ class SuperadminSeeder extends Seeder
         $passwordDariEnv = env('SUPERADMIN_PASSWORD');
         $password = $passwordDariEnv ?: Str::password(16);
 
-        User::updateOrCreate(
+        // Seeder ini dipanggil lewat `artisan db:seed`, tanpa sesi HTTP sama
+        // sekali — tidak pernah ada konteks depot yang ditetapkan. User
+        // sekarang di-scope App\Models\Scopes\DepotScope, jadi baik langkah
+        // "cari yang sudah ada" maupun "buat baru" di updateOrCreate() harus
+        // eksplisit melewati scope itu, bukan cuma menambahkan depot_id di
+        // data yang ditulis — superadmin memang tidak terikat depot manapun.
+        User::withoutGlobalScope(DepotScope::class)->updateOrCreate(
             ['email' => $email],
             [
                 'name' => 'Superadmin',
                 'password' => Hash::make($password),
                 'role' => PeranPengguna::Superadmin,
+                'depot_id' => null,
                 'aktif' => true,
             ],
         );

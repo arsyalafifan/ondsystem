@@ -58,4 +58,5 @@ return [
     'pilih_bahasa' => '選擇語言',
     'bahasa_diubah' => '語言已切換為 :bahasa。',
     'pulihkan' => '恢復',
+    'semua_depot' => '所有倉庫',
 ];

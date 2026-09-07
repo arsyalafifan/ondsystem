@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['pesanan_id', 'produk_id', 'jumlah_dus', 'jumlah_dus_terkirim', 'harga_satuan', 'subtotal', 'is_bonus'])]
 class PesananItem extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected function casts(): array
     {

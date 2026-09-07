@@ -4,6 +4,8 @@ namespace App\Livewire\Pengguna;
 
 use App\Enums\PeranPengguna;
 use App\Models\User;
+use App\Support\DepotContext;
+use App\Support\ModeDepot;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -101,6 +103,26 @@ class DaftarPengguna extends Component
         ];
 
         if ($isBaru) {
+            $peranBaru = PeranPengguna::from($data['role']);
+
+            if ($peranBaru === PeranPengguna::Superadmin) {
+                // Superadmin tidak terikat depot manapun — depot_id => null
+                // eksplisit di sini (bukan dikosongkan begitu saja) supaya
+                // BerDepot tahu ini kondisi yang disengaja, bukan lupa isi.
+                $atribut['depot_id'] = null;
+            } elseif (DepotContext::mode() !== ModeDepot::Terkunci) {
+                // Selain superadmin, user baru harus jelas jadi milik depot
+                // mana. Superadmin yang sedang di mode "Semua Depot" harus
+                // pilih satu depot dulu lewat switcher sebelum bisa membuat
+                // akun admin/sales/driver baru.
+                $this->addError('role', __('pengguna.pilih_depot_dulu'));
+
+                return;
+            }
+            // Selain dua kasus di atas, depot_id sengaja TIDAK disebut di
+            // $atribut — trait BerDepot yang otomatis mengisinya dari
+            // depot yang sedang aktif (superadmin dalam mode Terkunci).
+
             // Akun baru langsung memakai kata sandi standar; tidak ada
             // kolom kata sandi di formulir ini sama sekali.
             User::create([...$atribut, 'password' => Hash::make('password')]);

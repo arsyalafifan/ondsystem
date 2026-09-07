@@ -13,6 +13,7 @@ use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
+use App\Support\DepotContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -117,7 +118,7 @@ class PengirimanService
         }
 
         $items = $stop->pesanan->items;
-        $minDus = (int) config('ond.min_dus_per_toko');
+        $minDus = DepotContext::currentOrFail()->min_dus_per_toko;
 
         $rapi = [];
         $total = 0;

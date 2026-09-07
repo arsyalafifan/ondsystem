@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\JenisPesanan;
 use App\Enums\StatusBayar;
 use App\Enums\StatusPesanan;
+use App\Models\Concerns\BerDepot;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -29,7 +30,7 @@ use RuntimeException;
 ])]
 class Pesanan extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BerDepot, HasFactory, SoftDeletes;
 
     /**
      * Menolak penghapusan pesanan yang sudah pernah masuk rute.

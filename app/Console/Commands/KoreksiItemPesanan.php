@@ -3,9 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Enums\PeranPengguna;
+use App\Models\Depot;
 use App\Models\PesananItem;
 use App\Models\User;
 use App\Services\PengirimanService;
+use App\Support\DepotContext;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -24,12 +26,26 @@ class KoreksiItemPesanan extends Command
         {kode_pesanan : Kode pesanan, mis. PSN-20260821-0001}
         {kode_produk : Kode produk pada baris yang mau dikoreksi}
         {jumlah_diterima : Jumlah dus yang BENAR-BENAR diterima toko}
+        {--depot= : Kode depot tempat pesanan ini berada}
         {--admin= : Email admin yang melakukan koreksi (bawaan: admin pertama)}
         {--catatan= : Catatan opsional untuk jejak mutasi stok}';
 
     protected $description = 'Mengoreksi jumlah diterima pada pesanan yang sudah terlanjur SELESAI padahal tokonya tidak mengambil semua barang';
 
     public function handle(PengirimanService $service): int
+    {
+        $depot = Depot::query()->where('kode', $this->option('depot'))->first();
+
+        if ($depot === null) {
+            $this->error('Depot tidak ditemukan. Isi --depot=KODE_DEPOT (lihat tabel depots).');
+
+            return self::FAILURE;
+        }
+
+        return DepotContext::jalankanSebagai($depot, fn () => $this->koreksi($service));
+    }
+
+    private function koreksi(PengirimanService $service): int
     {
         $kodePesanan = (string) $this->argument('kode_pesanan');
         $kodeProduk = (string) $this->argument('kode_produk');

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\Peta\NominatimGeocoder;
 use App\Services\Peta\OsrmClient;
+use App\Support\DepotContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -18,6 +19,12 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(OsrmClient::class, fn () => OsrmClient::fromConfig());
         $this->app->singleton(NominatimGeocoder::class, fn () => NominatimGeocoder::fromConfig());
+
+        // scoped(), bukan singleton() — supaya depot aktif otomatis "kosong"
+        // lagi di antara job queue (QUEUE_CONNECTION=redis lewat Supervisor),
+        // dan tidak ada yang bocor dari satu job ke job berikutnya di proses
+        // worker yang sama.
+        $this->app->scoped(DepotContext::class, fn () => new DepotContext);
     }
 
     public function boot(): void

@@ -8,6 +8,7 @@ use App\Models\PenugasanToko;
 use App\Models\PenugasanTokoDefault;
 use App\Models\Toko;
 use App\Models\User;
+use App\Support\DepotContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -125,10 +126,18 @@ class PenugasanTokoService
         DB::transaction(function () use ($sales): void {
             PenugasanTokoDefault::query()->where('sales_id', $sales->id)->delete();
 
+            // insert() adalah bulk insert query builder — TIDAK memicu event
+            // creating Eloquent, jadi auto-stamp depot_id di trait BerDepot
+            // tidak pernah jalan untuk baris-baris ini. depot_id harus
+            // disebut manual di sini, atau baris yang tersimpan tidak akan
+            // pernah ketemu lagi lewat query manapun (semuanya di-scope).
+            $depotId = DepotContext::currentOrFail()->id;
+
             $baris = PenugasanToko::query()
                 ->where('sales_id', $sales->id)
                 ->get(['toko_id', 'hari'])
                 ->map(fn (PenugasanToko $p) => [
+                    'depot_id' => $depotId,
                     'sales_id' => $sales->id,
                     'toko_id' => $p->toko_id,
                     'hari' => $p->hari->value,

@@ -58,4 +58,5 @@ return [
     'pilih_bahasa' => 'Choose language',
     'bahasa_diubah' => 'Language changed to :bahasa.',
     'pulihkan' => 'Restore',
+    'semua_depot' => 'All Depots',
 ];

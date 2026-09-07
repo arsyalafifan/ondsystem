@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusStop;
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ use Illuminate\Support\Collection;
 ])]
 class Kendaraan extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BerDepot, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

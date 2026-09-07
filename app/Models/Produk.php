@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['kode', 'barcode', 'nama', 'satuan', 'stok', 'stok_reserved', 'harga', 'aktif'])]
 class Produk extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     /** @var array<string, mixed> */
     protected $attributes = [

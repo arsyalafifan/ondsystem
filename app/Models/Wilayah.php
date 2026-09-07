@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable(['id', 'kode', 'nama', 'keterangan', 'center_lat', 'center_lng', 'aktif'])]
 class Wilayah extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BerDepot, HasFactory, SoftDeletes;
 
     /** @var array<string, mixed> */
     protected $attributes = [

@@ -27,6 +27,7 @@ use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
 use App\Livewire\Routing\GenerateRouting;
 use App\Livewire\Routing\RiwayatRouting;
+use App\Models\Depot;
 use App\Support\Bahasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,13 +66,30 @@ Route::post('/keluar', function () {
 // (URL::temporarySignedRoute) alih-alih login/cookie sama sekali.
 Route::get('/pesanan/{pesanan}/nota/escp/signed', [NotaPesananController::class, 'escpUntukAgenCetak'])
     ->name('pesanan.nota.escp.signed')
-    ->middleware('signed');
+    ->middleware(['signed', 'depot.semua']);
 
 Route::get('/routing/{kendaraan}/packing-list/escp/signed', [PackingListController::class, 'escpUntukAgenCetak'])
     ->name('routing.packing-list.escp.signed')
-    ->middleware('signed');
+    ->middleware(['signed', 'depot.semua']);
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'depot'])->group(function () {
+
+    // Ganti depot aktif — khusus superadmin, satu-satunya peran yang bisa
+    // berpindah-pindah. Form POST biasa (bukan Livewire) supaya halaman
+    // dimuat ulang seluruhnya — sama seperti alasan /bahasa di atas: tanpa
+    // muat ulang, data depot lama yang sudah tergambar di layar tertinggal.
+    Route::post('/depot/ganti', function (Request $request) {
+        abort_unless($request->user()->isSuperadmin(), 403);
+
+        $pilihan = $request->input('depot_id');
+        $valid = $pilihan === 'semua' || Depot::query()->aktif()->whereKey($pilihan)->exists();
+
+        abort_unless($valid, 422);
+
+        $request->session()->put('depot_aktif', $pilihan === 'semua' ? 'semua' : (int) $pilihan);
+
+        return back();
+    })->name('depot.ganti');
 
     // --- Admin ---
     Route::middleware('peran:admin')->group(function () {

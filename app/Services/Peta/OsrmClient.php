@@ -2,6 +2,7 @@
 
 namespace App\Services\Peta;
 
+use App\Models\Depot;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -205,8 +206,14 @@ class OsrmClient
         }
 
         try {
-            $depot = new Koordinat(config('ond.depot.lat'), config('ond.depot.lng'));
-            $dekat = new Koordinat(config('ond.depot.lat') + 0.01, config('ond.depot.lng') + 0.01);
+            // Cuma tes konektivitas, tidak peduli koordinat depot yang mana
+            // — bisa dipanggil dari console/health-check tanpa konteks
+            // permintaan sama sekali, jadi sengaja tidak lewat DepotContext.
+            $lat = (float) (Depot::query()->value('lat') ?? -6.2);
+            $lng = (float) (Depot::query()->value('lng') ?? 106.816666);
+
+            $depot = new Koordinat($lat, $lng);
+            $dekat = new Koordinat($lat + 0.01, $lng + 0.01);
             $koordinat = implode(';', [$depot->untukOsrm(), $dekat->untukOsrm()]);
 
             return $this->mintaRute($this->baseUrl, $koordinat) !== null;

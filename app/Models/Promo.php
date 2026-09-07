@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['id', 'nama', 'tanggal_mulai', 'tanggal_selesai', 'minimal_dus', 'bonus_dus'])]
 class Promo extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected function casts(): array
     {

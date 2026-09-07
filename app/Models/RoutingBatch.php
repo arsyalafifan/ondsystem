@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class RoutingBatch extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BerDepot, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

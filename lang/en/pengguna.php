@@ -20,4 +20,5 @@ return [
     'sandi_direset' => ":nama's password has been reset to the default.",
     'pengguna_kosong' => 'No users yet',
     'pengguna_kosong_ket' => 'Add the first account using the button above.',
+    'pilih_depot_dulu' => 'Select a single depot from the sidebar switcher before creating this account.',
 ];

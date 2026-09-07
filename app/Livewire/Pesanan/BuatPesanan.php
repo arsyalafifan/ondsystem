@@ -10,6 +10,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PesananService;
+use App\Support\DepotContext;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -384,11 +385,23 @@ class BuatPesanan extends Component
      *
      * @return array<int, array{jenis: string, pesan: string}>
      */
+    /**
+     * Dipakai juga dari resources/views/livewire/pesanan/buat-pesanan.blade.php
+     * — panel validasi menampilkan angka ini di teksnya. Blade view tidak
+     * bisa memanggil DepotContext langsung tanpa impor kelas yang canggung,
+     * jadi diekspos lewat computed property di sini saja.
+     */
+    #[Computed]
+    public function minDusPerToko(): int
+    {
+        return DepotContext::currentOrFail()->min_dus_per_toko;
+    }
+
     #[Computed]
     public function halangan(): array
     {
         $masalah = [];
-        $minDus = (int) config('ond.min_dus_per_toko');
+        $minDus = $this->minDusPerToko();
 
         if ($this->tokoId === null) {
             $masalah[] = ['jenis' => 'toko', 'pesan' => __('pesanan.toko_belum_dipilih')];

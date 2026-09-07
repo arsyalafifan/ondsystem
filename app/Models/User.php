@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PeranPengguna;
+use App\Models\Concerns\BerDepot;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -13,12 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp'])]
+#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp', 'depot_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use BerDepot, HasFactory, Notifiable;
 
     /**
      * Disamakan dengan nilai bawaan kolomnya, supaya pengguna yang baru dibuat

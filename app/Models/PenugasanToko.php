@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\HariKunjungan;
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['toko_id', 'sales_id', 'hari', 'ditugaskan_oleh'])]
 class PenugasanToko extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected function casts(): array
     {

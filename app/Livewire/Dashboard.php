@@ -6,6 +6,7 @@ use App\Enums\StatusPesanan;
 use App\Models\Kendaraan;
 use App\Models\Pesanan;
 use App\Models\Toko;
+use App\Support\DepotContext;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -141,14 +142,19 @@ class Dashboard extends Component
     #[Computed]
     public function konfigPeta(): array
     {
+        // Superadmin dalam mode "semua depot" tidak punya satu depot
+        // spesifik untuk dijadikan titik tengah peta — jatuh ke titik
+        // tengah Indonesia sebagai default netral, bukan error.
+        $depot = DepotContext::current();
+
         return [
             'tileUrl' => config('ond.peta.tile_url'),
             'attribution' => config('ond.peta.attribution'),
             'zoom' => config('ond.peta.zoom_default'),
             'depot' => [
-                'lat' => (float) config('ond.depot.lat'),
-                'lng' => (float) config('ond.depot.lng'),
-                'nama' => config('ond.depot.nama'),
+                'lat' => $depot?->lat ?? -2.5,
+                'lng' => $depot?->lng ?? 118.0,
+                'nama' => $depot?->nama ?? __('umum.semua_depot'),
             ],
             'bisaDiklik' => false,
         ];

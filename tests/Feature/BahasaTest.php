@@ -192,6 +192,7 @@ describe('penggantian bahasa', function () {
         session([config('bahasa.kunci_sesi') => 'zh_CN']);
 
         Livewire::test(Login::class)
+            ->set('depotId', (string) $this->depot->id)
             ->set('email', $pengguna->email)
             ->set('password', 'rahasia123')
             ->call('masuk');

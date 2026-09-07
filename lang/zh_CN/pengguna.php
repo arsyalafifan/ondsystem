@@ -20,4 +20,5 @@ return [
     'sandi_direset' => ':nama 的密码已重置为默认密码。',
     'pengguna_kosong' => '尚无用户',
     'pengguna_kosong_ket' => '使用上方按钮新增第一个账号。',
+    'pilih_depot_dulu' => '请先在侧边栏切换器中选择一个仓库，再创建此账号。',
 ];

@@ -15,6 +15,7 @@ use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
 use App\Support\Bahasa;
+use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -142,7 +143,7 @@ class PesananService
         // unik yang akan bentrok kalau keduanya tetap dua array terpisah.
         $semuaBonus = $this->bersihkanItems([...$bonusItems, ...$promoBonusItems]);
 
-        $minDus = (int) config('ond.min_dus_per_toko');
+        $minDus = DepotContext::currentOrFail()->min_dus_per_toko;
         // Dus bonus (manual maupun promo) tetap dus fisik yang sungguh
         // dimuat ke mobil — ikut dihitung ke batas minimal dan total_dus,
         // walau harganya 0.

@@ -888,6 +888,7 @@ describe('koreksi item setelah pesanan terlanjur selesai', function () {
             'kode_pesanan' => $pesanan->kode,
             'kode_produk' => $this->air->kode,
             'jumlah_diterima' => 7,
+            '--depot' => $this->depot->kode,
             '--admin' => $this->admin->email,
         ])->expectsConfirmation('Lanjutkan koreksi ini?', 'yes')
             ->assertExitCode(0);
@@ -910,6 +911,7 @@ describe('koreksi item setelah pesanan terlanjur selesai', function () {
             'kode_pesanan' => $pesanan->kode,
             'kode_produk' => $this->air->kode,
             'jumlah_diterima' => 7,
+            '--depot' => $this->depot->kode,
             '--admin' => $this->admin->email,
         ])->expectsConfirmation('Lanjutkan koreksi ini?', 'no')
             ->assertExitCode(0);

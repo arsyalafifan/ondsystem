@@ -136,6 +136,10 @@
             </div>
 
             <div class="mt-8 space-y-2 border-t border-slate-100 pt-6">
+                @if ($peran === \App\Enums\PeranPengguna::Superadmin)
+                    <x-pemilih-depot />
+                @endif
+
                 <x-pemilih-bahasa />
 
                 <a href="{{ route('akun.kata-sandi') }}" wire:navigate

@@ -7,6 +7,19 @@
 
     <form wire:submit="masuk" class="space-y-4 rounded-xl bg-white p-6 shadow-xl">
         <div>
+            <label for="depotId" class="block text-sm font-medium text-gray-700">{{ __('auth.depot') }}</label>
+            <select id="depotId" wire:model="depotId"
+                    class="mt-1 block w-full sm:text-sm rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                <option value="">{{ __('auth.pilih_depot') }}</option>
+                @foreach ($this->depots() as $depot)
+                    <option value="{{ $depot->id }}">{{ $depot->nama }}</option>
+                @endforeach
+                <option value="semua">{{ __('auth.opsi_semua_depot') }}</option>
+            </select>
+            @error('depotId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
             <label for="email" class="block text-sm font-medium text-gray-700">{{ __('auth.email') }}</label>
             <input id="email" type="email" wire:model="email" autocomplete="username" autofocus
                    class="mt-1 block w-full sm:text-sm rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">

@@ -4,12 +4,14 @@ namespace Database\Seeders;
 
 use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
+use App\Models\Depot;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\Kunjungan\PenugasanTokoService;
+use App\Support\DepotContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -25,11 +27,20 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(SuperadminSeeder::class);
-        $this->pengguna();
-        $wilayahs = $this->wilayah();
-        $this->produk();
-        $this->toko($wilayahs);
-        $this->penugasanKunjungan();
+
+        // Seeder ini hanya untuk data contoh/dev — dijalankan lewat
+        // migrate:fresh --seed, jadi depot pertama dari migrasi
+        // create_depots_table sudah pasti ada di titik ini. Seluruh data
+        // demo di bawah sengaja masuk ke depot itu, bukan bikin depot baru.
+        $depot = Depot::query()->firstOrFail();
+
+        DepotContext::jalankanSebagai($depot, function () {
+            $this->pengguna();
+            $wilayahs = $this->wilayah();
+            $this->produk();
+            $this->toko($wilayahs);
+            $this->penugasanKunjungan();
+        });
 
         $this->command->newLine();
         $this->command->info('Akun demo untuk mencoba (kata sandi semuanya: password)');
