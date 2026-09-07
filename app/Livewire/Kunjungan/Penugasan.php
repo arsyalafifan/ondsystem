@@ -8,6 +8,8 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Services\Kunjungan\PenugasanTokoService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
+use App\Support\DepotContext;
+use App\Support\ModeDepot;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -171,6 +173,12 @@ class Penugasan extends Component
             return;
         }
 
+        if (DepotContext::mode() !== ModeDepot::Terkunci) {
+            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+
+            return;
+        }
+
         try {
             $hasil = $service->tetapkan(
                 sales: User::findOrFail($this->salesDipilih),
@@ -206,6 +214,12 @@ class Penugasan extends Component
             return;
         }
 
+        if (DepotContext::mode() !== ModeDepot::Terkunci) {
+            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+
+            return;
+        }
+
         $service->jadikanDefault(User::findOrFail($this->salesDipilih));
 
         $this->dispatch('notifikasi', pesan: __('kunjungan.default_tersimpan'));
@@ -219,6 +233,13 @@ class Penugasan extends Component
     public function restoreDefault(PenugasanTokoService $service): void
     {
         if ($this->salesDipilih === null) {
+            return;
+        }
+
+        if (DepotContext::mode() !== ModeDepot::Terkunci) {
+            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+            $this->konfirmasiRestore = false;
+
             return;
         }
 

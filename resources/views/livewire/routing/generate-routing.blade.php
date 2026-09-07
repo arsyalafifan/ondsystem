@@ -1,4 +1,8 @@
 <div>
+@if ($depotBelumDipilih)
+    <x-judul-halaman :judul="__('routing.judul')" :keterangan="__('routing.ket')" />
+    <x-butuh-depot-terkunci />
+@else
     @php $batch = $this->batch; @endphp
 
     <x-judul-halaman :judul="__('routing.judul')" :keterangan="__('routing.ket')">
@@ -442,4 +446,5 @@
         });
     </script>
     @endscript
+@endif
 </div>

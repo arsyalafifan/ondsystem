@@ -59,4 +59,7 @@ return [
     'bahasa_diubah' => '語言已切換為 :bahasa。',
     'pulihkan' => '恢復',
     'semua_depot' => '所有倉庫',
+    'butuh_depot_judul' => '請先選擇一個倉庫',
+    'butuh_depot_ket' => '此頁面會為某個特定倉庫建立或儲存資料，因此無法在「所有倉庫」模式下開啟。請從側邊欄切換器中選擇一個倉庫。',
+    'butuh_depot_aksi' => '請先從側邊欄切換器中選擇一個倉庫，再執行此操作。',
 ];

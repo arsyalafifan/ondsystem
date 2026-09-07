@@ -3,6 +3,7 @@
 namespace App\Livewire\Routing;
 
 use App\Enums\StatusStop;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -30,6 +31,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class GenerateRouting extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public ?int $batchId = null;
 
     // --- Pengaturan generate ---
@@ -61,6 +64,10 @@ class GenerateRouting extends Component
 
     public function mount(?RoutingBatch $batch = null): void
     {
+        if (! $this->pastikanDepotTerkunci()) {
+            return;
+        }
+
         $this->maxToko = DepotContext::currentOrFail()->max_toko;
         $this->maxDus = DepotContext::currentOrFail()->max_dus;
         // Bawaannya hari ini — kasus paling umum — tapi admin bebas

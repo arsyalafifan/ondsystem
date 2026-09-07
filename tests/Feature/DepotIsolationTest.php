@@ -3,6 +3,7 @@
 use App\Enums\PeranPengguna;
 use App\Exceptions\DepotTidakDiketahui;
 use App\Livewire\Auth\Login;
+use App\Livewire\Kunjungan\Penugasan;
 use App\Models\Depot;
 use App\Models\Toko;
 use App\Models\User;
@@ -202,6 +203,60 @@ it('permintaan HTTP dengan sesi lama tidak meledak walau DepotContext belum pern
     $this->withSession([kunciSesiAuth() => $admin->id])
         ->get(route('master.toko'))
         ->assertOk();
+});
+
+/**
+ * Bukti perbaikan untuk laporan pengguna: superadmin yang memilih "Semua
+ * Depot" dulu meledak DepotTidakDiketahui begitu membuka menu Pesanan
+ * atau Generate Routing — kedua halaman itu memang tidak bisa berfungsi
+ * tanpa satu depot spesifik (menyusun/menyimpan data untuk depot
+ * tertentu), jadi solusinya bukan membuatnya "bisa," tapi menampilkan
+ * pesan yang mudah dipahami alih-alih galat mentah.
+ */
+it('superadmin di mode semua depot melihat pesan ramah, bukan galat, di menu buat pesanan', function () {
+    $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
+
+    Livewire::test(Login::class)
+        ->set('depotId', 'semua')
+        ->set('email', $superadmin->email)
+        ->set('password', 'rahasia123')
+        ->call('masuk');
+
+    $this->get(route('pesanan.buat'))
+        ->assertOk()
+        ->assertSee(__('umum.butuh_depot_judul'));
+});
+
+it('superadmin di mode semua depot melihat pesan ramah, bukan galat, di menu generate routing', function () {
+    $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
+
+    Livewire::test(Login::class)
+        ->set('depotId', 'semua')
+        ->set('email', $superadmin->email)
+        ->set('password', 'rahasia123')
+        ->call('masuk');
+
+    $this->get(route('routing.generate'))
+        ->assertOk()
+        ->assertSee(__('umum.butuh_depot_judul'));
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat menyimpan penugasan toko, bukan galat', function () {
+    $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
+    $sales = User::factory()->create(['role' => PeranPengguna::Sales]);
+    $toko = Toko::create(['kode' => 'TK-A1', 'nama' => 'Toko Alpha', 'alamat' => 'Jl. A']);
+
+    Livewire::test(Login::class)
+        ->set('depotId', 'semua')
+        ->set('email', $superadmin->email)
+        ->set('password', 'rahasia123')
+        ->call('masuk');
+
+    Livewire::test(Penugasan::class)
+        ->set('salesDipilih', $sales->id)
+        ->set('terpilih', [$toko->id])
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
 });
 
 it('rute tamu tidak meledak walau ada sesi lama yang masih tersimpan', function () {

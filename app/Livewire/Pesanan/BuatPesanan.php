@@ -3,6 +3,7 @@
 namespace App\Livewire\Pesanan;
 
 use App\Enums\StatusPesanan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Promo;
@@ -18,6 +19,8 @@ use Livewire\Component;
 
 class BuatPesanan extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public string $cariToko = '';
 
     /** 'ketik' untuk pencarian biasa, 'pindai' untuk membaca QR freezer. */
@@ -62,6 +65,10 @@ class BuatPesanan extends Component
 
     public function mount(): void
     {
+        if (! $this->pastikanDepotTerkunci()) {
+            return;
+        }
+
         $this->tambahBaris();
 
         if ($this->bisaInputBonus()) {
@@ -518,6 +525,12 @@ class BuatPesanan extends Component
 
     public function simpan(PesananService $service): void
     {
+        if ($this->depotBelumDipilih) {
+            $this->addError('tokoId', __('umum.butuh_depot_aksi'));
+
+            return;
+        }
+
         if ($this->tokoId === null) {
             $this->addError('tokoId', __('pesanan.pilih_toko_dulu'));
 
