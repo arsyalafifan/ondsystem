@@ -7,6 +7,7 @@ use App\Models\Depot;
 use App\Models\Toko;
 use App\Models\User;
 use App\Support\DepotContext;
+use Illuminate\Auth\SessionGuard;
 use Livewire\Livewire;
 
 /**
@@ -168,4 +169,51 @@ it('query tanpa konteks depot gagal keras, bukan diam-diam tanpa filter', functi
 
     expect(fn () => Toko::query()->count())
         ->toThrow(DepotTidakDiketahui::class);
+});
+
+/**
+ * Menirukan kondisi yang sungguh terjadi di localhost (bukan cuma teori):
+ * proses yang baru mulai, DepotContext belum pernah disentuh sama sekali
+ * oleh apapun — beda dari test lain di file ini yang selalu mewarisi
+ * konteks yang sudah disiapkan TestCase::setUp(). Di sinilah celah
+ * ayam-dan-telur ketemu: SessionGuard perlu menemukan User pemilik sesi
+ * SEBELUM konteks depot bisa ditentukan (karena depot itu sendiri
+ * ditentukan DARI User yang ditemukan) — makanya provider auth-nya
+ * (App\Auth\DepotAwareUserProvider) sengaja melewati DepotScope.
+ */
+/**
+ * Sengaja TIDAK pakai actingAs(): itu men-set user langsung ke guard
+ * (setUser()) tanpa lewat SessionGuard->user()/provider sama sekali,
+ * jadi tidak pernah benar-benar melewati jalur yang meledak di
+ * localhost. Sesi diisi manual meniru cookie sungguhan, supaya
+ * SessionGuard terpaksa menemukan usernya lewat provider — persis jalur
+ * yang dipakai DatabaseSessionHandler di akhir permintaan nyata.
+ */
+function kunciSesiAuth(): string
+{
+    return 'login_web_'.sha1(SessionGuard::class);
+}
+
+it('permintaan HTTP dengan sesi lama tidak meledak walau DepotContext belum pernah disentuh', function () {
+    $admin = User::factory()->create(['role' => PeranPengguna::Admin]);
+
+    app()->forgetInstance(DepotContext::class);
+
+    $this->withSession([kunciSesiAuth() => $admin->id])
+        ->get(route('master.toko'))
+        ->assertOk();
+});
+
+it('rute tamu tidak meledak walau ada sesi lama yang masih tersimpan', function () {
+    $admin = User::factory()->create(['role' => PeranPengguna::Admin]);
+
+    app()->forgetInstance(DepotContext::class);
+
+    // /bahasa terbuka untuk tamu MAUPUN yang sudah masuk — persis skenario
+    // yang meledak di localhost: DatabaseSessionHandler mencatat user_id
+    // pemilik sesi di akhir permintaan ini, walau rute itu sendiri tidak
+    // butuh data yang di-scope sama sekali.
+    $this->withSession([kunciSesiAuth() => $admin->id])
+        ->post(route('bahasa.ubah'), ['kode' => 'id'])
+        ->assertRedirect();
 });

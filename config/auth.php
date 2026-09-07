@@ -63,7 +63,11 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            // Bukan 'eloquent' bawaan — lihat App\Auth\DepotAwareUserProvider
+            // untuk alasannya: menemukan pemilik sesi tidak boleh terhambat
+            // DepotScope, karena depot yang aktif justru ditentukan dari
+            // user yang ditemukan lewat provider ini.
+            'driver' => 'eloquent-tanpa-scope-depot',
             'model' => env('AUTH_MODEL', User::class),
         ],
 

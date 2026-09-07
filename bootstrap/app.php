@@ -24,15 +24,24 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Bahasa ditetapkan sebelum apa pun dijalankan, termasuk sebelum
         // pesan galat validasi dibentuk.
+        //
+        // TentukanDepot TERNYATA harus global juga (bukan hanya di grup
+        // 'auth' seperti rencana awal): StartSession menulis ulang baris
+        // sesi di akhir SETIAP permintaan lewat DatabaseSessionHandler,
+        // dan langkah itu memanggil SessionGuard->user() untuk mencatat
+        // user_id pemiliknya — query User yang ikut kena DepotScope. Kalau
+        // ada sesi login lama yang masih aktif saat rute tamu diakses
+        // (/masuk, /bahasa, dst — yang tidak lewat grup 'auth'), query itu
+        // meledak DepotTidakDiketahui walau rute itu sendiri tidak pernah
+        // membaca data yang di-scope. TentukanDepot sendiri sudah aman
+        // dipanggil untuk tamu (no-op kalau $request->user() null).
         $middleware->web(append: [
             AturBahasa::class,
+            TentukanDepot::class,
         ]);
 
         $middleware->alias([
             'peran' => PastikanPeran::class,
-            // Dipasang di level grup rute 'auth' (routes/web.php), bukan
-            // global seperti AturBahasa — lihat catatan di TentukanDepot.
-            'depot' => TentukanDepot::class,
             'depot.semua' => SemuaDepotUntukCetak::class,
         ]);
 

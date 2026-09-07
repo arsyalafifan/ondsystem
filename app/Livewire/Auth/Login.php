@@ -6,6 +6,7 @@ use App\Models\Depot;
 use App\Models\Scopes\DepotScope;
 use App\Models\User;
 use App\Support\Bahasa;
+use App\Support\DepotContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -95,6 +96,20 @@ class Login extends Component
         // pilih sendiri, bukan mode terakhir yang kebetulan tersimpan.
         if ($pengguna->isSuperadmin()) {
             session(['depot_aktif' => $this->depotId === 'semua' ? 'semua' : $depotDipilih->id]);
+        }
+
+        // TentukanDepot (middleware global) sudah jalan LEBIH DULU di
+        // permintaan ini — saat itu Auth::login() belum terjadi, jadi
+        // konteksnya masih "tamu" (BelumDitentukan). Tanpa baris ini,
+        // penyimpanan sesi di akhir permintaan yang sama (StartSession
+        // mencatat user_id pemilik sesi lewat query User yang di-scope)
+        // akan meledak DepotTidakDiketahui walau login-nya sendiri sukses.
+        if ($this->depotId === 'semua') {
+            // Hanya superadmin yang bisa lolos autentikasi di atas dengan
+            // pilihan ini — user biasa selalu punya $depotDipilih terisi.
+            DepotContext::pakaiSemuaDepot();
+        } else {
+            DepotContext::pakai($depotDipilih);
         }
 
         // Bahasa yang dipilih di halaman masuk ikut tersimpan ke akun, supaya

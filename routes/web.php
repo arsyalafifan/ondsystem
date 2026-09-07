@@ -72,7 +72,7 @@ Route::get('/routing/{kendaraan}/packing-list/escp/signed', [PackingListControll
     ->name('routing.packing-list.escp.signed')
     ->middleware(['signed', 'depot.semua']);
 
-Route::middleware(['auth', 'depot'])->group(function () {
+Route::middleware('auth')->group(function () {
 
     // Ganti depot aktif — khusus superadmin, satu-satunya peran yang bisa
     // berpindah-pindah. Form POST biasa (bukan Livewire) supaya halaman

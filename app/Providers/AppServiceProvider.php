@@ -2,13 +2,16 @@
 
 namespace App\Providers;
 
+use App\Auth\DepotAwareUserProvider;
 use App\Services\Peta\NominatimGeocoder;
 use App\Services\Peta\OsrmClient;
 use App\Support\DepotContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +33,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->percayaiProksi();
+
+        // Provider auth khusus (lihat docblock DepotAwareUserProvider) —
+        // menemukan siapa pemilik sesi tidak boleh terhambat DepotScope,
+        // karena depot yang aktif justru ditentukan DARI user yang
+        // ditemukan lewat provider ini.
+        Auth::provider('eloquent-tanpa-scope-depot', function ($app, array $config) {
+            return new DepotAwareUserProvider($app->make(Hasher::class), $config['model']);
+        });
 
         // Menahan pemakaian data yang tidak lengkap sejak tahap pengembangan,
         // bukan menunggu ketahuan di produksi. Mode ketat juga menyala saat
