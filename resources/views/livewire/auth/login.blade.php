@@ -14,7 +14,6 @@
                 @foreach ($this->depots() as $depot)
                     <option value="{{ $depot->id }}">{{ $depot->nama }}</option>
                 @endforeach
-                <option value="semua">{{ __('auth.opsi_semua_depot') }}</option>
             </select>
             @error('depotId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
