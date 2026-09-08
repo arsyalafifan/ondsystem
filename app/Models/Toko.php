@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'id',
     'kode', 'asset_id', 'freezer_tipe', 'freezer_pelanggan', 'nama', 'wilayah_id',
-    'alamat', 'kelurahan', 'kecamatan', 'kota', 'kode_pos', 'telepon',
+    'alamat', 'kelurahan', 'kecamatan', 'kota', 'provinsi', 'kode_pos', 'telepon',
     'nama_pemilik', 'nik_pemilik', 'latitude', 'longitude', 'sumber_koordinat', 'geocoded_at',
     'geocode_catatan', 'aktif',
 ])]
@@ -142,10 +142,28 @@ class Toko extends Model
         return Attribute::get(fn (): bool => $this->latitude !== null && $this->longitude !== null);
     }
 
+    /**
+     * Apakah kelima field profil yang WAJIB dilengkapi sales (lihat
+     * `App\Livewire\Toko\LengkapiData`) sudah semuanya terisi — dipakai
+     * sebagai penanda "belum lengkap" di daftar pencarian layar itu, supaya
+     * sales tahu toko mana yang masih perlu disentuh tanpa membuka satu
+     * per satu. Kecamatan/kota/provinsi SENGAJA tidak ikut dihitung di
+     * sini — ketiganya boleh kosong di layar itu (tidak memengaruhi rute
+     * pengantaran maupun transaksi lain), jadi kosongnya bukan tanda toko
+     * ini "belum lengkap".
+     */
+    protected function profilLengkap(): Attribute
+    {
+        return Attribute::get(fn (): bool => collect([
+            $this->nama_pemilik, $this->nik_pemilik, $this->alamat,
+            $this->asset_id, $this->telepon,
+        ])->every(fn ($v) => $v !== null && $v !== ''));
+    }
+
     protected function alamatLengkap(): Attribute
     {
         return Attribute::get(fn (): string => collect([
-            $this->alamat, $this->kelurahan, $this->kecamatan, $this->kota, $this->kode_pos,
+            $this->alamat, $this->kelurahan, $this->kecamatan, $this->kota, $this->provinsi, $this->kode_pos,
         ])->filter()->implode(', '));
     }
 

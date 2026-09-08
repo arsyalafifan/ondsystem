@@ -28,6 +28,7 @@ use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
 use App\Livewire\Routing\GenerateRouting;
 use App\Livewire\Routing\RiwayatRouting;
+use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
 use App\Support\Bahasa;
 use Illuminate\Http\Request;
@@ -130,6 +131,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pesanan/{pesanan}/nota/pdf', [NotaPesananController::class, 'unduhPdf'])->name('pesanan.nota.pdf');
         Route::get('/pesanan/{pesanan}/nota/escp', [NotaPesananController::class, 'unduhEscp'])->name('pesanan.nota.escp');
         Route::get('/pos', Kasir::class)->name('pos.kasir');
+        Route::get('/toko/lengkapi-data', LengkapiData::class)->name('toko.lengkapi-data');
     });
 
     // --- Sales ---
