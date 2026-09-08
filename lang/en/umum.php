@@ -33,6 +33,7 @@ return [
     'keterangan' => 'Description',
     'catatan' => 'Note',
     'catatan_opsional' => 'Note (optional)',
+    'opsional' => 'optional',
     'telepon' => 'Phone',
     'aktif' => 'Active',
     'nonaktif' => 'Inactive',

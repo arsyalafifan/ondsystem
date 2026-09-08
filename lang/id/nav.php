@@ -4,6 +4,7 @@ return [
     'dashboard' => 'Dashboard',
     'pesanan' => 'Pesanan',
     'input_pesanan' => 'Input Pesanan',
+    'lengkapi_data_toko' => 'Lengkapi Data Toko',
     'pos' => 'Point of Sale',
     'riwayat_pesanan' => 'Riwayat Pesanan',
     'generate_routing' => 'Generate Routing',

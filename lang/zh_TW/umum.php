@@ -33,6 +33,7 @@ return [
     'keterangan' => '說明',
     'catatan' => '備註',
     'catatan_opsional' => '備註（選填）',
+    'opsional' => '選填',
     'telepon' => '電話',
     'aktif' => '啟用',
     'nonaktif' => '停用',

@@ -4,6 +4,7 @@ return [
     'dashboard' => '儀表板',
     'pesanan' => '訂單',
     'input_pesanan' => '建立訂單',
+    'lengkapi_data_toko' => '完善門店資料',
     'pos' => '門市直銷',
     'riwayat_pesanan' => '訂單記錄',
     'generate_routing' => '產生路線',

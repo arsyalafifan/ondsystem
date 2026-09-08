@@ -229,7 +229,7 @@ describe('halaman dalam semua bahasa', function () {
         $rute = [
             'dashboard', 'pesanan.daftar', 'pesanan.buat', 'routing.generate',
             'routing.riwayat', 'master.toko', 'master.produk', 'master.wilayah',
-            'kunjungan.periode', 'kunjungan.penugasan',
+            'kunjungan.periode', 'kunjungan.penugasan', 'toko.lengkapi-data',
         ];
 
         foreach ($rute as $nama) {
@@ -244,7 +244,7 @@ describe('halaman dalam semua bahasa', function () {
             $teks = strip_tags($respons->getContent());
 
             preg_match_all(
-                '/\b(umum|nav|pesanan|routing|driver|dashboard|master|auth|status|kunjungan|validation)\.[a-z_]+\b/',
+                '/\b(umum|nav|pesanan|routing|driver|dashboard|master|auth|status|kunjungan|validation|toko)\.[a-z_]+\b/',
                 $teks,
                 $cocok,
             );
@@ -259,7 +259,7 @@ describe('halaman dalam semua bahasa', function () {
     it('menampilkan halaman kunjungan sales dalam semua bahasa', function (string $kode) {
         $this->sales->update(['locale' => $kode]);
 
-        foreach (['kunjungan.tugas', 'kunjungan.kunjungi'] as $nama) {
+        foreach (['kunjungan.tugas', 'kunjungan.kunjungi', 'toko.lengkapi-data'] as $nama) {
             $this->actingAs($this->sales)->get(route($nama))->assertOk();
         }
     })->with(['id', 'en', 'zh_CN', 'zh_TW']);
