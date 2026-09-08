@@ -20,5 +20,10 @@ return [
     'sandi_direset' => ':nama 的密碼已重設為預設密碼。',
     'pengguna_kosong' => '尚無用戶',
     'pengguna_kosong_ket' => '使用上方按鈕新增第一個帳號。',
-    'pilih_depot_dulu' => '請先在側邊欄切換器中選擇一個倉庫，再建立此帳號。',
+    'cari_pengguna' => '搜尋姓名或電子郵件...',
+    'atr_depot' => '倉庫',
+    'semua_depot_filter' => '所有倉庫',
+    'semua_peran_filter' => '所有角色',
+    'tanpa_depot' => '無倉庫（超級管理員）',
+    'ket_depot_tidak_bisa_diubah' => '倉庫只能在建立帳號時設定，無法在此處更改——該帳號既有的歷史記錄仍歸屬於原本的倉庫。',
 ];

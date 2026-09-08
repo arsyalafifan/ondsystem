@@ -20,5 +20,10 @@ return [
     'sandi_direset' => ":nama's password has been reset to the default.",
     'pengguna_kosong' => 'No users yet',
     'pengguna_kosong_ket' => 'Add the first account using the button above.',
-    'pilih_depot_dulu' => 'Select a single depot from the sidebar switcher before creating this account.',
+    'cari_pengguna' => 'Search by name or email...',
+    'atr_depot' => 'Depot',
+    'semua_depot_filter' => 'All depots',
+    'semua_peran_filter' => 'All roles',
+    'tanpa_depot' => 'No depot (superadmin)',
+    'ket_depot_tidak_bisa_diubah' => 'Depot is only set when the account is created and can\'t be changed here — this account\'s existing history stays recorded under its original depot.',
 ];

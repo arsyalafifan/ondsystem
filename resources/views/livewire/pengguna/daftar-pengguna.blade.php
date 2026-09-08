@@ -9,6 +9,35 @@
     </x-judul-halaman>
 
     <x-kartu>
+        <div class="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
+            <div class="min-w-56 flex-1">
+                <label class="block text-xs font-medium text-gray-600">{{ __('umum.cari') }}</label>
+                <input type="search" wire:model.live.debounce.300ms="cari" placeholder="{{ __('pengguna.cari_pengguna') }}"
+                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('depot.judul') }}</label>
+                <select wire:model.live="filterDepot"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">{{ __('pengguna.semua_depot_filter') }}</option>
+                    <option value="tanpa_depot">{{ __('pengguna.tanpa_depot') }}</option>
+                    @foreach ($this->depotUntukFilter as $d)
+                        <option value="{{ $d->id }}">{{ $d->nama }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('pengguna.atr_peran') }}</label>
+                <select wire:model.live="filterPeran"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">{{ __('pengguna.semua_peran_filter') }}</option>
+                    @foreach ($this->peranCases as $p)
+                        <option value="{{ $p->value }}">{{ $p->label() }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
@@ -16,6 +45,7 @@
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_email') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_peran') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('depot.judul') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_no_hp') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.status') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('umum.aksi') }}</th>
@@ -36,6 +66,9 @@
                                 ])>
                                     {{ $u->role->label() }}
                                 </span>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                {{ $u->depot?->nama ?? __('pengguna.tanpa_depot') }}
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $u->no_hp ?? '—' }}</td>
                             <td class="px-4 py-2">
@@ -60,7 +93,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <x-kosong ikon="user-group" :judul="__('pengguna.pengguna_kosong')" :keterangan="__('pengguna.pengguna_kosong_ket')" />
                             </td>
                         </tr>
@@ -68,6 +101,10 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($this->penggunas->hasPages())
+            <div class="border-t border-gray-200 px-4 py-3">{{ $this->penggunas->links() }}</div>
+        @endif
     </x-kartu>
 
     @if ($formTerbuka)
@@ -87,7 +124,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_peran') }}</label>
-                    <select wire:model="role"
+                    <select wire:model.live="role"
                             class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @foreach ($this->peranCases as $p)
                             <option value="{{ $p->value }}">{{ $p->label() }}</option>
@@ -95,6 +132,28 @@
                     </select>
                     @error('role') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
+
+                @if ($role !== \App\Enums\PeranPengguna::Superadmin->value)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_depot') }}</label>
+                        @if ($penggunaId)
+                            <p class="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
+                                {{ $this->depotUntukFilter->firstWhere('id', (int) $depotIdForm)?->nama ?? '—' }}
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500">{{ __('pengguna.ket_depot_tidak_bisa_diubah') }}</p>
+                        @else
+                            <select wire:model="depotIdForm"
+                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                <option value="">{{ __('auth.pilih_depot') }}</option>
+                                @foreach ($this->depotAktif as $d)
+                                    <option value="{{ $d->id }}">{{ $d->nama }}</option>
+                                @endforeach
+                            </select>
+                            @error('depotIdForm') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        @endif
+                    </div>
+                @endif
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_no_hp') }}</label>
                     <input type="text" wire:model="no_hp"
@@ -121,7 +180,7 @@
     @endif
 
     @if ($konfirmasiReset)
-        @php $u = \App\Models\User::find($konfirmasiReset); @endphp
+        @php $u = \App\Models\User::withoutGlobalScope(\App\Models\Scopes\DepotScope::class)->find($konfirmasiReset); @endphp
         <x-modal :judul="__('pengguna.judul_reset_sandi')" tutup="$set('konfirmasiReset', null)">
             <p class="p-5 text-sm text-gray-600">{{ __('pengguna.ket_reset_sandi', ['nama' => $u?->name]) }}</p>
             <x-slot:aksi>
