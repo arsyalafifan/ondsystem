@@ -3,6 +3,7 @@
 namespace App\Livewire\Master;
 
 use App\Enums\JenisMutasiStok;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,7 @@ use Livewire\WithPagination;
 
 class DaftarProduk extends Component
 {
+    use MembutuhkanDepotTerkunci;
     use WithPagination;
 
     public string $cari = '';
@@ -106,6 +108,10 @@ class DaftarProduk extends Component
 
     public function simpan(): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:30', Rule::unique('produks', 'kode')->ignore($this->produkId)],
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('produks', 'barcode')->ignore($this->produkId)],
@@ -163,6 +169,10 @@ class DaftarProduk extends Component
     /** Menambah atau mengurangi stok, misalnya setelah barang datang. */
     public function simpanPenyesuaian(): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $this->validate([
             'jumlahPenyesuaian' => 'required|integer|not_in:0',
             'keteranganPenyesuaian' => 'required|string|max:255',

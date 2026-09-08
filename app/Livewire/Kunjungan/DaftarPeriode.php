@@ -5,6 +5,8 @@ namespace App\Livewire\Kunjungan;
 use App\Models\Kunjungan;
 use App\Models\PeriodeKunjungan;
 use App\Services\Kunjungan\PeriodeKunjunganService;
+use App\Support\DepotContext;
+use App\Support\ModeDepot;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -19,6 +21,15 @@ class DaftarPeriode extends Component
 
     public function mount(): void
     {
+        // Superadmin dalam mode "Semua Depot" tetap boleh MELIHAT daftar
+        // periode lintas depot (listing di bawah tidak butuh satu depot
+        // spesifik) — cuma bookkeeping otomatisnya (bikin periode minggu
+        // berjalan, tutup periode lama) yang dilewati, karena itu aksi
+        // tulis yang cuma bermakna untuk satu depot tertentu.
+        if (DepotContext::mode() !== ModeDepot::Terkunci) {
+            return;
+        }
+
         // Membuka halaman ini sekaligus memastikan periode minggu berjalan
         // sudah ada dan periode lama sudah ditutup.
         $service = app(PeriodeKunjunganService::class);

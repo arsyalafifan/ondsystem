@@ -3,6 +3,7 @@
 namespace App\Livewire\Master;
 
 use App\Enums\StatusPesanan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Pesanan;
 use App\Models\Toko;
 use App\Models\Wilayah;
@@ -35,6 +36,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class DaftarToko extends Component
 {
+    use MembutuhkanDepotTerkunci;
     use WithFileUploads, WithPagination;
 
     #[Url(as: 'q')]
@@ -352,6 +354,10 @@ class DaftarToko extends Component
 
     public function simpan(RoutingService $routingService): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:30', Rule::unique('tokos', 'kode')->ignore($this->tokoId)],
             // Nomor aset boleh kosong selama freezernya belum terpasang, tapi
@@ -495,6 +501,10 @@ class DaftarToko extends Component
      */
     public function mulaiImporCsv(): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $this->validate([
             'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:20480',
         ], [

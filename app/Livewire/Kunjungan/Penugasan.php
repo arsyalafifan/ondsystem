@@ -3,13 +3,12 @@
 namespace App\Livewire\Kunjungan;
 
 use App\Enums\HariKunjungan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
 use App\Services\Kunjungan\PenugasanTokoService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
-use App\Support\DepotContext;
-use App\Support\ModeDepot;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -24,6 +23,8 @@ use RuntimeException;
  */
 class Penugasan extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     #[Url(as: 'hari')]
     public int $hari = 0;
 
@@ -173,9 +174,7 @@ class Penugasan extends Component
             return;
         }
 
-        if (DepotContext::mode() !== ModeDepot::Terkunci) {
-            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
-
+        if ($this->tolakJikaTidakTerkunci()) {
             return;
         }
 
@@ -214,9 +213,7 @@ class Penugasan extends Component
             return;
         }
 
-        if (DepotContext::mode() !== ModeDepot::Terkunci) {
-            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
-
+        if ($this->tolakJikaTidakTerkunci()) {
             return;
         }
 
@@ -236,8 +233,7 @@ class Penugasan extends Component
             return;
         }
 
-        if (DepotContext::mode() !== ModeDepot::Terkunci) {
-            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+        if ($this->tolakJikaTidakTerkunci()) {
             $this->konfirmasiRestore = false;
 
             return;

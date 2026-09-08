@@ -3,6 +3,7 @@
 namespace App\Livewire\Driver;
 
 use App\Enums\StatusStop;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Toko;
@@ -34,6 +35,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DaftarKunjungan extends Component
 {
+    use MembutuhkanDepotTerkunci;
     use WithFileUploads;
 
     public Kendaraan $kendaraan;
@@ -665,6 +667,10 @@ class DaftarKunjungan extends Component
     public function selesaikanKendaraan(PengirimanService $service): void
     {
         abort_unless(auth()->user()->isAdmin(), 403);
+
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
 
         $dus = $this->totalJatahKampas;
 

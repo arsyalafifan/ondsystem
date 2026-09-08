@@ -4,6 +4,7 @@ namespace App\Livewire\Kunjungan;
 
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\StatusKunjungan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kunjungan;
 use App\Models\Toko;
 use App\Services\Kunjungan\GambarContoh;
@@ -28,6 +29,8 @@ use RuntimeException;
  */
 class Kunjungi extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     /** 'pindai' saat menunggu QR, 'kunjungan' saat mengambil foto. */
     public string $tahap = 'pindai';
 
@@ -207,6 +210,10 @@ class Kunjungi extends Component
 
     public function pilihToko(int $tokoId, KunjunganService $service): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $toko = Toko::find($tokoId);
 
         if ($toko === null) {
@@ -227,6 +234,12 @@ class Kunjungi extends Component
 
     public function prosesQr(string $isi, KunjunganService $service): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            $this->dispatch('qr-ditolak');
+
+            return;
+        }
+
         try {
             $kunjungan = $service->mulaiDariQr($isi, auth()->user());
         } catch (RuntimeException $e) {

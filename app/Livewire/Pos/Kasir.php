@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pos;
 
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Produk;
 use App\Models\Toko;
 use App\Services\PesananService;
@@ -24,6 +25,8 @@ use Livewire\Component;
  */
 class Kasir extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public string $cariToko = '';
 
     public ?int $tokoId = null;
@@ -390,6 +393,10 @@ class Kasir extends Component
 
     public function simpan(PesananService $service): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         if ($this->tokoId === null) {
             $this->addError('tokoId', __('pesanan.pilih_toko_dulu'));
 

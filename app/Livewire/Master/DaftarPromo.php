@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Master;
 
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Produk;
 use App\Models\Promo;
 use Illuminate\Support\Collection;
@@ -17,6 +18,8 @@ use Livewire\Component;
  */
 class DaftarPromo extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public ?int $promoId = null;
 
     public bool $formTerbuka = false;
@@ -97,6 +100,10 @@ class DaftarPromo extends Component
 
     public function simpan(): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $data = $this->validate([
             'nama' => 'required|string|max:255',
             'tanggalMulai' => 'required|date',
