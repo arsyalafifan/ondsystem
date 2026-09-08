@@ -35,7 +35,10 @@ class Promo extends Model
     /** @return BelongsToMany<Produk, $this> */
     public function produks(): BelongsToMany
     {
-        return $this->belongsToMany(Produk::class, 'promo_produk');
+        // ->using(PromoProduk::class): lihat docblock PromoProduk — supaya
+        // sync()/attach() di manapun (termasuk fixture test) otomatis
+        // mengisi depot_id pivot, bukan cuma di satu titik pemanggilan.
+        return $this->belongsToMany(Produk::class, 'promo_produk')->using(PromoProduk::class);
     }
 
     /** @return HasMany<Pesanan, $this> */

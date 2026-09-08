@@ -298,7 +298,8 @@ describe('kolom disiapkan tapi belum dipakai sebagai soft delete', function () {
 
         $id = DB::table('penugasan_sales')->insertGetId([
             'sales_id' => $sales->id, 'toko_id' => $toko->id, 'bulan' => today()->startOfMonth(),
-            'ditugaskan_oleh' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+            'ditugaskan_oleh' => $this->admin->id, 'depot_id' => $this->depot->id,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
 
         DB::table('penugasan_sales')->where('id', $id)->delete();
