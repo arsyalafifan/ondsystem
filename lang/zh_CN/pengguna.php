@@ -20,5 +20,10 @@ return [
     'sandi_direset' => ':nama 的密码已重置为默认密码。',
     'pengguna_kosong' => '尚无用户',
     'pengguna_kosong_ket' => '使用上方按钮新增第一个账号。',
-    'pilih_depot_dulu' => '请先在侧边栏切换器中选择一个仓库，再创建此账号。',
+    'cari_pengguna' => '搜索姓名或邮箱...',
+    'atr_depot' => '仓库',
+    'semua_depot_filter' => '所有仓库',
+    'semua_peran_filter' => '所有角色',
+    'tanpa_depot' => '无仓库（超级管理员）',
+    'ket_depot_tidak_bisa_diubah' => '仓库只能在建立账号时设置，无法在此处更改——该账号既有的历史记录仍归属于原本的仓库。',
 ];

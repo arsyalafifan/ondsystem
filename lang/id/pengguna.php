@@ -20,5 +20,10 @@ return [
     'sandi_direset' => 'Kata sandi :nama sudah direset ke kata sandi standar.',
     'pengguna_kosong' => 'Belum ada pengguna',
     'pengguna_kosong_ket' => 'Tambahkan akun pertama lewat tombol di atas.',
-    'pilih_depot_dulu' => 'Pilih satu depot dulu lewat switcher di sidebar sebelum membuat akun ini.',
+    'cari_pengguna' => 'Cari nama atau email...',
+    'atr_depot' => 'Depot',
+    'semua_depot_filter' => 'Semua depot',
+    'semua_peran_filter' => 'Semua peran',
+    'tanpa_depot' => 'Tanpa depot (superadmin)',
+    'ket_depot_tidak_bisa_diubah' => 'Depot hanya ditentukan saat akun dibuat, tidak bisa diubah lewat sini — riwayat lama akun ini tetap tercatat di depot asalnya.',
 ];
