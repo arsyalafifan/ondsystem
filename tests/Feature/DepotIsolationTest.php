@@ -18,6 +18,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Support\DepotContext;
 use Illuminate\Auth\SessionGuard;
+use Illuminate\Database\QueryException;
 use Livewire\Livewire;
 
 /**
@@ -63,11 +64,10 @@ it('mengisolasi toko antar depot lewat query biasa, tanpa saling terlihat', func
  * "TK-0001 boleh sama di 2 depot" — persis requirement yang diminta di
  * awal — baru benar-benar berlaku di level DATABASE setelah migrasi
  * tighten Stage 4 (unique(depot_id, kode) menggantikan unique(kode) yang
- * global). Sengaja di-skip, bukan dihapus, supaya jadi pengingat nyata
- * untuk di-un-skip begitu Stage 4 selesai — lihat
+ * global). Sebelumnya sengaja di-skip menunggu Stage 4 selesai — lihat
  * ~/.claude/plans/tranquil-wondering-mango.md §5 Stage 4.
  */
-it('mengizinkan dua depot punya toko dengan kode yang SAMA persis (butuh Stage 4)', function () {
+it('mengizinkan dua depot punya toko dengan kode yang SAMA persis', function () {
     $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
 
     Toko::create(['kode' => 'TK-0001', 'nama' => 'Toko Milik A', 'alamat' => 'Jl. A']);
@@ -79,7 +79,34 @@ it('mengizinkan dua depot punya toko dengan kode yang SAMA persis (butuh Stage 4
     DepotContext::jalankanUntukSemuaDepot(function () {
         expect(Toko::where('kode', 'TK-0001')->count())->toBe(2);
     });
-})->skip('Butuh migrasi tighten Stage 4: unique(depot_id, kode) belum terpasang, kode masih unique global.');
+});
+
+/**
+ * Kasus khusus dari §3 rencana Stage 4: kolom generated `depot_kunci_unik`
+ * (COALESCE(depot_id, 0)) membuat email unik PER DEPOT untuk user biasa,
+ * tapi tetap unik GLOBAL khusus di antara sesama superadmin (yang
+ * depot_id-nya sama-sama NULL, jadi "berkumpul" di satu kunci yang sama).
+ */
+it('dua depot boleh punya user dengan email yang SAMA persis', function () {
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
+
+    User::factory()->create(['role' => PeranPengguna::Admin, 'email' => 'admin@sama.com']);
+
+    DepotContext::jalankanSebagai($depotB, function () {
+        User::factory()->create(['role' => PeranPengguna::Admin, 'email' => 'admin@sama.com']);
+    });
+
+    DepotContext::jalankanUntukSemuaDepot(function () {
+        expect(User::where('email', 'admin@sama.com')->count())->toBe(2);
+    });
+});
+
+it('dua superadmin tidak boleh punya email yang sama, walau depot_id sama-sama NULL', function () {
+    User::factory()->superadmin()->create(['email' => 'super@sama.com']);
+
+    expect(fn () => User::factory()->superadmin()->create(['email' => 'super@sama.com']))
+        ->toThrow(QueryException::class);
+});
 
 it('user depot A tidak pernah melihat toko depot B lewat halaman master toko', function () {
     $adminA = User::factory()->create(['role' => PeranPengguna::Admin]);
