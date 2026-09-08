@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'judul' => '倉庫管理',
+    'ket' => '開設新倉庫，或修改現有倉庫的設定。',
+    'depot_baru' => '+ 新倉庫',
+    'judul_depot_baru' => '新倉庫',
+    'judul_depot_sunting' => '編輯倉庫',
+    'atr_kode' => '編號',
+    'atr_nama' => '名稱',
+    'atr_lat' => '緯度',
+    'atr_lng' => '經度',
+    'atr_jam_berangkat' => '出發時間',
+    'atr_service_minutes' => '每店服務分鐘數',
+    'atr_max_toko' => '每條路線最多商店數',
+    'atr_max_dus' => '每條路線最多箱數',
+    'atr_min_dus_per_toko' => '每店最少箱數',
+    'kapasitas' => '容量',
+    'ringkasan_kapasitas' => ':toko 家商店 · :dus 箱',
+    'depot_aktif' => '倉庫啟用',
+    'belum_ada_koordinat' => '尚無座標',
+    'ket_koordinat' => '可以先留空，之後再填寫——在填寫座標之前，地圖和路程距離將使用印尼中心點。',
+    'ket_depot_baru' => '新倉庫一開始完全空白——除了超級管理員外，沒有商店、產品或使用者。之後請透過使用者管理為其建立第一個管理員帳號。',
+    'depot_tersimpan' => '新倉庫已儲存。',
+    'depot_diperbarui' => '倉庫的變更已儲存。',
+    'depot_kosong' => '尚無倉庫',
+    'depot_kosong_ket' => '請使用上方按鈕新增第一個倉庫。',
+];

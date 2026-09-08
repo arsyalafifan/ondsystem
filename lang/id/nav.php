@@ -23,6 +23,7 @@ return [
     'master_wilayah' => 'Master Wilayah',
     'master_promo' => 'Master Promo',
     'manage_pengguna' => 'Manajemen Pengguna',
+    'manage_depot' => 'Kelola Depot',
     'pengiriman' => 'Pengiriman',
     'pengiriman_driver' => 'Pengiriman Driver',
     'visit_sales' => 'Visit Sales',

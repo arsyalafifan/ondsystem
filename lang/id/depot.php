@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'judul' => 'Kelola Depot',
+    'ket' => 'Buka depot baru atau ubah pengaturan depot yang sudah ada.',
+    'depot_baru' => '+ Depot Baru',
+    'judul_depot_baru' => 'Depot Baru',
+    'judul_depot_sunting' => 'Edit Depot',
+    'atr_kode' => 'Kode',
+    'atr_nama' => 'Nama',
+    'atr_lat' => 'Latitude',
+    'atr_lng' => 'Longitude',
+    'atr_jam_berangkat' => 'Jam Berangkat',
+    'atr_service_minutes' => 'Menit Layanan/Toko',
+    'atr_max_toko' => 'Maks. Toko/Rute',
+    'atr_max_dus' => 'Maks. Dus/Rute',
+    'atr_min_dus_per_toko' => 'Min. Dus/Toko',
+    'kapasitas' => 'Kapasitas',
+    'ringkasan_kapasitas' => ':toko toko · :dus dus',
+    'depot_aktif' => 'Depot aktif',
+    'belum_ada_koordinat' => 'Belum ada koordinat',
+    'ket_koordinat' => 'Boleh dikosongkan dulu dan diisi belakangan — peta & jarak tempuh memakai titik tengah Indonesia sampai koordinat diisi.',
+    'ket_depot_baru' => 'Depot baru mulai kosong sepenuhnya — belum ada toko, produk, atau user selain Superadmin. Buat akun Admin pertamanya lewat Manajemen Pengguna setelah ini.',
+    'depot_tersimpan' => 'Depot baru tersimpan.',
+    'depot_diperbarui' => 'Perubahan depot tersimpan.',
+    'depot_kosong' => 'Belum ada depot',
+    'depot_kosong_ket' => 'Tambahkan depot pertama lewat tombol di atas.',
+];
