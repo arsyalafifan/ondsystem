@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Master;
 
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Wilayah;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -9,6 +10,8 @@ use Livewire\Component;
 
 class DaftarWilayah extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public ?int $wilayahId = null;
 
     public bool $formTerbuka = false;
@@ -76,6 +79,10 @@ class DaftarWilayah extends Component
 
     public function simpan(): void
     {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:20', Rule::unique('wilayahs', 'kode')->ignore($this->wilayahId)],
             'nama' => 'required|string|max:255',

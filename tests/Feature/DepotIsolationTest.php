@@ -3,8 +3,17 @@
 use App\Enums\PeranPengguna;
 use App\Exceptions\DepotTidakDiketahui;
 use App\Livewire\Auth\Login;
+use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Kunjungan\Penugasan;
+use App\Livewire\Master\DaftarProduk;
+use App\Livewire\Master\DaftarPromo;
+use App\Livewire\Master\DaftarToko;
+use App\Livewire\Master\DaftarWilayah;
+use App\Livewire\Pesanan\DaftarPesanan;
+use App\Livewire\Pos\Kasir;
 use App\Models\Depot;
+use App\Models\Kendaraan;
+use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
 use App\Support\DepotContext;
@@ -256,6 +265,129 @@ it('superadmin di mode semua depot mendapat notifikasi ramah saat menyimpan penu
         ->set('salesDipilih', $sales->id)
         ->set('terpilih', [$toko->id])
         ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+/**
+ * Audit menyeluruh: superadmin bisa membuka HAMPIR semua halaman (lihat
+ * App\Http\Middleware\PastikanPeran — superadmin lolos dari setiap
+ * pembatasan peran), termasuk yang punya aksi tulis (buat/ubah data)
+ * yang tadinya cuma diuji lewat menu Pesanan & Generate Routing. Setiap
+ * titik di bawah ini ditemukan lewat audit manual seluruh pemanggilan
+ * ::create()/updateOrCreate()/firstOrCreate() pada model yang pakai
+ * trait BerDepot, lalu dicek satu per satu apakah superadmin benar-benar
+ * bisa mencapainya dalam mode "Semua Depot".
+ */
+it('superadmin di mode semua depot mendapat notifikasi ramah saat simpan produk baru', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarProduk::class)
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat penyesuaian stok', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarProduk::class)
+        ->call('simpanPenyesuaian')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat simpan toko baru', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarToko::class)
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat mulai impor CSV toko', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarToko::class)
+        ->call('mulaiImporCsv')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat simpan wilayah baru', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarWilayah::class)
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat simpan promo baru', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarPromo::class)
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat checkout POS', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(Kasir::class)
+        ->call('simpan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat membatalkan pesanan', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarPesanan::class)
+        ->set('alasanCancel', 'Toko tutup')
+        ->call('batalkan')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+it('superadmin di mode semua depot mendapat notifikasi ramah saat menyelesaikan kendaraan', function () {
+    $superadmin = User::factory()->superadmin()->create();
+
+    $batch = DepotContext::jalankanSebagai($this->depot, fn () => RoutingBatch::create([
+        'kode' => 'RB-DEPOT-TEST',
+        'tanggal' => now()->toDateString(),
+        'status' => 'disetujui',
+        'total_kendaraan' => 1,
+        'total_toko' => 0,
+        'total_dus' => 0,
+        'dibuat_oleh' => $superadmin->id,
+    ]));
+
+    $kendaraan = DepotContext::jalankanSebagai($this->depot, fn () => Kendaraan::create([
+        'routing_batch_id' => $batch->id,
+        'nomor' => 1,
+        'nama' => 'Mobil Uji',
+        'total_toko' => 0,
+        'total_dus' => 0,
+        'target_dus' => 0,
+        'status' => 'jalan',
+        'tanggal' => now()->toDateString(),
+    ]));
+
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+        ->call('selesaikanKendaraan')
         ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
 });
 

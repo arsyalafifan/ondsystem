@@ -4,6 +4,7 @@ namespace App\Livewire\Pesanan;
 
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\PenugasanToko;
 use App\Models\Pesanan;
 use App\Models\Produk;
@@ -11,8 +12,6 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
-use App\Support\DepotContext;
-use App\Support\ModeDepot;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -25,6 +24,7 @@ use RuntimeException;
 
 class DaftarPesanan extends Component
 {
+    use MembutuhkanDepotTerkunci;
     use WithPagination;
 
     #[Url(as: 'status')]
@@ -268,6 +268,10 @@ class DaftarPesanan extends Component
             abort(403);
         }
 
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
         $this->validate(
             ['alasanCancel' => 'required|string'],
             ['alasanCancel.required' => __('pesanan.alasan_wajib')],
@@ -378,8 +382,7 @@ class DaftarPesanan extends Component
             abort(403);
         }
 
-        if (DepotContext::mode() !== ModeDepot::Terkunci) {
-            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+        if ($this->tolakJikaTidakTerkunci()) {
             $this->tutupOrderUlang();
 
             return;
