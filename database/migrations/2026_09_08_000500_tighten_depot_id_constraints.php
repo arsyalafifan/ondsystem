@@ -126,8 +126,18 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->dropUnique('users_email_unique');
             $table->unique(['depot_kunci_unik', 'email']);
+
+            // restrictOnUpdate(), BUKAN cascadeOnUpdate() seperti 19 tabel
+            // lain di atas — MySQL 8 menolak ON UPDATE CASCADE pada kolom
+            // yang jadi BASE COLUMN sebuah generated column (di sini,
+            // depot_id dipakai depot_kunci_unik lewat COALESCE) dengan
+            // error 1215 "Cannot add foreign key constraint" yang generik,
+            // tanpa alasan lebih rinci. depots.id tidak pernah diubah lewat
+            // alur manapun di aplikasi ini (auto-increment, tidak ada layar
+            // "ganti id depot"), jadi RESTRICT vs CASCADE di sini tidak
+            // pernah benar-benar berbeda secara perilaku.
             $table->foreign('depot_id')->references('id')->on('depots')
-                ->restrictOnDelete()->cascadeOnUpdate();
+                ->restrictOnDelete()->restrictOnUpdate();
         });
     }
 
