@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\JenisMutasiStok;
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class StokMutasi extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected function casts(): array
     {

@@ -3,6 +3,7 @@
 namespace App\Livewire\Routing;
 
 use App\Enums\StatusStop;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -10,6 +11,7 @@ use App\Models\RoutingBatch;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\RoutingService;
+use App\Support\DepotContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
@@ -29,6 +31,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class GenerateRouting extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public ?int $batchId = null;
 
     // --- Pengaturan generate ---
@@ -60,8 +64,12 @@ class GenerateRouting extends Component
 
     public function mount(?RoutingBatch $batch = null): void
     {
-        $this->maxToko = (int) config('ond.kendaraan.max_toko');
-        $this->maxDus = (int) config('ond.kendaraan.max_dus');
+        if (! $this->pastikanDepotTerkunci()) {
+            return;
+        }
+
+        $this->maxToko = DepotContext::currentOrFail()->max_toko;
+        $this->maxDus = DepotContext::currentOrFail()->max_dus;
         // Bawaannya hari ini — kasus paling umum — tapi admin bebas
         // menggantinya untuk menjadwalkan keberangkatan di hari lain.
         $this->tanggalKeberangkatan = today()->toDateString();
@@ -225,14 +233,19 @@ class GenerateRouting extends Component
     #[Computed]
     public function konfigPeta(): array
     {
+        // mount() di atas sudah memanggil currentOrFail() lewat maxToko/
+        // maxDus — kalau komponen ini berhasil ter-mount, depot pasti
+        // sudah terkunci, jadi aman dipanggil lagi tanpa null-check di sini.
+        $depot = DepotContext::currentOrFail();
+
         return [
             'tileUrl' => config('ond.peta.tile_url'),
             'attribution' => config('ond.peta.attribution'),
             'zoom' => config('ond.peta.zoom_default'),
             'depot' => [
-                'lat' => (float) config('ond.depot.lat'),
-                'lng' => (float) config('ond.depot.lng'),
-                'nama' => config('ond.depot.nama'),
+                'lat' => (float) $depot->lat,
+                'lng' => (float) $depot->lng,
+                'nama' => $depot->nama,
             ],
             'bisaDiklik' => true,
         ];

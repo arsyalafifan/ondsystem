@@ -7,6 +7,7 @@ use App\Models\KendaraanStop;
 use App\Services\Peta\Geo;
 use App\Services\Peta\Koordinat;
 use App\Services\RoutingService;
+use App\Support\DepotContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
@@ -39,15 +40,17 @@ class PerbaikiGeometryRute extends Command
         $kering = (bool) $this->option('dry-run');
         $urutkanUlang = (bool) $this->option('urutkan-ulang');
 
-        // batch ikut diambil di depan: hitungUlang() memperbarui total batch
-        // lewat $kendaraan->batch, dan memuatnya belakangan satu per satu
-        // melanggar mode ketat (lazy loading) begitu kendaraannya lebih dari
-        // satu — persis keadaan nyata di lapangan.
-        $kendaraans = Kendaraan::query()
+        // Pemindaian awal sengaja lintas semua depot — perintah ini dijalankan
+        // manual lewat SSH, bukan tiap depot dipanggil terpisah.
+        $kendaraans = DepotContext::jalankanUntukSemuaDepot(fn () => Kendaraan::query()
             ->where('status', '!=', 'selesai')
+            // batch ikut diambil di depan: hitungUlang() memperbarui total
+            // batch lewat $kendaraan->batch, dan memuatnya belakangan satu
+            // per satu melanggar mode ketat (lazy loading) begitu
+            // kendaraannya lebih dari satu — persis keadaan nyata di lapangan.
             ->with(['batch', 'stops.toko:id,nama,latitude,longitude'])
             ->orderBy('id')
-            ->get();
+            ->get());
 
         $this->info("Memeriksa {$kendaraans->count()} kendaraan yang belum selesai (toleransi {$toleransi} m).");
         $this->newLine();
@@ -64,32 +67,41 @@ class PerbaikiGeometryRute extends Command
 
         $adaYangSudahJalan = false;
 
-        foreach ($perlu as $kendaraan) {
-            $jarakSebelum = $kendaraan->total_jarak_m;
+        // Kendaraan yang perlu diperbaiki bisa berasal dari beberapa depot
+        // sekaligus dalam satu kali jalan — RoutingService::hitungUlang()/
+        // optimalkanUlang() butuh konteks yang terkunci ke SATU depot (lewat
+        // RoutingService::depot()), jadi diproses per-kelompok depot.
+        foreach ($perlu->groupBy('depot_id') as $depotId => $kelompok) {
+            DepotContext::jalankanSebagai((int) $depotId, function () use ($kelompok, $service, $kering, $urutkanUlang, &$baris, &$adaYangSudahJalan): void {
+                foreach ($kelompok as $kendaraan) {
+                    $jarakSebelum = $kendaraan->total_jarak_m;
 
-            // Rute yang sudah dijalani TIDAK boleh diurutkan ulang: sopirnya
-            // sudah menyelesaikan sebagian kunjungan, dan mengacak urutannya
-            // sekarang akan memindahkan toko yang sudah dilewati. Garis
-            // rutenya tetap diperbaiki — itu memang yang bikin peta salah.
-            $sudahJalan = $kendaraan->stops->contains(fn (KendaraanStop $s) => $s->status->tuntas());
-            $adaYangSudahJalan = $adaYangSudahJalan || $sudahJalan;
+                    // Rute yang sudah dijalani TIDAK boleh diurutkan ulang:
+                    // sopirnya sudah menyelesaikan sebagian kunjungan, dan
+                    // mengacak urutannya sekarang akan memindahkan toko yang
+                    // sudah dilewati. Garis rutenya tetap diperbaiki — itu
+                    // memang yang bikin peta salah.
+                    $sudahJalan = $kendaraan->stops->contains(fn (KendaraanStop $s) => $s->status->tuntas());
+                    $adaYangSudahJalan = $adaYangSudahJalan || $sudahJalan;
 
-            if (! $kering) {
-                $urutkanUlang && ! $sudahJalan
-                    ? $service->optimalkanUlang($kendaraan)
-                    : $service->hitungUlang($kendaraan);
+                    if (! $kering) {
+                        $urutkanUlang && ! $sudahJalan
+                            ? $service->optimalkanUlang($kendaraan)
+                            : $service->hitungUlang($kendaraan);
 
-                $kendaraan->refresh();
-            }
+                        $kendaraan->refresh();
+                    }
 
-            $baris[] = [
-                $kendaraan->id,
-                $kendaraan->nama,
-                $kendaraan->stops->count(),
-                number_format($jarakSebelum / 1000, 1).' km',
-                $kering ? '-' : number_format($kendaraan->total_jarak_m / 1000, 1).' km',
-                $sudahJalan ? 'sudah jalan — urutan dipertahankan' : '',
-            ];
+                    $baris[] = [
+                        $kendaraan->id,
+                        $kendaraan->nama,
+                        $kendaraan->stops->count(),
+                        number_format($jarakSebelum / 1000, 1).' km',
+                        $kering ? '-' : number_format($kendaraan->total_jarak_m / 1000, 1).' km',
+                        $sudahJalan ? 'sudah jalan — urutan dipertahankan' : '',
+                    ];
+                }
+            });
         }
 
         $this->table(['ID', 'Mobil', 'Toko', 'Jarak sebelum', 'Jarak sesudah', 'Catatan'], $baris);
@@ -116,7 +128,7 @@ class PerbaikiGeometryRute extends Command
             $this->warn('dipertahankan — hanya garis rutenya yang diperbaiki. Lihat kolom Catatan.');
         }
 
-        $this->laporkanKoordinatMencurigakan($perlu, $toleransi);
+        DepotContext::jalankanUntukSemuaDepot(fn () => $this->laporkanKoordinatMencurigakan($perlu, $toleransi));
 
         return self::SUCCESS;
     }

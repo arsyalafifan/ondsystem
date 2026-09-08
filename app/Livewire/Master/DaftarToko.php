@@ -8,6 +8,7 @@ use App\Models\Toko;
 use App\Models\Wilayah;
 use App\Services\Peta\NominatimGeocoder;
 use App\Services\RoutingService;
+use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -185,14 +186,16 @@ class DaftarToko extends Component
     #[Computed]
     public function konfigPeta(): array
     {
+        $depot = DepotContext::current();
+
         return [
             'tileUrl' => config('ond.peta.tile_url'),
             'attribution' => config('ond.peta.attribution'),
             'lat' => $this->latitude,
             'lng' => $this->longitude,
             'depot' => [
-                'lat' => (float) config('ond.depot.lat'),
-                'lng' => (float) config('ond.depot.lng'),
+                'lat' => $depot?->lat ?? -2.5,
+                'lng' => $depot?->lng ?? 118.0,
             ],
         ];
     }

@@ -10,6 +10,7 @@ use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Support\Bahasa;
+use App\Support\DepotContext;
 use App\Support\KmlRuteBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -245,14 +246,16 @@ class DaftarKunjungan extends Component
     #[Computed]
     public function konfigPeta(): array
     {
+        $depot = DepotContext::current();
+
         return [
             'tileUrl' => config('ond.peta.tile_url'),
             'attribution' => config('ond.peta.attribution'),
             'zoom' => config('ond.peta.zoom_default'),
             'depot' => [
-                'lat' => (float) config('ond.depot.lat'),
-                'lng' => (float) config('ond.depot.lng'),
-                'nama' => config('ond.depot.nama'),
+                'lat' => $depot?->lat ?? -2.5,
+                'lng' => $depot?->lng ?? 118.0,
+                'nama' => $depot?->nama ?? __('umum.semua_depot'),
             ],
             'bisaDiklik' => true,
         ];

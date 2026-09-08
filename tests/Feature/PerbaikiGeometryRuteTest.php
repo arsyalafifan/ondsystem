@@ -223,7 +223,7 @@ it('melaporkan toko yang koordinatnya jauh dari jalan setelah dihitung ulang', f
     // datang dari OSRM sungguhan: ia menempelkan titik yang jatuh di laut
     // ke jalan terdekat yang jauh. Di sini OSRM dipalsukan supaya
     // mengembalikan rute yang tetap berputar di sekitar depot.
-    $depot = new Koordinat((float) config('ond.depot.lat'), (float) config('ond.depot.lng'));
+    $depot = new Koordinat((float) $this->depot->lat, (float) $this->depot->lng);
 
     Http::fake([
         '*/route/v1/driving/*' => Http::response([

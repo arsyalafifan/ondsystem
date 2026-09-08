@@ -3,6 +3,7 @@
 namespace App\Livewire\Pesanan;
 
 use App\Enums\StatusPesanan;
+use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Promo;
@@ -10,6 +11,7 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Services\Kunjungan\PenguraiQr;
 use App\Services\PesananService;
+use App\Support\DepotContext;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -17,6 +19,8 @@ use Livewire\Component;
 
 class BuatPesanan extends Component
 {
+    use MembutuhkanDepotTerkunci;
+
     public string $cariToko = '';
 
     /** 'ketik' untuk pencarian biasa, 'pindai' untuk membaca QR freezer. */
@@ -61,6 +65,10 @@ class BuatPesanan extends Component
 
     public function mount(): void
     {
+        if (! $this->pastikanDepotTerkunci()) {
+            return;
+        }
+
         $this->tambahBaris();
 
         if ($this->bisaInputBonus()) {
@@ -384,11 +392,23 @@ class BuatPesanan extends Component
      *
      * @return array<int, array{jenis: string, pesan: string}>
      */
+    /**
+     * Dipakai juga dari resources/views/livewire/pesanan/buat-pesanan.blade.php
+     * — panel validasi menampilkan angka ini di teksnya. Blade view tidak
+     * bisa memanggil DepotContext langsung tanpa impor kelas yang canggung,
+     * jadi diekspos lewat computed property di sini saja.
+     */
+    #[Computed]
+    public function minDusPerToko(): int
+    {
+        return DepotContext::currentOrFail()->min_dus_per_toko;
+    }
+
     #[Computed]
     public function halangan(): array
     {
         $masalah = [];
-        $minDus = (int) config('ond.min_dus_per_toko');
+        $minDus = $this->minDusPerToko();
 
         if ($this->tokoId === null) {
             $masalah[] = ['jenis' => 'toko', 'pesan' => __('pesanan.toko_belum_dipilih')];
@@ -505,6 +525,12 @@ class BuatPesanan extends Component
 
     public function simpan(PesananService $service): void
     {
+        if ($this->depotBelumDipilih) {
+            $this->addError('tokoId', __('umum.butuh_depot_aksi'));
+
+            return;
+        }
+
         if ($this->tokoId === null) {
             $this->addError('tokoId', __('pesanan.pilih_toko_dulu'));
 

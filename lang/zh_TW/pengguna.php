@@ -20,4 +20,5 @@ return [
     'sandi_direset' => ':nama 的密碼已重設為預設密碼。',
     'pengguna_kosong' => '尚無用戶',
     'pengguna_kosong_ket' => '使用上方按鈕新增第一個帳號。',
+    'pilih_depot_dulu' => '請先在側邊欄切換器中選擇一個倉庫，再建立此帳號。',
 ];

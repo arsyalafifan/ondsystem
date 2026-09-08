@@ -13,6 +13,7 @@ use App\Services\Routing\HasilRouting;
 use App\Services\Routing\MesinRouting;
 use App\Services\Routing\RuteKendaraan;
 use App\Services\Routing\TitikPengiriman;
+use App\Support\DepotContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -61,8 +62,8 @@ class RoutingService
         ?CarbonImmutable $tanggalKeberangkatan = null,
     ): RoutingBatch {
         $tanggalKeberangkatan ??= CarbonImmutable::today();
-        $maxToko = $maxToko ?? config('ond.kendaraan.max_toko');
-        $maxDus = $maxDus ?? config('ond.kendaraan.max_dus');
+        $maxToko = $maxToko ?? DepotContext::currentOrFail()->max_toko;
+        $maxDus = $maxDus ?? DepotContext::currentOrFail()->max_dus;
 
         $pesanans = $this->pesananSiapRouting($wilayahIds);
 
@@ -122,7 +123,7 @@ class RoutingService
             ]);
 
             $warna = config('ond.warna_kendaraan');
-            $jamBerangkat = CarbonImmutable::parse(config('ond.depot.jam_berangkat'));
+            $jamBerangkat = CarbonImmutable::parse((string) DepotContext::currentOrFail()->jam_berangkat);
 
             foreach ($hasil->rute as $i => $rute) {
                 $kendaraan = $this->simpanKendaraan($batch, $rute, $i + 1, $warna, $jamBerangkat, $tanggalKeberangkatan);
@@ -149,7 +150,7 @@ class RoutingService
         CarbonImmutable $jamBerangkat,
         CarbonImmutable $tanggalKeberangkatan,
     ): Kendaraan {
-        $totalMenit = $rute->totalDurasiS / 60 + $rute->totalToko() * config('ond.depot.service_minutes');
+        $totalMenit = $rute->totalDurasiS / 60 + $rute->totalToko() * DepotContext::currentOrFail()->service_minutes;
 
         return $batch->kendaraans()->create([
             'wilayah_id' => $rute->wilayahId ?: null,
@@ -171,7 +172,7 @@ class RoutingService
     private function simpanStops(Kendaraan $kendaraan, RuteKendaraan $rute, CarbonImmutable $jamBerangkat): void
     {
         $waktu = $jamBerangkat;
-        $bongkarMenit = (int) config('ond.depot.service_minutes');
+        $bongkarMenit = DepotContext::currentOrFail()->service_minutes;
 
         foreach ($rute->titik as $i => $titik) {
             $leg = $rute->legs[$i] ?? ['jarak_m' => 0, 'durasi_s' => 0];
@@ -414,9 +415,9 @@ class RoutingService
 
         $hasil = $this->mesin->hitungUlang($koordinat, $this->depot());
 
-        $jamBerangkat = CarbonImmutable::parse($kendaraan->jam_berangkat ?? config('ond.depot.jam_berangkat'));
+        $jamBerangkat = CarbonImmutable::parse((string) ($kendaraan->jam_berangkat ?? DepotContext::currentOrFail()->jam_berangkat));
         $waktu = $jamBerangkat;
-        $bongkarMenit = (int) config('ond.depot.service_minutes');
+        $bongkarMenit = DepotContext::currentOrFail()->service_minutes;
 
         foreach ($stops->values() as $i => $stop) {
             $leg = $hasil['legs'][$i] ?? ['jarak_m' => 0, 'durasi_s' => 0];
@@ -508,7 +509,7 @@ class RoutingService
             'nomor' => $nomor,
             'nama' => "Mobil {$nomor}",
             'warna' => $warna[($nomor - 1) % count($warna)],
-            'jam_berangkat' => CarbonImmutable::parse(config('ond.depot.jam_berangkat'))->format('H:i:s'),
+            'jam_berangkat' => CarbonImmutable::parse((string) DepotContext::currentOrFail()->jam_berangkat)->format('H:i:s'),
             'status' => 'draft',
             'tanggal' => $batch->tanggal,
         ]);
@@ -614,9 +615,11 @@ class RoutingService
 
     public function depot(): Koordinat
     {
+        $depot = DepotContext::currentOrFail();
+
         return new Koordinat(
-            (float) config('ond.depot.lat'),
-            (float) config('ond.depot.lng'),
+            (float) $depot->lat,
+            (float) $depot->lng,
         );
     }
 

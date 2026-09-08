@@ -1,6 +1,10 @@
 <div>
     <x-judul-halaman :judul="__('pesanan.judul_buat')" :keterangan="__('pesanan.ket_buat')" />
 
+    @if ($depotBelumDipilih)
+        <x-butuh-depot-terkunci />
+    @else
+
     @if ($kodeTerakhir)
         <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {!! __('pesanan.tersimpan', ['kode' => '<strong>'.e($kodeTerakhir).'</strong>']) !!}
@@ -396,7 +400,7 @@
             <x-kartu :judul="__('pesanan.validasi_sistem')">
                 <div class="space-y-3 p-4">
                     @php
-                        $minDus = (int) config('ond.min_dus_per_toko');
+                        $minDus = $this->minDusPerToko();
                         $periksa = [
                             ['lulus' => ! $this->adaHalangan('min_dus'), 'teks' => __('pesanan.periksa_min_dus', ['jumlah' => $minDus])],
                             ['lulus' => ! $this->adaHalangan('stok'), 'teks' => __('pesanan.periksa_stok')],
@@ -532,4 +536,5 @@
         }
     </script>
     @endscript
+    @endif
 </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['sales_id', 'toko_id', 'bulan', 'ditugaskan_oleh'])]
 class PenugasanSales extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected $table = 'penugasan_sales';
 

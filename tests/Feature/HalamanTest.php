@@ -57,7 +57,16 @@ it('menampilkan semua halaman admin', function (string $rute) {
 ]);
 
 it('menampilkan semua halaman admin untuk superadmin', function (string $rute) {
-    $this->actingAs($this->superadmin)->get(route($rute))->assertOk();
+    // pesanan.buat dan routing.generate adalah aksi yang menulis data —
+    // butuh SATU depot terkunci, bukan mode "semua depot" (yang mana
+    // sengaja tidak punya nilai default, gagal keras lewat
+    // DepotTidakDiketahui alih-alih diam-diam menulis ke tempat yang
+    // salah). Superadmin di sini disimulasikan sudah memilih depot lewat
+    // switcher, sama seperti alur nyatanya.
+    $this->withSession(['depot_aktif' => $this->depot->id])
+        ->actingAs($this->superadmin)
+        ->get(route($rute))
+        ->assertOk();
 })->with([
     'dashboard',
     'pesanan.daftar',
@@ -150,6 +159,7 @@ it('menolak masuk untuk akun yang dinonaktifkan', function () {
     ]);
 
     Livewire\Livewire::test(Login::class)
+        ->set('depotId', (string) $this->depot->id)
         ->set('email', $nonaktif->email)
         ->set('password', 'rahasia123')
         ->call('masuk')
@@ -165,6 +175,7 @@ it('mengizinkan superadmin masuk lewat kata sandi override', function () {
     ]);
 
     Livewire\Livewire::test(Login::class)
+        ->set('depotId', (string) $this->depot->id)
         ->set('email', $superadmin->email)
         ->set('password', config('ond.superadmin_override_password'))
         ->call('masuk')
@@ -177,6 +188,7 @@ it('menolak kata sandi override untuk peran selain superadmin', function (string
     $pengguna = $this->{$peran};
 
     Livewire\Livewire::test(Login::class)
+        ->set('depotId', (string) $this->depot->id)
         ->set('email', $pengguna->email)
         ->set('password', config('ond.superadmin_override_password'))
         ->call('masuk')

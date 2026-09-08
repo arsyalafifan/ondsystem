@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusStop;
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
 ])]
 class KendaraanStop extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BerDepot, HasFactory, SoftDeletes;
 
     protected $attributes = [
         'status' => 'pending',

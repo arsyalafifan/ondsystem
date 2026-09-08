@@ -93,7 +93,7 @@ it('mengurangi stok fisik produk seketika, bukan lewat reservasi', function () {
 
 it('tidak menuntut minimal dus — satu dus saja boleh', function () {
     // Konfigurasi default: minimal 5 dus untuk pesanan biasa.
-    expect((int) config('ond.min_dus_per_toko'))->toBeGreaterThan(1);
+    expect($this->depot->min_dus_per_toko)->toBeGreaterThan(1);
 
     $toko = buatTokoPos();
 

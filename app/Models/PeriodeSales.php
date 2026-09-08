@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusKunjungan;
+use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['periode_kunjungan_id', 'sales_id', 'target_toko'])]
 class PeriodeSales extends Model
 {
-    use HasFactory;
+    use BerDepot, HasFactory;
 
     protected $attributes = [
         'target_toko' => 0,

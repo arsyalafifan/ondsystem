@@ -11,6 +11,8 @@ use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
+use App\Support\DepotContext;
+use App\Support\ModeDepot;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -374,6 +376,13 @@ class DaftarPesanan extends Component
     {
         if (! auth()->user()->isAdmin()) {
             abort(403);
+        }
+
+        if (DepotContext::mode() !== ModeDepot::Terkunci) {
+            $this->dispatch('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+            $this->tutupOrderUlang();
+
+            return;
         }
 
         // Galat dari percobaan SEBELUMNYA (mis. stok kurang) harus bersih

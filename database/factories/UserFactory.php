@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PeranPengguna;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,19 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Superadmin tidak terikat depot manapun — depot_id => null di sini
+     * eksplisit, bukan dikosongkan begitu saja, supaya BerDepot tahu ini
+     * kondisi yang disengaja dan tidak mencoba auto-stamp.
+     */
+    public function superadmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => PeranPengguna::Superadmin,
+            'depot_id' => null,
         ]);
     }
 }

@@ -48,6 +48,7 @@ it('mengganti kata sandi dan bisa langsung dipakai masuk', function () {
     expect(Hash::check('kata-sandi-baru-123', $this->pengguna->fresh()->password))->toBeTrue();
 
     Livewire::test(Login::class)
+        ->set('depotId', (string) $this->depot->id)
         ->set('email', $this->pengguna->email)
         ->set('password', 'kata-sandi-baru-123')
         ->call('masuk')

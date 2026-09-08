@@ -20,4 +20,5 @@ return [
     'sandi_direset' => 'Kata sandi :nama sudah direset ke kata sandi standar.',
     'pengguna_kosong' => 'Belum ada pengguna',
     'pengguna_kosong_ket' => 'Tambahkan akun pertama lewat tombol di atas.',
+    'pilih_depot_dulu' => 'Pilih satu depot dulu lewat switcher di sidebar sebelum membuat akun ini.',
 ];
