@@ -38,6 +38,7 @@
         \App\Enums\PeranPengguna::Superadmin => [
             ...$menuAdmin,
             ['rute' => 'pengguna.daftar', 'label' => __('nav.manage_pengguna'), 'ikon' => 'user-group'],
+            ['rute' => 'depot.daftar', 'label' => __('nav.manage_depot'), 'ikon' => 'building-office-2'],
         ],
         \App\Enums\PeranPengguna::Sales => [
             ['rute' => 'kunjungan.kunjungi', 'label' => __('nav.mulai_kunjungan'), 'ikon' => 'camera'],

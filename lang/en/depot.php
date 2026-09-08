@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'judul' => 'Manage Depots',
+    'ket' => 'Open a new depot or edit an existing depot\'s settings.',
+    'depot_baru' => '+ New Depot',
+    'judul_depot_baru' => 'New Depot',
+    'judul_depot_sunting' => 'Edit Depot',
+    'atr_kode' => 'Code',
+    'atr_nama' => 'Name',
+    'atr_lat' => 'Latitude',
+    'atr_lng' => 'Longitude',
+    'atr_jam_berangkat' => 'Departure Time',
+    'atr_service_minutes' => 'Minutes/Store',
+    'atr_max_toko' => 'Max Stores/Route',
+    'atr_max_dus' => 'Max Boxes/Route',
+    'atr_min_dus_per_toko' => 'Min Boxes/Store',
+    'kapasitas' => 'Capacity',
+    'ringkasan_kapasitas' => ':toko stores · :dus boxes',
+    'depot_aktif' => 'Depot active',
+    'belum_ada_koordinat' => 'No coordinates yet',
+    'ket_koordinat' => 'Can be left blank and filled in later — maps & travel distance use Indonesia\'s center point until coordinates are set.',
+    'ket_depot_baru' => 'A new depot starts completely empty — no stores, products, or users besides the Superadmin. Create its first Admin account via Manage Users afterward.',
+    'depot_tersimpan' => 'New depot saved.',
+    'depot_diperbarui' => 'Depot changes saved.',
+    'depot_kosong' => 'No depots yet',
+    'depot_kosong_ket' => 'Add the first depot using the button above.',
+];

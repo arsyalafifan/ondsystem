@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'judul' => '仓库管理',
+    'ket' => '开设新仓库，或修改现有仓库的设置。',
+    'depot_baru' => '+ 新仓库',
+    'judul_depot_baru' => '新仓库',
+    'judul_depot_sunting' => '编辑仓库',
+    'atr_kode' => '编号',
+    'atr_nama' => '名称',
+    'atr_lat' => '纬度',
+    'atr_lng' => '经度',
+    'atr_jam_berangkat' => '出发时间',
+    'atr_service_minutes' => '每店服务分钟数',
+    'atr_max_toko' => '每条路线最多商店数',
+    'atr_max_dus' => '每条路线最多箱数',
+    'atr_min_dus_per_toko' => '每店最少箱数',
+    'kapasitas' => '容量',
+    'ringkasan_kapasitas' => ':toko 家商店 · :dus 箱',
+    'depot_aktif' => '仓库启用',
+    'belum_ada_koordinat' => '尚无坐标',
+    'ket_koordinat' => '可以先留空，之后再填写——在填写坐标之前，地图和路程距离将使用印尼中心点。',
+    'ket_depot_baru' => '新仓库一开始完全空白——除了超级管理员外，没有商店、产品或用户。之后请通过用户管理为其创建第一个管理员账号。',
+    'depot_tersimpan' => '新仓库已保存。',
+    'depot_diperbarui' => '仓库的更改已保存。',
+    'depot_kosong' => '尚无仓库',
+    'depot_kosong_ket' => '请使用上方按钮添加第一个仓库。',
+];

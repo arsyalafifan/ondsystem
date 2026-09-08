@@ -23,6 +23,7 @@ return [
     'master_wilayah' => 'Regions',
     'master_promo' => 'Promos',
     'manage_pengguna' => 'Manage Users',
+    'manage_depot' => 'Manage Depots',
     'pengiriman' => 'Deliveries',
     'pengiriman_driver' => 'Driver Deliveries',
     'visit_sales' => 'Sales Visits',

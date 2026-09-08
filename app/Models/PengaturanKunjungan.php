@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * (dipasang trait BerDepot), tanpa perlu ubah logikanya sama sekali.
  * Depot baru dapat baris pengaturannya sendiri lewat DepotService::buat().
  */
-#[Fillable(['maks_toko_per_hari'])]
+#[Fillable(['maks_toko_per_hari', 'depot_id'])]
 class PengaturanKunjungan extends Model
 {
     use BerDepot;

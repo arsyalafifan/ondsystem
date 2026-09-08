@@ -23,6 +23,7 @@ return [
     'master_wilayah' => '區域主檔',
     'master_promo' => '促銷主檔',
     'manage_pengguna' => '用戶管理',
+    'manage_depot' => '倉庫管理',
     'pengiriman' => '配送',
     'pengiriman_driver' => '司機配送',
     'visit_sales' => '銷售拜訪',

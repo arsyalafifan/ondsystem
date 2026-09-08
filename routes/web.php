@@ -5,6 +5,7 @@ use App\Http\Controllers\PackingListController;
 use App\Livewire\Akun\GantiKataSandi;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
+use App\Livewire\Depot\DaftarDepot;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
 use App\Livewire\Insentif\InsentifSales;
@@ -151,6 +152,7 @@ Route::middleware('auth')->group(function () {
     // --- Superadmin ---
     Route::middleware('peran:superadmin')->group(function () {
         Route::get('/pengguna', DaftarPengguna::class)->name('pengguna.daftar');
+        Route::get('/depot', DaftarDepot::class)->name('depot.daftar');
     });
 
     // --- Semua peran yang sudah masuk ---
