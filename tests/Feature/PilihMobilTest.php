@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Wilayah;
 use App\Services\PesananService;
 use App\Services\RoutingService;
+use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
 /**
@@ -47,10 +48,19 @@ beforeEach(function () {
 /** Satu kendaraan kosong (driver_id null), sudah disetujui dan siap diambil. */
 function kendaraanSiapDiambil(): Kendaraan
 {
-    $wilayah = Wilayah::create(['kode' => 'W-PM', 'nama' => 'Wilayah Pilih Mobil']);
-    $produk = Produk::create(['kode' => 'PM1', 'nama' => 'Produk Uji', 'stok' => 1000, 'harga' => 50_000]);
+    return kendaraanSiapDiambilTanggal(null);
+}
+
+/** Sama seperti kendaraanSiapDiambil(), tapi tanggal keberangkatannya bisa diatur. */
+function kendaraanSiapDiambilTanggal(?CarbonImmutable $tanggal): Kendaraan
+{
+    static $n = 0;
+    $n++;
+
+    $wilayah = Wilayah::create(['kode' => "W-PM{$n}", 'nama' => "Wilayah Pilih Mobil {$n}"]);
+    $produk = Produk::create(['kode' => "PM{$n}", 'nama' => "Produk Uji {$n}", 'stok' => 1000, 'harga' => 50_000]);
     $toko = Toko::create([
-        'kode' => 'TK-PM1', 'nama' => 'Toko Pilih Mobil', 'wilayah_id' => $wilayah->id,
+        'kode' => "TK-PM{$n}", 'nama' => "Toko Pilih Mobil {$n}", 'wilayah_id' => $wilayah->id,
         'alamat' => 'Jl. Pilih Mobil', 'latitude' => -6.2, 'longitude' => 106.8, 'sumber_koordinat' => 'manual',
     ]);
 
@@ -58,7 +68,7 @@ function kendaraanSiapDiambil(): Kendaraan
     $pesanan = $pesananService->buat($toko, [['produk_id' => $produk->id, 'jumlah_dus' => 10]], test()->sales);
     $pesananService->setujui($pesanan, test()->admin);
 
-    $batch = app(RoutingService::class)->generate(test()->admin);
+    $batch = app(RoutingService::class)->generate(test()->admin, tanggalKeberangkatan: $tanggal);
     app(RoutingService::class)->setujui($batch, test()->admin);
 
     return $batch->fresh()->kendaraans->first();
@@ -248,4 +258,40 @@ it('driver kedua tetap ditolak "sudah diambil" saat mencoba mengambil mobil driv
         ->assertNoRedirect();
 
     expect($kendaraan->fresh()->driver_id)->toBe($this->driver->id);
+});
+
+/**
+ * Daftar mobil sekarang mengikuti tanggal KEBERANGKATAN (`Kendaraan::tanggal`),
+ * bawaannya hari ini — sebelumnya semua mobil berstatus siap/jalan
+ * "berkumpul" jadi satu daftar tanpa peduli tanggal berangkatnya, jadi
+ * mobil kemarin yang belum tuntas dikirim tetap nyangkut di daftar hari
+ * ini bersama mobil yang baru berangkat.
+ */
+describe('daftar mobil menyaring per tanggal keberangkatan', function () {
+    it('mobil yang belum berangkat hari ini tidak nyangkut di daftar kemarin yang belum tuntas', function () {
+        $kemarin = kendaraanSiapDiambilTanggal(CarbonImmutable::yesterday());
+        $hariIni = kendaraanSiapDiambilTanggal(CarbonImmutable::today());
+
+        $daftar = Livewire::actingAs($this->driver)->test(PilihMobil::class)->instance()->kendaraans;
+
+        expect($daftar->pluck('id'))->toContain($hariIni->id)
+            ->and($daftar->pluck('id'))->not->toContain($kemarin->id);
+    });
+
+    it('mobil kemarin tetap bisa dilihat lewat filter tanggal', function () {
+        $kemarin = kendaraanSiapDiambilTanggal(CarbonImmutable::yesterday());
+
+        $daftar = Livewire::actingAs($this->admin)
+            ->test(PilihMobil::class)
+            ->set('tanggal', CarbonImmutable::yesterday()->toDateString())
+            ->instance()->kendaraans;
+
+        expect($daftar->pluck('id'))->toContain($kemarin->id);
+    });
+
+    it('bawaannya tanggal hari ini begitu halaman dibuka', function () {
+        Livewire::actingAs($this->driver)
+            ->test(PilihMobil::class)
+            ->assertSet('tanggal', CarbonImmutable::today()->toDateString());
+    });
 });

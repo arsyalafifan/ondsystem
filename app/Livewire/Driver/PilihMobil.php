@@ -5,12 +5,35 @@ namespace App\Livewire\Driver;
 use App\Models\Kendaraan;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class PilihMobil extends Component
 {
     /**
-     * Mobil yang sudah disetujui dan belum tuntas dikirim.
+     * Per tanggal KEBERANGKATAN kendaraan (`Kendaraan::tanggal`), bawaannya
+     * hari ini. Tanpa ini, mobil kemarin yang belum tuntas dikirim tetap
+     * "berkumpul" bersama mobil hari ini selama statusnya masih
+     * siap/jalan — padahal keduanya rute yang benar-benar beda hari.
+     */
+    #[Url(as: 'tgl')]
+    public string $tanggal = '';
+
+    public function mount(): void
+    {
+        if ($this->tanggal === '') {
+            $this->tanggal = today()->toDateString();
+        }
+    }
+
+    public function updatedTanggal(): void
+    {
+        unset($this->kendaraans);
+    }
+
+    /**
+     * Mobil yang sudah disetujui dan belum tuntas dikirim, pada tanggal
+     * keberangkatan yang dipilih.
      *
      * Mobil yang belum diambil siapa pun tetap ditampilkan agar driver bisa
      * mengambilnya sendiri, sesuai kebiasaan di lapangan: siapa yang siap
@@ -32,6 +55,7 @@ class PilihMobil extends Component
             ->with(['wilayah:id,nama', 'driver:id,name', 'stops'])
             ->whereHas('batch', fn ($q) => $q->where('status', 'disetujui'))
             ->whereIn('status', ['siap', 'jalan'])
+            ->whereDate('tanggal', $this->tanggal)
             ->when(! auth()->user()->isAdmin(), fn ($q) => $q
                 ->where(fn ($q2) => $q2->whereNull('driver_id')->orWhere('driver_id', auth()->id())))
             ->orderBy('nomor')

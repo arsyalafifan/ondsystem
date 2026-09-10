@@ -2,7 +2,7 @@
 
 return [
     'judul_pilih' => '选择车辆',
-    'ket_pilih' => '领取今天要开的车辆，然后按访问顺序配送。',
+    'ket_pilih' => '车辆列表按发车日期显示，预设为今天。领取要开的车辆，然后按访问顺序配送。',
     'mobil_anda' => '您的车辆',
     'selesai_dari' => '已完成 :selesai / :total',
     'ambil_mobil' => '领取这辆车 →',
@@ -10,7 +10,7 @@ return [
     'lihat_kendaraan' => '查看车辆 →',
     'belum_diambil' => '尚未领取',
     'belum_ada_mobil' => '尚无可出发的车辆',
-    'belum_ada_mobil_ket' => '管理员批准今日路线后，车辆会出现在这里。',
+    'belum_ada_mobil_ket' => '管理员批准发车日期为此日的路线后，车辆会出现在这里。',
     'riwayat_anda' => '您的配送记录',
     'mobil_diambil_lain' => '该车辆已被其他司机领取。',
     'mobil_dibawa_lain' => '该车辆正由其他司机使用。',

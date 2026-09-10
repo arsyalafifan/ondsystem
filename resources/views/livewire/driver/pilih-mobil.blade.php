@@ -1,5 +1,10 @@
 <div>
-    <x-judul-halaman :judul="__('driver.judul_pilih')" :keterangan="__('driver.ket_pilih')" />
+    <x-judul-halaman :judul="__('driver.judul_pilih')" :keterangan="__('driver.ket_pilih')">
+        <x-slot:aksi>
+            <input type="date" wire:model.live="tanggal"
+                   class="rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+        </x-slot:aksi>
+    </x-judul-halaman>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @forelse ($this->kendaraans as $k)
