@@ -2,7 +2,7 @@
 
 return [
     'judul_pilih' => 'Pilih Mobil',
-    'ket_pilih' => 'Ambil mobil yang akan Anda bawa hari ini, lalu ikuti urutan kunjungannya.',
+    'ket_pilih' => 'Daftar mobil mengikuti tanggal keberangkatannya, bawaannya hari ini. Ambil mobil yang akan Anda bawa, lalu ikuti urutan kunjungannya.',
     'mobil_anda' => 'Mobil Anda',
     'selesai_dari' => ':selesai / :total selesai',
     'ambil_mobil' => 'Ambil mobil ini →',
@@ -10,7 +10,7 @@ return [
     'lihat_kendaraan' => 'Lihat kendaraan →',
     'belum_diambil' => 'Belum diambil',
     'belum_ada_mobil' => 'Belum ada mobil yang siap jalan',
-    'belum_ada_mobil_ket' => 'Mobil muncul di sini setelah admin menyetujui routing hari ini.',
+    'belum_ada_mobil_ket' => 'Mobil muncul di sini setelah admin menyetujui routing yang berangkat pada tanggal ini.',
     'riwayat_anda' => 'Riwayat pengiriman Anda',
     'mobil_diambil_lain' => 'Mobil ini sudah diambil driver lain.',
     'mobil_dibawa_lain' => 'Mobil ini sedang dibawa driver lain.',

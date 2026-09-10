@@ -2,7 +2,7 @@
 
 return [
     'judul_pilih' => 'Choose Vehicle',
-    'ket_pilih' => 'Take the vehicle you are driving today, then follow its visiting order.',
+    'ket_pilih' => 'The list follows each vehicle\'s departure date, defaulting to today. Take the vehicle you are driving, then follow its visiting order.',
     'mobil_anda' => 'Your vehicle',
     'selesai_dari' => ':selesai / :total done',
     'ambil_mobil' => 'Take this vehicle →',
@@ -10,7 +10,7 @@ return [
     'lihat_kendaraan' => 'View vehicle →',
     'belum_diambil' => 'Not taken yet',
     'belum_ada_mobil' => 'No vehicles are ready yet',
-    'belum_ada_mobil_ket' => 'Vehicles appear here once an admin approves today’s routing.',
+    'belum_ada_mobil_ket' => 'Vehicles appear here once an admin approves a routing departing on this date.',
     'riwayat_anda' => 'Your delivery history',
     'mobil_diambil_lain' => 'Another driver has already taken this vehicle.',
     'mobil_dibawa_lain' => 'Another driver is currently using this vehicle.',
