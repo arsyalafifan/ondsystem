@@ -17,6 +17,7 @@ return [
     'insentif_sales' => '銷售獎勵',
     'insentif_driver' => '司機獎勵',
     'repeat_order_sales' => 'Repeat Order Sales',
+    'dus_pulang_driver' => '司機退回箱數',
     'master' => '主檔',
     'master_toko' => '商店主檔',
     'master_produk' => '產品主檔',

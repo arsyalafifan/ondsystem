@@ -17,6 +17,7 @@ return [
     'insentif_sales' => 'Insentif Sales',
     'insentif_driver' => 'Insentif Driver',
     'repeat_order_sales' => 'Repeat Order Sales',
+    'dus_pulang_driver' => 'Dus Pulang Driver',
     'master' => 'Master',
     'master_toko' => 'Master Toko',
     'master_produk' => 'Master Produk',

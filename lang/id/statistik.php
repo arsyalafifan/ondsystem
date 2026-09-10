@@ -18,4 +18,13 @@ return [
     'jumlah_pesanan' => 'Jumlah Pesanan',
     'jumlah_toko' => 'Jumlah Toko',
     'kosong' => 'Belum ada pesanan pada rentang ini.',
+    'judul_dus_pulang' => 'Dus Pulang Driver',
+    'ket_dus_pulang' => 'Dus yang tersisa di mobil dan dikembalikan ke gudang saat admin menekan "Selesaikan Kendaraan" — bukan dus yang terjual, terkirim, atau diampaskan.',
+    'total_dus_pulang' => 'Total Dus Pulang',
+    'total_driver' => 'Jumlah Driver',
+    'total_kendaraan_selesai' => 'Kendaraan Diselesaikan',
+    'nama_driver' => 'Nama Driver',
+    'dus_pulang' => 'Dus Pulang',
+    'jumlah_kendaraan' => 'Jumlah Kendaraan',
+    'kosong_dus_pulang' => 'Belum ada kendaraan yang diselesaikan dengan sisa dus pada rentang ini.',
 ];

@@ -18,4 +18,13 @@ return [
     'jumlah_pesanan' => 'Order Count',
     'jumlah_toko' => 'Store Count',
     'kosong' => 'No orders in this range yet.',
+    'judul_dus_pulang' => 'Driver Returned Boxes',
+    'ket_dus_pulang' => 'Boxes left over in the vehicle and returned to the warehouse when an admin presses "Finish Vehicle" — not boxes that were sold, delivered, or given away.',
+    'total_dus_pulang' => 'Total Boxes Returned',
+    'total_driver' => 'Number of Drivers',
+    'total_kendaraan_selesai' => 'Vehicles Finished',
+    'nama_driver' => 'Driver Name',
+    'dus_pulang' => 'Boxes Returned',
+    'jumlah_kendaraan' => 'Vehicle Count',
+    'kosong_dus_pulang' => 'No vehicles finished with leftover boxes in this range yet.',
 ];
