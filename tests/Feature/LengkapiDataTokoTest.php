@@ -314,10 +314,15 @@ describe('keunikan NIK, nomor HP, dan nomor freezer antar toko', function () {
  * Bukti perbaikan bug nyata: NIK/nomor HP pemilik toko di Perawang
  * tadinya juga menolak toko yang sama sekali berbeda di Dumai, padahal
  * itu toko yang sepenuhnya lain — cuma kebetulan sama-sama tercatat NIK
- * pemilik yang sama. asset_id (stiker QR freezer fisik) TETAP harus
- * ditolak lintas depot, karena itu satu barang fisik yang sama.
+ * pemilik yang sama. asset_id (stiker QR freezer fisik) awalnya dibuat
+ * TETAP unik global dengan alasan "satu barang fisik tidak mungkin ada
+ * di 2 depot" — ternyata premis itu salah di lapangan: toko yang sama
+ * BOLEH tercatat di dua depot (mis. wilayah perbatasan), dan freezer
+ * fisiknya pun ikut sama, jadi nomor stikernya SAH berulang lintas
+ * depot juga (lihat migrasi asset_id_toko_unik_per_depot). Yang tetap
+ * dijaga: DALAM satu depot, ketiganya tetap harus unik.
  */
-describe('NIK/HP boleh sama lintas depot, asset_id tidak', function () {
+describe('NIK/HP/asset_id boleh sama lintas depot, tapi tetap unik dalam satu depot', function () {
     it('mengizinkan NIK yang sama dipakai toko di depot lain', function () {
         $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD']);
 
@@ -354,7 +359,7 @@ describe('NIK/HP boleh sama lintas depot, asset_id tidak', function () {
             ->assertHasNoErrors();
     });
 
-    it('tetap menolak nomor freezer yang sama walau di depot lain — barang fisik yang sama', function () {
+    it('mengizinkan nomor freezer yang sama dipakai toko di depot lain', function () {
         $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD3']);
 
         DepotContext::jalankanSebagai($depotLain, function () {
@@ -369,7 +374,7 @@ describe('NIK/HP boleh sama lintas depot, asset_id tidak', function () {
             ->call('pilihToko', $toko->id)
             ->set(dataProfilValid(['assetId' => 'IDNAH999999999']))
             ->call('simpan')
-            ->assertHasErrors('assetId');
+            ->assertHasNoErrors('assetId');
     });
 });
 
