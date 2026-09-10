@@ -20,7 +20,7 @@
 
     @if ($tab === 'progres')
         <x-kartu :judul="__('toko.judul_progres')">
-            <p class="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">{{ __('toko.ket_progres') }}</p>
+            {{-- <p class="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">{{ __('toko.ket_progres') }}</p> --}}
             <div class="divide-y divide-gray-100">
                 @forelse ($this->progres as $baris)
                     <div class="flex items-center gap-4 p-4">
