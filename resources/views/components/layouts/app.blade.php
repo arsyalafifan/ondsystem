@@ -12,16 +12,15 @@
         ['rute' => 'routing.riwayat', 'label' => __('nav.riwayat_routing'), 'ikon' => 'clock'],
         ['rute' => 'kunjungan.periode', 'label' => __('nav.visit_sales'), 'ikon' => 'paper-airplane'],
         ['rute' => 'kunjungan.penugasan', 'label' => __('nav.penugasan'), 'ikon' => 'folder-open'],
-        ['label' => __('nav.penjualan'), 'ikon' => 'shopping-bag', 'anak' => [
-            ['rute' => 'penjualan.barang-terjual', 'label' => __('nav.barang_terjual'), 'ikon' => 'archive-box'],
-        ]],
         ['label' => __('nav.pembayaran'), 'ikon' => 'banknotes', 'anak' => [
             ['rute' => 'pembayaran.pelunasan', 'label' => __('nav.pelunasan'), 'ikon' => 'check-circle'],
             ['rute' => 'pembayaran.belum-lunas', 'label' => __('nav.belum_lunas'), 'ikon' => 'exclamation-circle'],
             ['rute' => 'pembayaran.pendapatan', 'label' => __('nav.pendapatan'), 'ikon' => 'chart-bar'],
         ]],
-        ['label' => __('nav.insentif'), 'ikon' => 'trophy', 'anak' => [
+        ['label' => __('nav.statistik'), 'ikon' => 'chart-bar-square', 'anak' => [
             ['rute' => 'insentif.sales', 'label' => __('nav.insentif_sales'), 'ikon' => 'user-group'],
+            ['rute' => 'penjualan.barang-terjual', 'label' => __('nav.barang_terjual'), 'ikon' => 'archive-box'],
+            ['rute' => 'statistik.repeat-order-sales', 'label' => __('nav.repeat_order_sales'), 'ikon' => 'arrow-path'],
         ]],
         ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
             ['rute' => 'master.toko', 'label' => __('nav.master_toko'), 'ikon' => 'building-storefront'],
