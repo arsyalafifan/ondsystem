@@ -17,6 +17,7 @@ return [
     'insentif_sales' => 'Sales Incentive',
     'insentif_driver' => 'Driver Incentive',
     'repeat_order_sales' => 'Repeat Order Sales',
+    'dus_terjual_driver' => 'Driver Delivered Boxes',
     'dus_pulang_driver' => 'Driver Returned Boxes',
     'master' => 'Master Data',
     'master_toko' => 'Stores',
