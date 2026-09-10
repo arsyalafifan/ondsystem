@@ -1,6 +1,75 @@
 <div>
     <x-judul-halaman :judul="__('toko.judul')" :keterangan="__('toko.ket')" />
 
+    {{-- Dua cara pakai layar ini: melengkapi data satu toko, atau memantau
+         progres seluruh sales — sengaja satu menu/rute, bukan dua, supaya
+         admin tidak perlu berpindah layar. --}}
+    <div class="mb-4 inline-flex rounded-lg border border-gray-300 bg-gray-50 p-0.5">
+        @foreach ([['lengkapi', 'pencil-square', __('toko.tab_lengkapi')], ['progres', 'chart-bar', __('toko.tab_progres')]] as [$namaTab, $ikon, $label])
+            <button type="button" wire:click="gantiTab('{{ $namaTab }}')"
+                    @class([
+                        'rounded-md px-3 py-2 text-sm font-medium transition-all flex items-center gap-2',
+                        'bg-white text-blue-600 shadow-sm ring-1 ring-gray-200' => $tab === $namaTab,
+                        'text-gray-500 hover:text-gray-900' => $tab !== $namaTab,
+                    ])>
+                @svg('heroicon-o-'.$ikon, ['class' => 'size-4'])
+                {{ $label }}
+            </button>
+        @endforeach
+    </div>
+
+    @if ($tab === 'progres')
+        <x-kartu :judul="__('toko.judul_progres')">
+            <p class="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">{{ __('toko.ket_progres') }}</p>
+            <div class="divide-y divide-gray-100">
+                @forelse ($this->progres as $baris)
+                    <div class="flex items-center gap-4 p-4">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-gray-900">{{ $baris['sales']->name }}</p>
+                            <p class="text-xs text-gray-500">
+                                @if ($baris['total'] === 0)
+                                    {{ __('toko.progres_belum_ada_tanggungan') }}
+                                @else
+                                    {{ __('toko.progres_ringkasan', ['lengkap' => $baris['lengkap'], 'total' => $baris['total']]) }}
+                                @endif
+                            </p>
+                            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-200">
+                                <div class="h-full rounded-full bg-emerald-500" style="width: {{ $baris['persen'] }}%"></div>
+                            </div>
+                        </div>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-gray-900">{{ $baris['persen'] }}%</span>
+                    </div>
+                @empty
+                    <x-kosong ikon="user-group" :judul="__('toko.progres_kosong')" />
+                @endforelse
+            </div>
+        </x-kartu>
+
+        @if (auth()->user()->isSales() && $this->tokoSaya->isNotEmpty())
+            <h2 class="mb-3 mt-8 text-sm font-semibold text-gray-900">{{ __('toko.daftar_toko_saya') }}</h2>
+            <x-kartu>
+                <ul class="divide-y divide-gray-100">
+                    @foreach ($this->tokoSaya as $toko)
+                        <li class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                            <span class="min-w-0">
+                                <span class="block truncate font-medium text-gray-900">{{ $toko->nama }}</span>
+                                <span class="text-xs text-gray-500">{{ $toko->kode }}</span>
+                            </span>
+                            @if ($toko->profil_lengkap)
+                                <span class="shrink-0 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                                    {{ __('toko.data_lengkap') }}
+                                </span>
+                            @else
+                                <span class="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                                    {{ __('toko.data_belum_lengkap') }}
+                                </span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </x-kartu>
+        @endif
+    @else
     <div class="grid gap-5 lg:grid-cols-3">
         <div class="space-y-5 lg:col-span-2">
             <x-kartu :judul="__('toko.langkah_toko')">
@@ -142,4 +211,5 @@
             </x-kartu>
         </div>
     </div>
+    @endif
 </div>

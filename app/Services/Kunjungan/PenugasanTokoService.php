@@ -226,6 +226,33 @@ class PenugasanTokoService
     }
 
     /**
+     * Progres kelengkapan data profil toko per sales, dihitung dari
+     * SELURUH jadwal mingguannya (Senin-Minggu digabung, tidak memandang
+     * hari) — dasar layar "Progres Lengkapi Data Toko". "Lengkap" di sini
+     * memakai accessor `Toko::profil_lengkap` yang sama persis dengan
+     * badge di layar Lengkapi Data Toko, supaya keduanya tidak pernah
+     * bisa melenceng satu sama lain lewat dua kali logika yang beda.
+     *
+     * Dimuat lalu dihitung di memori (bukan lewat SQL agregat) justru
+     * SUPAYA bisa memakai ulang accessor itu — skalanya (ratusan/ribuan
+     * baris penugasan per depot, bukan puluhan ribu) membuat ini tetap
+     * murah.
+     *
+     * @return Collection<int, array{total: int, lengkap: int}> dikunci sales_id
+     */
+    public function progresLengkapiData(): Collection
+    {
+        return PenugasanToko::query()
+            ->with('toko:id,nama_pemilik,nik_pemilik,alamat,asset_id,telepon')
+            ->get(['sales_id', 'toko_id'])
+            ->groupBy('sales_id')
+            ->map(fn (Collection $baris) => [
+                'total' => $baris->count(),
+                'lengkap' => $baris->filter(fn (PenugasanToko $p) => $p->toko?->profil_lengkap === true)->count(),
+            ]);
+    }
+
+    /**
      * Jumlah toko per hari untuk SATU sales — dasar strip ringkasan
      * mingguan (Senin: 5, Selasa: 8, dst.) di layar Penugasan Toko.
      *

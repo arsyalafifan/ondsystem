@@ -5,6 +5,8 @@ namespace App\Livewire\Toko;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
+use App\Models\User;
+use App\Services\Kunjungan\PenugasanTokoService;
 use App\Support\DepotContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,7 +17,11 @@ use Livewire\Component;
 /**
  * Layar bagi sales melengkapi profil toko tanggungannya (data pemilik,
  * kontak, alamat administratif) — admin/superadmin juga bisa mengaksesnya
- * untuk toko mana pun, tidak dibatasi tanggungan siapa pun.
+ * untuk toko mana pun, tidak dibatasi tanggungan siapa pun. Satu menu ini
+ * juga memuat tab "Progres" (lihat `progres()`/`tokoSaya()` di bawah) —
+ * sengaja digabung satu komponen/rute, bukan menu terpisah, supaya admin
+ * tidak perlu berpindah layar untuk memantau sejauh mana tiap sales
+ * melengkapi data toko tanggungannya.
  *
  * Cara memilih tokonya sengaja meniru pencarian toko di Input Pesanan
  * (`BuatPesanan::hasilCari()`) — ketik nama/kode/nomor aset, bukan tokonya
@@ -27,6 +33,9 @@ use Livewire\Component;
 class LengkapiData extends Component
 {
     use MembutuhkanDepotTerkunci;
+
+    /** 'lengkapi' untuk formulir pencarian/penyuntingan, 'progres' untuk tab ringkasan. */
+    public string $tab = 'lengkapi';
 
     public string $cari = '';
 
@@ -48,6 +57,11 @@ class LengkapiData extends Component
     public string $kota = '';
 
     public string $provinsi = '';
+
+    public function gantiTab(string $tab): void
+    {
+        $this->tab = in_array($tab, ['lengkapi', 'progres'], true) ? $tab : 'lengkapi';
+    }
 
     /**
      * Toko yang boleh disentuh dari layar ini: sales dibatasi ke
@@ -223,6 +237,66 @@ class LengkapiData extends Component
 
         $this->batalPilihToko();
         unset($this->hasilCari);
+    }
+
+    /**
+     * Tab "Progres": satu baris per sales, progres kelengkapan data
+     * dihitung dari SELURUH jadwal mingguannya (Senin-Minggu digabung,
+     * tidak memandang hari — lihat `PenugasanTokoService::progresLengkapiData()`).
+     * Sales yang login hanya melihat barisnya sendiri — query-nya sendiri
+     * sudah dibatasi begitu, bukan sekadar disembunyikan di tampilan.
+     *
+     * @return Collection<int, array{sales: User, total: int, lengkap: int, belum: int, persen: int}>
+     */
+    #[Computed]
+    public function progres(): Collection
+    {
+        $data = app(PenugasanTokoService::class)->progresLengkapiData();
+
+        $query = User::sales()->orderBy('name');
+
+        if (auth()->user()->isSales()) {
+            $query->whereKey(auth()->id());
+        }
+
+        return $query->get(['id', 'name'])->map(function (User $sales) use ($data) {
+            $baris = $data->get($sales->id, ['total' => 0, 'lengkap' => 0]);
+            $persen = $baris['total'] > 0 ? (int) round($baris['lengkap'] / $baris['total'] * 100) : 0;
+
+            return [
+                'sales' => $sales,
+                'total' => $baris['total'],
+                'lengkap' => $baris['lengkap'],
+                'belum' => $baris['total'] - $baris['lengkap'],
+                'persen' => $persen,
+            ];
+        })->values();
+    }
+
+    /**
+     * Rincian toko tanggungan sales yang sedang login, lengkap dengan
+     * status kelengkapan datanya masing-masing — cuma bermakna saat sales
+     * sendiri yang login; admin/superadmin cukup melihat ringkasan
+     * progres() di atas untuk semua sales sekaligus, bukan rincian toko
+     * per sales yang bisa mencapai ratusan baris.
+     *
+     * @return Collection<int, Toko>
+     */
+    #[Computed]
+    public function tokoSaya(): Collection
+    {
+        if (! auth()->user()->isSales()) {
+            return collect();
+        }
+
+        return PenugasanToko::query()
+            ->where('sales_id', auth()->id())
+            ->with('toko:id,nama,kode,nama_pemilik,nik_pemilik,alamat,asset_id,telepon')
+            ->get()
+            ->pluck('toko')
+            ->filter()
+            ->sortBy('nama')
+            ->values();
     }
 
     public function render()
