@@ -18,4 +18,12 @@ return [
     'ket_judul' => 'Notes',
     'ket_panel_1' => 'Sales reps can only complete data for their own assigned stores. Admins and superadmins can complete data for any store.',
     'ket_panel_2' => 'Phone number, freezer number, and NIK must be unique — they cannot match another store\'s.',
+    'judul_progres' => 'Store Data Completion Progress',
+    'ket_progres' => 'Calculated from each rep\'s full store assignment (Monday through Sunday combined, regardless of day) — how many have complete data.',
+    'progres_ringkasan' => ':lengkap of :total stores complete',
+    'progres_belum_ada_tanggungan' => 'No assigned stores yet',
+    'progres_kosong' => 'No active sales reps yet',
+    'daftar_toko_saya' => 'My Assigned Stores',
+    'tab_lengkapi' => 'Complete Data',
+    'tab_progres' => 'Progress',
 ];

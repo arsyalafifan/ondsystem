@@ -18,4 +18,12 @@ return [
     'ket_judul' => 'Catatan',
     'ket_panel_1' => 'Sales hanya bisa melengkapi data toko yang menjadi tanggungannya sendiri. Admin dan superadmin bisa melengkapi data toko mana pun.',
     'ket_panel_2' => 'Nomor HP, nomor freezer, dan NIK harus unik — tidak boleh sama dengan milik toko lain.',
+    'judul_progres' => 'Progres Lengkapi Data Toko',
+    'ket_progres' => 'Dihitung dari seluruh toko tanggungan tiap sales (Senin sampai Minggu digabung, tidak memandang hari), berapa yang datanya sudah lengkap.',
+    'progres_ringkasan' => ':lengkap dari :total toko sudah lengkap',
+    'progres_belum_ada_tanggungan' => 'Belum ada toko tanggungan',
+    'progres_kosong' => 'Belum ada sales aktif',
+    'daftar_toko_saya' => 'Toko Tanggungan Saya',
+    'tab_lengkapi' => 'Lengkapi Data',
+    'tab_progres' => 'Progres',
 ];

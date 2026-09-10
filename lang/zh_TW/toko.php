@@ -18,4 +18,12 @@ return [
     'ket_judul' => '說明',
     'ket_panel_1' => '銷售只能完善自己負責的門店資料。管理員與超級管理員可以完善任何門店的資料。',
     'ket_panel_2' => '手機號碼、冰櫃編號、身分證字號必須唯一——不能與其他門店重複。',
+    'judul_progres' => '門店資料完善進度',
+    'ket_progres' => '按每位銷售負責的全部門店計算（週一至週日合併計算，不分日期）——有多少家門店的資料已經完整。',
+    'progres_ringkasan' => ':total 家門店中已完成 :lengkap 家',
+    'progres_belum_ada_tanggungan' => '尚無負責的門店',
+    'progres_kosong' => '尚無在職銷售',
+    'daftar_toko_saya' => '我負責的門店',
+    'tab_lengkapi' => '完善資料',
+    'tab_progres' => '進度',
 ];
