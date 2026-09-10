@@ -28,6 +28,7 @@ use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
 use App\Livewire\Routing\GenerateRouting;
 use App\Livewire\Routing\RiwayatRouting;
+use App\Livewire\Statistik\RepeatOrderSales;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
 use App\Support\Bahasa;
@@ -116,6 +117,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/insentif/sales', InsentifSales::class)->name('insentif.sales');
 
         Route::get('/penjualan/barang-terjual', BarangTerjual::class)->name('penjualan.barang-terjual');
+
+        Route::get('/statistik/repeat-order-sales', RepeatOrderSales::class)->name('statistik.repeat-order-sales');
 
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
