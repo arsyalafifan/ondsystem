@@ -128,6 +128,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
         Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah');
         Route::get('/master/promo', DaftarPromo::class)->name('master.promo');
+
+        Route::get('/pos', Kasir::class)->name('pos.kasir');
     });
 
     // --- Sales dan Admin ---
@@ -137,7 +139,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/pesanan/{pesanan}/nota', [NotaPesananController::class, 'cetak'])->name('pesanan.nota');
         Route::get('/pesanan/{pesanan}/nota/pdf', [NotaPesananController::class, 'unduhPdf'])->name('pesanan.nota.pdf');
         Route::get('/pesanan/{pesanan}/nota/escp', [NotaPesananController::class, 'unduhEscp'])->name('pesanan.nota.escp');
-        Route::get('/pos', Kasir::class)->name('pos.kasir');
         Route::get('/toko/lengkapi-data', LengkapiData::class)->name('toko.lengkapi-data');
     });
 
