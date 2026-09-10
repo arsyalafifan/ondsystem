@@ -6,6 +6,7 @@ use App\Enums\JenisMutasiStok;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Produk;
 use App\Models\StokMutasi;
+use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -112,9 +113,20 @@ class DaftarProduk extends Component
             return;
         }
 
+        // kode & barcode unik PER DEPOT sejak Stage 4, bukan unik global —
+        // Rule::unique polos akan salah menolak nilai yang kebetulan sudah
+        // dipakai produk di DEPOT LAIN.
+        $depotId = DepotContext::currentOrFail()->id;
+
         $data = $this->validate([
-            'kode' => ['required', 'string', 'max:30', Rule::unique('produks', 'kode')->ignore($this->produkId)],
-            'barcode' => ['nullable', 'string', 'max:64', Rule::unique('produks', 'barcode')->ignore($this->produkId)],
+            'kode' => [
+                'required', 'string', 'max:30',
+                Rule::unique('produks', 'kode')->ignore($this->produkId)->where('depot_id', $depotId),
+            ],
+            'barcode' => [
+                'nullable', 'string', 'max:64',
+                Rule::unique('produks', 'barcode')->ignore($this->produkId)->where('depot_id', $depotId),
+            ],
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:20',
             'stok' => 'required|integer|min:0',
@@ -128,7 +140,7 @@ class DaftarProduk extends Component
         $produk = Produk::find($this->produkId);
         $stokLama = $produk?->stok ?? 0;
 
-        $produk = Produk::updateOrCreate(['id' => $this->produkId], [
+        $atribut = [
             'kode' => $data['kode'],
             'barcode' => $data['barcode'] !== '' ? $data['barcode'] : null,
             'nama' => $data['nama'],
@@ -136,7 +148,19 @@ class DaftarProduk extends Component
             'stok' => $data['stok'],
             'harga' => $data['harga'],
             'aktif' => $this->aktif,
-        ]);
+        ];
+
+        // updateOrCreate(['id' => $this->produkId], ...) tampak lebih
+        // ringkas, tapi begitu produkId null ia jatuh ke firstOrNew([])
+        // Eloquent yang mencoba fill(['id' => null, ...]) — 'id' bukan
+        // fillable, jadi meledak MassAssignmentException dalam mode
+        // Model::shouldBeStrict() (aktif di testing/lokal). Percabangan
+        // eksplisit di sini menghindari jalur itu sama sekali.
+        if ($produk === null) {
+            $produk = Produk::create($atribut);
+        } else {
+            $produk->update($atribut);
+        }
 
         // Perubahan stok lewat formulir tetap dicatat sebagai mutasi, supaya
         // riwayat gudang tidak berlubang.

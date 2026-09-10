@@ -3,10 +3,12 @@
 use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
 use App\Livewire\Toko\LengkapiData;
+use App\Models\Depot;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
+use App\Support\DepotContext;
 use Livewire\Livewire;
 
 /**
@@ -305,6 +307,69 @@ describe('keunikan NIK, nomor HP, dan nomor freezer antar toko', function () {
             ->assertHasNoErrors();
 
         expect($toko->fresh()->nik_pemilik)->toBe('1111111111111111');
+    });
+});
+
+/**
+ * Bukti perbaikan bug nyata: NIK/nomor HP pemilik toko di Perawang
+ * tadinya juga menolak toko yang sama sekali berbeda di Dumai, padahal
+ * itu toko yang sepenuhnya lain — cuma kebetulan sama-sama tercatat NIK
+ * pemilik yang sama. asset_id (stiker QR freezer fisik) TETAP harus
+ * ditolak lintas depot, karena itu satu barang fisik yang sama.
+ */
+describe('NIK/HP boleh sama lintas depot, asset_id tidak', function () {
+    it('mengizinkan NIK yang sama dipakai toko di depot lain', function () {
+        $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD']);
+
+        DepotContext::jalankanSebagai($depotLain, function () {
+            buatTokoLengkapi('Toko Depot Lain', ['nik_pemilik' => '1234567890123456']);
+        });
+
+        $toko = buatTokoLengkapi();
+        tugaskanKeSales($toko, $this->sales);
+
+        Livewire::actingAs($this->sales)
+            ->test(LengkapiData::class)
+            ->call('pilihToko', $toko->id)
+            ->set(dataProfilValid(['nikPemilik' => '1234567890123456']))
+            ->call('simpan')
+            ->assertHasNoErrors();
+    });
+
+    it('mengizinkan nomor HP yang sama dipakai toko di depot lain', function () {
+        $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD2']);
+
+        DepotContext::jalankanSebagai($depotLain, function () {
+            buatTokoLengkapi('Toko Depot Lain', ['telepon' => '081234567890']);
+        });
+
+        $toko = buatTokoLengkapi();
+        tugaskanKeSales($toko, $this->sales);
+
+        Livewire::actingAs($this->sales)
+            ->test(LengkapiData::class)
+            ->call('pilihToko', $toko->id)
+            ->set(dataProfilValid(['telepon' => '081234567890']))
+            ->call('simpan')
+            ->assertHasNoErrors();
+    });
+
+    it('tetap menolak nomor freezer yang sama walau di depot lain — barang fisik yang sama', function () {
+        $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD3']);
+
+        DepotContext::jalankanSebagai($depotLain, function () {
+            buatTokoLengkapi('Toko Depot Lain', ['asset_id' => 'IDNAH999999999']);
+        });
+
+        $toko = buatTokoLengkapi();
+        tugaskanKeSales($toko, $this->sales);
+
+        Livewire::actingAs($this->sales)
+            ->test(LengkapiData::class)
+            ->call('pilihToko', $toko->id)
+            ->set(dataProfilValid(['assetId' => 'IDNAH999999999']))
+            ->call('simpan')
+            ->assertHasErrors('assetId');
     });
 });
 

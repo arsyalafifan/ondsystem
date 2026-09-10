@@ -13,9 +13,11 @@ use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
 use App\Models\Depot;
 use App\Models\Kendaraan;
+use App\Models\Produk;
 use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
+use App\Models\Wilayah;
 use App\Support\DepotContext;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Database\QueryException;
@@ -416,6 +418,101 @@ it('superadmin di mode semua depot mendapat notifikasi ramah saat menyelesaikan 
         ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
         ->call('selesaikanKendaraan')
         ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error');
+});
+
+/**
+ * Bukti perbaikan bug nyata dari laporan pengguna: kode toko "melihat"
+ * depot lain saat auto-generate DAN saat divalidasi keunikannya — Stage 4
+ * sudah menegakkan unique(depot_id, kode) di level database, tapi
+ * validasi Livewire (Rule::unique polos, tanpa where depot_id) belum
+ * ikut diperbaiki, jadi menolak kode yang sebenarnya sah menurut basis
+ * data. Sama untuk kode/barcode produk dan kode wilayah.
+ */
+it('dua depot boleh menyimpan toko dengan kode yang SAMA lewat form Master Toko', function () {
+    Toko::create(['kode' => 'TK-9001', 'nama' => 'Toko Perawang', 'alamat' => 'Jl. A']);
+
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTKODE']);
+
+    // Livewire::test() tidak lewat middleware (TentukanDepot tidak jalan),
+    // jadi DepotContext harus disetel manual di sini — beda dari test yang
+    // pakai $this->get()/$this->post() (HTTP sungguhan) di file ini.
+    DepotContext::jalankanSebagai($depotB, function () use ($depotB) {
+        $adminB = User::factory()->create(['role' => PeranPengguna::Admin, 'depot_id' => $depotB->id]);
+        $wilayahB = Wilayah::create(['kode' => 'W-KODE-SAMA-B', 'nama' => 'Wilayah Uji B']);
+
+        Livewire::actingAs($adminB)
+            ->test(DaftarToko::class)
+            ->set('kode', 'TK-9001')
+            ->set('nama', 'Toko Dumai')
+            ->set('alamat', 'Jl. B')
+            ->set('wilayahId', $wilayahB->id)
+            ->call('simpan')
+            ->assertHasNoErrors('kode');
+    });
+});
+
+it('kodeBerikutnya toko dihitung per-depot, tidak terpengaruh nomor tertinggi depot lain', function () {
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTTINGGI']);
+
+    DepotContext::jalankanSebagai($depotB, function () {
+        Toko::create(['kode' => 'TK-9999', 'nama' => 'Toko Nomor Tinggi', 'alamat' => 'Jl. B']);
+    });
+
+    $admin = User::factory()->create(['role' => PeranPengguna::Admin]);
+
+    Livewire::actingAs($admin)
+        ->test(DaftarToko::class)
+        ->call('buatBaru')
+        ->assertSet('kode', 'TK-0001');
+});
+
+it('superadmin di mode semua depot membuka form toko baru dapat pesan ramah, bukan kode salah hitung', function () {
+    $superadmin = User::factory()->superadmin()->create();
+    DepotContext::pakaiSemuaDepot();
+
+    Livewire::actingAs($superadmin)
+        ->test(DaftarToko::class)
+        ->call('buatBaru')
+        ->assertDispatched('notifikasi', pesan: __('umum.butuh_depot_aksi'), jenis: 'error')
+        ->assertSet('formTerbuka', false);
+});
+
+it('dua depot boleh menyimpan produk dengan kode & barcode yang SAMA', function () {
+    Produk::create(['kode' => 'P-9001', 'barcode' => 'BC-9001', 'nama' => 'Produk Perawang', 'stok' => 10, 'harga' => 1000]);
+
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTPRODUK']);
+
+    DepotContext::jalankanSebagai($depotB, function () use ($depotB) {
+        $adminB = User::factory()->create(['role' => PeranPengguna::Admin, 'depot_id' => $depotB->id]);
+
+        Livewire::actingAs($adminB)
+            ->test(DaftarProduk::class)
+            ->set('kode', 'P-9001')
+            ->set('barcode', 'BC-9001')
+            ->set('nama', 'Produk Dumai')
+            ->set('satuan', 'dus')
+            ->set('stok', 5)
+            ->set('harga', '1000')
+            ->call('simpan')
+            ->assertHasNoErrors(['kode', 'barcode']);
+    });
+});
+
+it('dua depot boleh menyimpan wilayah dengan kode yang SAMA', function () {
+    Wilayah::create(['kode' => 'W-9001', 'nama' => 'Wilayah Perawang']);
+
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTWILAYAH']);
+
+    DepotContext::jalankanSebagai($depotB, function () use ($depotB) {
+        $adminB = User::factory()->create(['role' => PeranPengguna::Admin, 'depot_id' => $depotB->id]);
+
+        Livewire::actingAs($adminB)
+            ->test(DaftarWilayah::class)
+            ->set('kode', 'W-9001')
+            ->set('nama', 'Wilayah Dumai')
+            ->call('simpan')
+            ->assertHasNoErrors('kode');
+    });
 });
 
 it('rute tamu tidak meledak walau ada sesi lama yang masih tersimpan', function () {

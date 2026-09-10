@@ -5,6 +5,7 @@ namespace App\Livewire\Toko;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
+use App\Support\DepotContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -158,12 +159,25 @@ class LengkapiData extends Component
             return;
         }
 
+        // nik_pemilik & telepon unik PER DEPOT — pemilik yang sama (atau
+        // kebetulan NIK/nomor sama) boleh terdaftar di toko depot lain,
+        // itu memang toko yang sepenuhnya berbeda. asset_id TETAP unik
+        // GLOBAL: nomor fisik stiker QR freezer, satu barang fisik tidak
+        // mungkin ada di 2 depot sekaligus.
+        $depotId = DepotContext::currentOrFail()->id;
+
         $data = $this->validate([
             'namaPemilik' => 'required|string|max:255',
-            'nikPemilik' => ['required', 'digits:16', Rule::unique('tokos', 'nik_pemilik')->ignore($toko->id)],
+            'nikPemilik' => [
+                'required', 'digits:16',
+                Rule::unique('tokos', 'nik_pemilik')->ignore($toko->id)->where('depot_id', $depotId),
+            ],
             'alamat' => 'required|string',
             'assetId' => ['required', 'string', 'max:40', Rule::unique('tokos', 'asset_id')->ignore($toko->id)],
-            'telepon' => ['required', 'string', 'max:30', Rule::unique('tokos', 'telepon')->ignore($toko->id)],
+            'telepon' => [
+                'required', 'string', 'max:30',
+                Rule::unique('tokos', 'telepon')->ignore($toko->id)->where('depot_id', $depotId),
+            ],
             // Ketiganya boleh kosong — tidak memengaruhi rute pengantaran
             // (yang dipakai cuma titik koordinat) maupun transaksi lain,
             // beda dari kelima field di atas yang benar-benar dibutuhkan

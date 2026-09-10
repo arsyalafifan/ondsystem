@@ -4,6 +4,7 @@ namespace App\Livewire\Master;
 
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Wilayah;
+use App\Support\DepotContext;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -83,8 +84,13 @@ class DaftarWilayah extends Component
             return;
         }
 
+        // kode unik PER DEPOT sejak Stage 4, bukan unik global.
         $data = $this->validate([
-            'kode' => ['required', 'string', 'max:20', Rule::unique('wilayahs', 'kode')->ignore($this->wilayahId)],
+            'kode' => [
+                'required', 'string', 'max:20',
+                Rule::unique('wilayahs', 'kode')->ignore($this->wilayahId)
+                    ->where('depot_id', DepotContext::currentOrFail()->id),
+            ],
             'nama' => 'required|string|max:255',
             'keterangan' => 'nullable|string',
         ], [], ['kode' => __('master.atr_kode_wilayah'), 'nama' => __('master.atr_nama_wilayah')]);
