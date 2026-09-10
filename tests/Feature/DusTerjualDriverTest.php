@@ -17,10 +17,12 @@ use Carbon\CarbonInterface;
 use Livewire\Livewire;
 
 /**
- * Dus Terjual Driver: kriteria PERSIS sama dengan Insentif Sales (lihat
- * InsentifSalesTest.php) — dus yang benar-benar terantar, dihitung dari
- * siapa yang MENGINPUT pesanannya — bedanya cuma peran penginputnya:
- * di sini pesanan kampas yang driver input sendiri saat di lapangan.
+ * Dus Terjual Driver: kumpulan pesanannya PERSIS sama dengan Insentif
+ * Sales — status Selesai, penginputnya (`dibuat_oleh`) berperan Sales
+ * (lihat InsentifSalesTest.php) — tapi dikelompokkan menurut siapa yang
+ * MENGANTARKAN (`stop.kendaraan.driver_id`), bukan siapa yang menginput.
+ * Satu pesanan yang sama karenanya menyumbang ke Insentif Sales SEKALIGUS
+ * Dus Terjual Driver — dua sisi tanggung jawab dari transaksi yang sama.
  */
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
@@ -30,17 +32,23 @@ beforeEach(function () {
     $this->produk = Produk::create(['kode' => 'P1', 'nama' => 'Produk Uji', 'stok' => 1_000, 'harga' => 10_000]);
 });
 
-/** Sama seperti buatPesananSelesai() di InsentifSalesTest.php — murni menguji agregasi DusTerjualDriver. */
+/**
+ * Pesanan SELESAI dibuat langsung lewat Eloquent, penginputnya SALES,
+ * diantarkan lewat kendaraan yang driver-nya ditentukan eksplisit — sama
+ * seperti buatPesananSelesai() di InsentifSalesTest.php, ditambah
+ * parameter driver pengantar karena itulah kunci pengelompokan di sini.
+ */
 function buatPesananSelesaiDtd(
-    User $pembuat,
+    User $driverPengantar,
     int $totalDus = 10,
     ?CarbonInterface $selesaiAt = null,
-    JenisPesanan $jenis = JenisPesanan::Kampas,
+    ?User $pembuat = null,
     ?string $namaToko = null,
 ): Pesanan {
     static $n = 0;
     $n++;
 
+    $pembuat = $pembuat ?? test()->sales;
     $tanggal = $selesaiAt ?? now();
 
     $toko = Toko::create([
@@ -59,7 +67,7 @@ function buatPesananSelesaiDtd(
         'wilayah_id' => $toko->wilayah_id,
         'dibuat_oleh' => $pembuat->id,
         'status' => StatusPesanan::Selesai,
-        'jenis' => $jenis,
+        'jenis' => JenisPesanan::Normal,
         'tanggal' => today(),
         'total_dus' => $totalDus,
         'total_nilai' => $totalDus * 10_000,
@@ -75,39 +83,38 @@ function buatPesananSelesaiDtd(
         'subtotal' => $totalDus * 10_000,
     ]);
 
-    if (in_array($jenis, [JenisPesanan::Normal, JenisPesanan::Kampas], true)) {
-        $batch = RoutingBatch::create([
-            'kode' => sprintf('RB-DTD-%04d', $n),
-            'tanggal' => $tanggal->toDateString(),
-            'status' => 'disetujui',
-            'total_kendaraan' => 1,
-            'total_toko' => 1,
-            'total_dus' => $totalDus,
-            'dibuat_oleh' => $pembuat->id,
-        ]);
+    $batch = RoutingBatch::create([
+        'kode' => sprintf('RB-DTD-%04d', $n),
+        'tanggal' => $tanggal->toDateString(),
+        'status' => 'disetujui',
+        'total_kendaraan' => 1,
+        'total_toko' => 1,
+        'total_dus' => $totalDus,
+        'dibuat_oleh' => test()->admin->id,
+    ]);
 
-        $kendaraan = Kendaraan::create([
-            'routing_batch_id' => $batch->id,
-            'nomor' => 1,
-            'nama' => 'Mobil DTD '.$n,
-            'total_toko' => 1,
-            'total_dus' => $totalDus,
-            'target_dus' => $totalDus,
-            'status' => 'selesai',
-            'tanggal' => $tanggal->toDateString(),
-        ]);
+    $kendaraan = Kendaraan::create([
+        'routing_batch_id' => $batch->id,
+        'nomor' => 1,
+        'nama' => 'Mobil DTD '.$n,
+        'driver_id' => $driverPengantar->id,
+        'total_toko' => 1,
+        'total_dus' => $totalDus,
+        'target_dus' => $totalDus,
+        'status' => 'selesai',
+        'tanggal' => $tanggal->toDateString(),
+    ]);
 
-        KendaraanStop::create([
-            'kendaraan_id' => $kendaraan->id,
-            'pesanan_id' => $pesanan->id,
-            'toko_id' => $toko->id,
-            'urutan' => 1,
-            'total_dus' => $totalDus,
-            'total_dus_terkirim' => $totalDus,
-            'status' => 'selesai',
-            'selesai_at' => $tanggal,
-        ]);
-    }
+    KendaraanStop::create([
+        'kendaraan_id' => $kendaraan->id,
+        'pesanan_id' => $pesanan->id,
+        'toko_id' => $toko->id,
+        'urutan' => 1,
+        'total_dus' => $totalDus,
+        'total_dus_terkirim' => $totalDus,
+        'status' => 'selesai',
+        'selesai_at' => $tanggal,
+    ]);
 
     return $pesanan->fresh(['stop.kendaraan']);
 }
@@ -124,13 +131,16 @@ it('mode default adalah bulanan', function () {
         ->assertSet('mode', 'bulan');
 });
 
-it('menghitung total dus terkirim per driver, terurut dari yang terbanyak', function () {
+it('menghitung total dus terkirim per driver PENGANTAR, bukan per penginput pesanan', function () {
     $driverA = User::factory()->create(['role' => PeranPengguna::Driver, 'name' => 'Driver A']);
     $driverB = User::factory()->create(['role' => PeranPengguna::Driver, 'name' => 'Driver B']);
+    $salesLain = User::factory()->create(['role' => PeranPengguna::Sales, 'name' => 'Sales Lain']);
 
-    buatPesananSelesaiDtd($driverA, totalDus: 10);
-    buatPesananSelesaiDtd($driverA, totalDus: 15);
-    buatPesananSelesaiDtd($driverB, totalDus: 5);
+    // Dua pesanan diinput SALES YANG SAMA, tapi diantar driver berbeda —
+    // harus terpecah menurut driver pengantarnya, bukan tergabung jadi satu.
+    buatPesananSelesaiDtd($driverA, totalDus: 10, pembuat: $this->sales);
+    buatPesananSelesaiDtd($driverA, totalDus: 15, pembuat: $salesLain);
+    buatPesananSelesaiDtd($driverB, totalDus: 5, pembuat: $this->sales);
 
     $perDriver = Livewire::actingAs($this->admin)
         ->test(DusTerjualDriver::class)
@@ -149,7 +159,7 @@ it('menghitung dus yang benar-benar terkirim, bukan jumlah pesanan mentah', func
     $driver = User::factory()->create(['role' => PeranPengguna::Driver]);
 
     $pesanan = buatPesananSelesaiDtd($driver, totalDus: 20);
-    // Nota dicoret: toko cuma menerima 12 dari 20 dus yang dikampaskan.
+    // Nota dicoret: toko cuma menerima 12 dari 20 dus yang dipesan.
     $pesanan->items()->first()->update(['jumlah_dus_terkirim' => 12]);
 
     $perDriver = Livewire::actingAs($this->admin)
@@ -171,7 +181,7 @@ it('tidak menghitung pesanan yang belum atau tidak selesai', function () {
     ]);
     Pesanan::create([
         'kode' => 'PSN-DTD-BATAL', 'toko_id' => $toko->id, 'wilayah_id' => $toko->wilayah_id,
-        'dibuat_oleh' => $driver->id, 'status' => StatusPesanan::Cancel, 'jenis' => JenisPesanan::Kampas,
+        'dibuat_oleh' => $this->sales->id, 'status' => StatusPesanan::Cancel, 'jenis' => JenisPesanan::Normal,
         'tanggal' => today(), 'total_dus' => 999, 'total_nilai' => 0,
     ]);
 
@@ -185,15 +195,27 @@ it('tidak menghitung pesanan yang belum atau tidak selesai', function () {
 });
 
 /**
- * Kebalikan dari tes yang sama di InsentifSalesTest.php: di sini pesanan
- * yang diinput SALES yang harus dikecualikan, karena Dus Terjual Driver
- * murni tentang pesanan yang driver input sendiri.
+ * Pesanan kampas dibuat DRIVER (dibuat_oleh = id driver), bukan sales —
+ * secara struktural sudah tidak akan pernah muncul lewat penyaring
+ * whereHas('pembuat', role Sales), sama seperti alasannya dikecualikan
+ * dari Insentif Sales.
  */
-it('tidak menghitung pesanan yang diinput sales, hanya yang diinput driver', function () {
+it('tidak menghitung pesanan kampas, karena penginputnya driver bukan sales', function () {
     $driver = User::factory()->create(['role' => PeranPengguna::Driver]);
 
-    buatPesananSelesaiDtd($driver, totalDus: 10);
-    buatPesananSelesaiDtd($this->sales, totalDus: 999, jenis: JenisPesanan::Normal);
+    buatPesananSelesaiDtd($driver, totalDus: 10, pembuat: $this->sales);
+
+    $toko = Toko::create([
+        'kode' => 'TK-DTD-KAMPAS', 'nama' => 'Toko Kampas', 'wilayah_id' => $this->wilayah->id,
+        'alamat' => 'Jl. Kampas', 'latitude' => -6.2, 'longitude' => 106.8, 'sumber_koordinat' => 'manual',
+    ]);
+    $pesananKampas = Pesanan::create([
+        'kode' => 'PSN-DTD-KAMPAS', 'toko_id' => $toko->id, 'wilayah_id' => $toko->wilayah_id,
+        'dibuat_oleh' => $driver->id, 'status' => StatusPesanan::Selesai, 'jenis' => JenisPesanan::Kampas,
+        'tanggal' => today(), 'total_dus' => 999, 'total_nilai' => 0, 'selesai_at' => now(),
+        'status_bayar' => 'lunas', 'tanggal_lunas' => today(),
+    ]);
+    $pesananKampas->items()->create(['produk_id' => $this->produk->id, 'jumlah_dus' => 999, 'harga_satuan' => 0, 'subtotal' => 0]);
 
     $perDriver = Livewire::actingAs($this->admin)
         ->test(DusTerjualDriver::class)
@@ -211,13 +233,26 @@ it('menghitung jumlah toko unik yang dilayani, bukan jumlah pesanan', function (
         'alamat' => 'Jl. Ulang', 'latitude' => -6.2, 'longitude' => 106.8, 'sumber_koordinat' => 'manual',
     ]);
 
+    $batch = RoutingBatch::create([
+        'kode' => 'RB-DTD-ULANG', 'tanggal' => today()->toDateString(), 'status' => 'disetujui',
+        'total_kendaraan' => 1, 'total_toko' => 1, 'total_dus' => 12, 'dibuat_oleh' => $this->admin->id,
+    ]);
+    $kendaraan = Kendaraan::create([
+        'routing_batch_id' => $batch->id, 'nomor' => 1, 'nama' => 'Mobil Ulang',
+        'driver_id' => $driver->id, 'status' => 'selesai', 'tanggal' => today()->toDateString(),
+    ]);
+
     foreach ([5, 7] as $i => $dus) {
         $pesanan = Pesanan::create([
             'kode' => "PSN-DTD-ULANG-{$i}", 'toko_id' => $toko->id, 'wilayah_id' => $toko->wilayah_id,
-            'dibuat_oleh' => $driver->id, 'status' => StatusPesanan::Selesai, 'jenis' => JenisPesanan::Kampas,
+            'dibuat_oleh' => $this->sales->id, 'status' => StatusPesanan::Selesai, 'jenis' => JenisPesanan::Normal,
             'tanggal' => today(), 'total_dus' => $dus, 'total_nilai' => $dus * 10_000, 'selesai_at' => now(),
         ]);
         $pesanan->items()->create(['produk_id' => $this->produk->id, 'jumlah_dus' => $dus, 'harga_satuan' => 10_000, 'subtotal' => $dus * 10_000]);
+        KendaraanStop::create([
+            'kendaraan_id' => $kendaraan->id, 'pesanan_id' => $pesanan->id, 'toko_id' => $toko->id,
+            'urutan' => $i + 1, 'total_dus' => $dus, 'total_dus_terkirim' => $dus, 'status' => 'selesai', 'selesai_at' => now(),
+        ]);
     }
 
     $perDriver = Livewire::actingAs($this->admin)
@@ -290,7 +325,7 @@ it('mode semua tidak menyaring tanggal sama sekali', function () {
     expect($perDriver[0]['total_dus'])->toBe(30);
 });
 
-it('dus bonus tanpa promo tidak pernah ikut terhitung, bahkan pada pesanan yang penginputnya driver', function () {
+it('dus bonus tanpa promo tidak pernah ikut terhitung', function () {
     $driver = User::factory()->create(['role' => PeranPengguna::Driver]);
 
     $pesanan = buatPesananSelesaiDtd($driver, totalDus: 10);

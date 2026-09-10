@@ -12,11 +12,21 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Berapa dus yang berhasil terantar per akun driver — kriteria PERSIS sama
- * dengan Insentif Sales (`InsentifSales`), bedanya cuma peran penginput
- * pesanannya: di sini yang dihitung adalah pesanan kampas yang driver
- * input sendiri saat di lapangan (`whereHas('pembuat', role Driver)`),
- * bukan pesanan yang diinput sales.
+ * Berapa dus yang berhasil terantar per akun driver — kumpulan pesanannya
+ * PERSIS sama dengan Insentif Sales (`InsentifSales`): pesanan status
+ * Selesai yang penginputnya (`dibuat_oleh`) berperan Sales. Scope kerja
+ * sales adalah MENGINPUT pesanan (itu yang dihitung Insentif Sales), scope
+ * kerja driver adalah MENGANTARKAN pesanan yang sales input itu — jadi di
+ * sini kumpulan pesanan yang sama justru dikelompokkan ulang menurut siapa
+ * yang mengantarkannya (`stop.kendaraan.driver_id`), bukan siapa yang
+ * menginputnya. Satu pesanan yang sama karenanya ikut menyumbang ke
+ * Insentif Sales SEKALIGUS Dus Terjual Driver — dua sisi tanggung jawab
+ * dari transaksi yang sama, bukan dua transaksi yang tumpang tindih.
+ *
+ * Pesanan kampas (yang driver input sendiri saat di lapangan) TIDAK ikut
+ * di sini — penginputnya berperan Driver, bukan Sales, jadi otomatis
+ * tersaring lewat `whereHas('pembuat', role Sales)`, konsisten dengan
+ * alasan Insentif Sales mengecualikannya juga.
  *
  * Dus yang dihitung adalah yang BENAR-BENAR terkirim
  * (`PesananItem::terkirim`, yang sudah memperhitungkan koreksi nota
@@ -67,8 +77,12 @@ class DusTerjualDriver extends Component
     {
         return Pesanan::query()
             ->where('status', StatusPesanan::Selesai)
-            ->whereHas('pembuat', fn ($q) => $q->where('role', PeranPengguna::Driver))
-            ->with(['items', 'pembuat:id,name', 'stop.kendaraan'])
+            ->whereHas('pembuat', fn ($q) => $q->where('role', PeranPengguna::Sales))
+            // Hanya pesanan yang benar-benar diantar lewat kendaraan
+            // berdriver yang ikut dihitung — POS (tidak pernah lewat
+            // kendaraan sama sekali) otomatis tersaring lewat syarat ini.
+            ->whereHas('stop.kendaraan', fn ($q) => $q->whereNotNull('driver_id'))
+            ->with(['items', 'stop.kendaraan.driver:id,name'])
             ->when($this->mode === 'hari', fn ($q) => $q->tanggalPendapatanAntara($this->tanggal, $this->tanggal))
             ->when($this->mode === 'bulan', function ($q) {
                 $bulan = CarbonImmutable::parse($this->bulan.'-01');
@@ -88,13 +102,13 @@ class DusTerjualDriver extends Component
     public function perDriver(): Collection
     {
         return $this->pesanans
-            ->groupBy('dibuat_oleh')
+            ->groupBy(fn (Pesanan $p) => $p->stop->kendaraan->driver_id)
             ->map(function (Collection $grup) {
-                $pembuat = $grup->first()->pembuat;
+                $driver = $grup->first()->stop->kendaraan->driver;
 
                 return [
-                    'user_id' => $pembuat->id,
-                    'nama' => $pembuat->name,
+                    'user_id' => $driver->id,
+                    'nama' => $driver->name,
                     'total_dus' => (int) $grup->sum(function (Pesanan $p) {
                         return $p->items
                             ->filter(fn ($item) => ! $item->is_bonus || $p->promo_id !== null)

@@ -28,7 +28,7 @@ return [
     'jumlah_kendaraan' => 'Jumlah Kendaraan',
     'kosong_dus_pulang' => 'Belum ada kendaraan yang diselesaikan dengan sisa dus pada rentang ini.',
     'judul_dus_terjual' => 'Dus Terjual Driver',
-    'ket_dus_terjual' => 'Dus yang berhasil terantar per akun driver, dari pesanan kampas yang diinput driver sendiri saat di lapangan — kriteria sama seperti Insentif Sales, dihitung dari yang benar-benar diterima toko (memperhitungkan nota yang dicoret), bukan jumlah pesanan mentah.',
+    'ket_dus_terjual' => 'Dus yang berhasil terantar per akun driver, dari pesanan yang sales input dan driver itu antarkan — kriteria pesanannya sama seperti Insentif Sales (status selesai, dihitung dari yang benar-benar diterima toko, memperhitungkan nota yang dicoret), cuma dikelompokkan menurut siapa yang mengantarkan, bukan siapa yang menginput.',
     'total_dus_terjual' => 'Total Dus Terjual',
     'dus_terantar' => 'Dus Terantar',
     'kosong_dus_terjual' => 'Belum ada pesanan selesai pada rentang ini.',
