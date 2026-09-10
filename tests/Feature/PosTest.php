@@ -33,6 +33,10 @@ beforeEach(function () {
     $this->service = app(PesananService::class);
 });
 
+it('menolak akses sales, hanya admin dan superadmin yang boleh membuka POS', function () {
+    $this->actingAs($this->sales)->get(route('pos.kasir'))->assertForbidden();
+});
+
 function buatTokoPos(string $nama = 'Toko POS'): Toko
 {
     static $n = 0;

@@ -47,7 +47,6 @@
             ['rute' => 'kunjungan.tugas', 'label' => __('nav.tugas_saya'), 'ikon' => 'paper-airplane'],
             ['rute' => 'toko.lengkapi-data', 'label' => __('nav.lengkapi_data_toko'), 'ikon' => 'identification'],
             ['rute' => 'pesanan.buat', 'label' => __('nav.input_pesanan'), 'ikon' => 'plus-circle'],
-            ['rute' => 'pos.kasir', 'label' => __('nav.pos'), 'ikon' => 'shopping-cart'],
             ['rute' => 'pesanan.daftar', 'label' => __('nav.riwayat_pesanan'), 'ikon' => 'clipboard-document-list'],
         ],
         \App\Enums\PeranPengguna::Driver => [
