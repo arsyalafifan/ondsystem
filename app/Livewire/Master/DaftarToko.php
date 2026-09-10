@@ -367,20 +367,22 @@ class DaftarToko extends Component
             return;
         }
 
+        // kode & asset_id unik PER DEPOT (dua depot boleh sama-sama punya
+        // TK-0001, atau sama-sama mencatat nomor stiker freezer yang sama
+        // untuk toko yang memang sama secara operasional) — BUKAN unik
+        // global, Rule::unique polos akan salah menolak nilai yang
+        // kebetulan sudah dipakai toko di DEPOT LAIN.
+        $depotId = DepotContext::currentOrFail()->id;
+
         $data = $this->validate([
-            // kode unik PER DEPOT sejak Stage 4 (dua depot boleh sama-sama
-            // punya TK-0001 — itu memang requirement inti multi-depot),
-            // BUKAN unik global — Rule::unique polos di sini akan salah
-            // menolak kode yang kebetulan sudah dipakai toko di DEPOT LAIN.
             'kode' => [
                 'required', 'string', 'max:30',
-                Rule::unique('tokos', 'kode')->ignore($this->tokoId)
-                    ->where('depot_id', DepotContext::currentOrFail()->id),
+                Rule::unique('tokos', 'kode')->ignore($this->tokoId)->where('depot_id', $depotId),
             ],
-            // Nomor aset TETAP unik GLOBAL (bukan per depot) — nomor fisik
-            // stiker QR freezer, satu barang fisik tidak mungkin ada di 2
-            // depot sekaligus.
-            'assetId' => ['nullable', 'string', 'max:40', Rule::unique('tokos', 'asset_id')->ignore($this->tokoId)],
+            'assetId' => [
+                'nullable', 'string', 'max:40',
+                Rule::unique('tokos', 'asset_id')->ignore($this->tokoId)->where('depot_id', $depotId),
+            ],
             'freezerTipe' => 'nullable|string|max:40',
             'nama' => 'required|string|max:255',
             'alamat' => 'required|string',

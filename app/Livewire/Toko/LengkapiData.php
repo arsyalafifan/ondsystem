@@ -159,11 +159,9 @@ class LengkapiData extends Component
             return;
         }
 
-        // nik_pemilik & telepon unik PER DEPOT — pemilik yang sama (atau
-        // kebetulan NIK/nomor sama) boleh terdaftar di toko depot lain,
-        // itu memang toko yang sepenuhnya berbeda. asset_id TETAP unik
-        // GLOBAL: nomor fisik stiker QR freezer, satu barang fisik tidak
-        // mungkin ada di 2 depot sekaligus.
+        // nik_pemilik, telepon, & asset_id semuanya unik PER DEPOT — nilai
+        // yang sama (termasuk nomor stiker freezer, untuk toko yang memang
+        // sama secara operasional) boleh terdaftar di toko depot lain.
         $depotId = DepotContext::currentOrFail()->id;
 
         $data = $this->validate([
@@ -173,7 +171,10 @@ class LengkapiData extends Component
                 Rule::unique('tokos', 'nik_pemilik')->ignore($toko->id)->where('depot_id', $depotId),
             ],
             'alamat' => 'required|string',
-            'assetId' => ['required', 'string', 'max:40', Rule::unique('tokos', 'asset_id')->ignore($toko->id)],
+            'assetId' => [
+                'required', 'string', 'max:40',
+                Rule::unique('tokos', 'asset_id')->ignore($toko->id)->where('depot_id', $depotId),
+            ],
             'telepon' => [
                 'required', 'string', 'max:30',
                 Rule::unique('tokos', 'telepon')->ignore($toko->id)->where('depot_id', $depotId),
