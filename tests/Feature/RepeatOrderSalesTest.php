@@ -79,10 +79,10 @@ it('menolak akses selain admin', function () {
     $this->actingAs($sales)->get(route('statistik.repeat-order-sales'))->assertForbidden();
 });
 
-it('mode default adalah bulanan', function () {
+it('mode default adalah harian', function () {
     Livewire::actingAs($this->admin)
         ->test(RepeatOrderSales::class)
-        ->assertSet('mode', 'bulan');
+        ->assertSet('mode', 'hari');
 });
 
 it('menghitung SEMUA status pesanan, termasuk yang belum tuntas dan yang sudah batal', function () {

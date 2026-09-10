@@ -18,4 +18,13 @@ return [
     'jumlah_pesanan' => '订单数量',
     'jumlah_toko' => '商店数量',
     'kosong' => '此区间内尚无订单。',
+    'judul_dus_pulang' => '司机退回箱数',
+    'ket_dus_pulang' => '车辆里剩余、在管理员按下「完成车辆」时退回仓库的箱数——不是已售出、已配送或已赠送的箱数。',
+    'total_dus_pulang' => '退回总箱数',
+    'total_driver' => '司机人数',
+    'total_kendaraan_selesai' => '已完成车辆数',
+    'nama_driver' => '司机姓名',
+    'dus_pulang' => '退回箱数',
+    'jumlah_kendaraan' => '车辆数量',
+    'kosong_dus_pulang' => '此区间内尚无完成且有剩余箱数的车辆。',
 ];
