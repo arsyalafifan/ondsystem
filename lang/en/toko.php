@@ -2,7 +2,7 @@
 
 return [
     'judul' => 'Complete Store Data',
-    'ket' => 'Fill in the owner and administrative address details for a store. The store\'s name, code, and coordinates cannot be changed here.',
+    'ket' => 'Fill in the owner and administrative address details for a store.',
     'langkah_toko' => 'Select Store',
     'langkah_data' => 'Data to Complete',
     'cari_toko' => 'Search store name, code, or asset number…',

@@ -2,7 +2,7 @@
 
 return [
     'judul' => 'Lengkapi Data Toko',
-    'ket' => 'Lengkapi data pemilik dan alamat administratif toko. Nama, kode, dan titik koordinat toko tidak bisa diubah di sini.',
+    'ket' => 'Lengkapi data pemilik dan alamat administratif toko.',
     'langkah_toko' => 'Pilih Toko',
     'langkah_data' => 'Data yang Perlu Dilengkapi',
     'cari_toko' => 'Cari nama, kode, atau nomor aset toko…',
