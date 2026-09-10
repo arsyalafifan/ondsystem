@@ -21,6 +21,7 @@
             ['rute' => 'insentif.sales', 'label' => __('nav.insentif_sales'), 'ikon' => 'user-group'],
             ['rute' => 'penjualan.barang-terjual', 'label' => __('nav.barang_terjual'), 'ikon' => 'archive-box'],
             ['rute' => 'statistik.repeat-order-sales', 'label' => __('nav.repeat_order_sales'), 'ikon' => 'arrow-path'],
+            ['rute' => 'statistik.dus-terjual-driver', 'label' => __('nav.dus_terjual_driver'), 'ikon' => 'user-group'],
             ['rute' => 'statistik.dus-pulang-driver', 'label' => __('nav.dus_pulang_driver'), 'ikon' => 'archive-box-arrow-down'],
         ]],
         ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [

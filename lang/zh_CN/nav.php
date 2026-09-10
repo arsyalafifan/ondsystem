@@ -17,6 +17,7 @@ return [
     'insentif_sales' => '销售奖励',
     'insentif_driver' => '司机奖励',
     'repeat_order_sales' => 'Repeat Order Sales',
+    'dus_terjual_driver' => '司机送达箱数',
     'dus_pulang_driver' => '司机退回箱数',
     'master' => '主数据',
     'master_toko' => '商店主数据',

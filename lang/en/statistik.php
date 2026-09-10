@@ -27,4 +27,9 @@ return [
     'dus_pulang' => 'Boxes Returned',
     'jumlah_kendaraan' => 'Vehicle Count',
     'kosong_dus_pulang' => 'No vehicles finished with leftover boxes in this range yet.',
+    'judul_dus_terjual' => 'Driver Delivered Boxes',
+    'ket_dus_terjual' => 'Boxes successfully delivered per driver account, from kampas orders the driver entered themselves in the field — same criteria as Sales Incentive, counted from what the store actually received (accounting for corrected receipts), not the raw order quantity.',
+    'total_dus_terjual' => 'Total Boxes Delivered',
+    'dus_terantar' => 'Boxes Delivered',
+    'kosong_dus_terjual' => 'No completed orders in this range yet.',
 ];

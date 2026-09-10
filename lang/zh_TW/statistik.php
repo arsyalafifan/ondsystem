@@ -27,4 +27,9 @@ return [
     'dus_pulang' => '退回箱數',
     'jumlah_kendaraan' => '車輛數量',
     'kosong_dus_pulang' => '此區間內尚無完成且有剩餘箱數的車輛。',
+    'judul_dus_terjual' => '司機送達箱數',
+    'ket_dus_terjual' => '每位司機帳號成功送達的箱數，來自司機自己在現場錄入的贈送訂單——標準與銷售獎勵相同，按門店實際收到的數量計算（已計入被劃改的送貨單），而不是原始訂單數量。',
+    'total_dus_terjual' => '送達總箱數',
+    'dus_terantar' => '送達箱數',
+    'kosong_dus_terjual' => '此區間內尚無已完成的訂單。',
 ];
