@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StatusKunjungan;
 use App\Enums\StatusPesanan;
 use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -128,6 +129,25 @@ class Toko extends Model
     public function kunjungans(): HasMany
     {
         return $this->hasMany(Kunjungan::class);
+    }
+
+    /**
+     * Apakah toko ini masih wajib dikunjungi PADA PERIODE YANG SEDANG
+     * DIMUAT ke relasi `kunjungans` — belum ada kunjungan sama sekali, ATAU
+     * laporan tutupnya kemarin DITOLAK admin. Laporan yang ditolak berarti
+     * tokonya terbukti tidak benar-benar tutup, jadi kewajiban kunjungnya
+     * tetap ada, bukan otomatis lolos seperti toko yang laporannya DIBENARKAN
+     * (`StatusKunjungan::TutupDisetujui`).
+     *
+     * Mengandalkan `kunjungans` yang SUDAH dimuat tersaring ke satu periode
+     * (lihat `KunjunganService::tanggungan()`), bukan query baru — supaya
+     * tidak N+1 dipanggil per baris toko.
+     */
+    public function perluDikunjungi(): bool
+    {
+        $kunjungan = $this->kunjungans->first();
+
+        return $kunjungan === null || $kunjungan->status === StatusKunjungan::TutupDitolak;
     }
 
     /** Pesanan yang sedang berjalan. Maksimal satu per toko. */

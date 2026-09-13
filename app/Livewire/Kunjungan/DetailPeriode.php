@@ -71,7 +71,9 @@ class DetailPeriode extends Component
     }
 
     /**
-     * Toko yang ditugaskan tapi belum tersentuh sama sekali minggu ini.
+     * Toko yang ditugaskan tapi belum tersentuh sama sekali minggu ini, ATAU
+     * laporan tutupnya sudah DITOLAK admin (tokonya terbukti tidak benar-benar
+     * tutup, jadi kewajiban kunjungnya tetap ada — lihat `Toko::perluDikunjungi()`).
      * Ini yang paling berguna bagi admin: sisa pekerjaan, bukan yang sudah beres.
      *
      * @return Collection<int, Toko>
@@ -91,7 +93,7 @@ class DetailPeriode extends Component
 
         return app(KunjunganService::class)
             ->tanggungan($sales, $this->periode)
-            ->filter(fn ($toko) => $toko->kunjungans->isEmpty())
+            ->filter(fn ($toko) => $toko->perluDikunjungi())
             ->values();
     }
 

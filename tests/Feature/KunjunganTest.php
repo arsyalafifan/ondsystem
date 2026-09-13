@@ -4,6 +4,7 @@ use App\Enums\HariKunjungan;
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusKunjungan;
+use App\Livewire\Kunjungan\DetailPeriode;
 use App\Livewire\Kunjungan\Kunjungi;
 use App\Models\Kunjungan;
 use App\Models\PenugasanToko;
@@ -430,6 +431,24 @@ describe('toko tutup', function () {
         expect($ulang->status)->toBe(StatusKunjungan::Berjalan)
             ->and(Kunjungan::count())->toBe(1);
     });
+
+    it('toko dengan laporan tutup ditolak tetap muncul di daftar sisa toko admin', function () {
+        $toko = buatToko();
+        tugaskan($toko, $this->sales);
+
+        $periode = $this->periodeService->periodeBerjalan();
+        $this->periodeService->segarkanTarget($periode);
+
+        $kunjungan = $this->service->mulai($toko, $this->sales);
+        $this->service->ajukanTokoTutup($kunjungan, 'Sepertinya tutup');
+        $this->service->tolakTokoTutup($kunjungan->fresh(), $this->admin, 'Ternyata buka sore');
+
+        $sisa = Livewire::test(DetailPeriode::class, ['periode' => $periode])
+            ->call('bukaSales', $this->sales->id)
+            ->get('tokoBelumDikunjungi');
+
+        expect($sisa->pluck('id')->all())->toContain($toko->id);
+    });
 });
 
 // =====================================================================
@@ -544,6 +563,35 @@ describe('memilih toko lewat ketik, untuk toko tanpa stiker QR', function () {
             ->call('gantiCaraPilih', 'ketik')
             ->set('cariToko', 'Sudah Dikunjungi')
             ->assertSee(__('pesanan.tidak_ada_toko'));
+    });
+
+    /**
+     * Kondisi abnormal: sales melaporkan toko tutup, tapi admin
+     * membuktikan laporannya keliru (toko sebenarnya masih buka). Toko itu
+     * tetap punya kewajiban dikunjungi — bukan otomatis lolos seperti toko
+     * yang laporan tutupnya DIBENARKAN — jadi harus tetap bisa ditemukan
+     * lewat pencarian ketik, sama seperti toko yang belum tersentuh sama
+     * sekali. KunjunganService::mulai() sudah mengizinkan ini di level
+     * servis (lihat tes "mengembalikan toko ke daftar wajib kunjung..."),
+     * tes ini membuktikan jalur pencarian di UI tidak menyembunyikannya.
+     */
+    it('menampilkan kembali toko di hasil pencarian ketika laporan tutupnya ditolak admin', function () {
+        $toko = buatToko('IDNAH202528005555', 'Toko Tutup Ditolak');
+        tugaskan($toko, $this->sales);
+
+        $kunjungan = $this->service->mulai($toko, $this->sales);
+        $this->service->ajukanTokoTutup($kunjungan, 'Sepertinya tutup');
+        $this->service->tolakTokoTutup($kunjungan->fresh(), $this->admin, 'Ternyata buka sore');
+
+        Livewire::actingAs($this->sales)
+            ->test(Kunjungi::class)
+            ->call('gantiCaraPilih', 'ketik')
+            ->set('cariToko', 'Tutup Ditolak')
+            ->assertSee('Toko Tutup Ditolak')
+            ->call('pilihToko', $toko->id)
+            ->assertSet('tahap', 'kunjungan');
+
+        expect($kunjungan->fresh()->status)->toBe(StatusKunjungan::Berjalan);
     });
 
     it('menolak toko yang bukan tanggungan sales ini, walau bisa ditemukan lewat pencarian global', function () {
