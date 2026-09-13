@@ -8,6 +8,7 @@ use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kunjungan;
 use App\Models\Toko;
 use App\Services\Kunjungan\GambarContoh;
+use App\Services\Kunjungan\GambarDataUrl;
 use App\Services\Kunjungan\KunjunganService;
 use App\Services\Kunjungan\PeriodeKunjunganService;
 use App\Support\ModeUji;
@@ -357,7 +358,7 @@ class Kunjungi extends Component
         ]), jenis: 'info');
     }
 
-    /** Mengisi keenam foto sekaligus, agar alur penyelesaian cepat dicoba. */
+    /** Mengisi seluruh foto wajib sekaligus, agar alur penyelesaian cepat dicoba. */
     public function isiSemuaFotoUji(KunjunganService $service, GambarContoh $gambarContoh): void
     {
         ModeUji::pastikanAktif();
@@ -445,22 +446,7 @@ class Kunjungi extends Component
      */
     private function dekodeDataUrl(string $dataUrl): ?string
     {
-        if (! preg_match('#^data:image/(jpeg|jpg|png);base64,#', $dataUrl, $cocok)) {
-            return null;
-        }
-
-        $base64 = substr($dataUrl, strlen($cocok[0]));
-        $isi = base64_decode($base64, true);
-
-        if ($isi === false || $isi === '') {
-            return null;
-        }
-
-        if (strlen($isi) > (int) config('visit.foto.ukuran_maks_kb') * 1024) {
-            return null;
-        }
-
-        return $isi;
+        return GambarDataUrl::dekode($dataUrl);
     }
 
     public function render()

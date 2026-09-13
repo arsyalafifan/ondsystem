@@ -63,6 +63,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? __('auth.subjudul') }} — {{ config('app.name') }}</title>
+
+    {{-- Tanda mode offline, dibaca resources/js/app.js.
+         Hanya peran SALES yang pernah mendaftarkan service worker: merekalah
+         yang masuk daerah tanpa sinyal. Admin, driver, dan superadmin tidak
+         pernah menyentuhnya sama sekali, jadi secara teknis mustahil ikut
+         terdampak kalau mode offline bermasalah.
+
+         'versi' berubah setiap kali aset dibangun ulang, dan ikut masuk ke
+         URL pendaftaran service worker — itulah yang memaksa peramban
+         mengambil service worker baru dan membuang cache versi lama. --}}
+    <script>
+        window.ondOffline = @js([
+            'pwaAktif' => $peran === \App\Enums\PeranPengguna::Sales && (bool) config('visit.offline.pwa_aktif'),
+            'versi' => \App\Support\VersiAset::sekarang(),
+            'ruteSinkron' => route('kunjungan.sinkron'),
+            'ruteTanggungan' => route('kunjungan.tanggungan'),
+            'csrf' => csrf_token(),
+        ]);
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
