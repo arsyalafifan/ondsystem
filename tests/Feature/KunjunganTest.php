@@ -283,7 +283,7 @@ describe('aturan kunjungan', function () {
 
 // =====================================================================
 describe('foto bukti', function () {
-    it('menolak penyelesaian sebelum keenam foto lengkap', function () {
+    it('menolak penyelesaian sebelum kelima foto lengkap', function () {
         $toko = buatToko();
         tugaskan($toko, $this->sales);
 
@@ -296,7 +296,7 @@ describe('foto bukti', function () {
         expect($kunjungan->fresh()->status)->toBe(StatusKunjungan::Berjalan);
     });
 
-    it('menyelesaikan kunjungan setelah keenam foto terkumpul', function () {
+    it('menyelesaikan kunjungan setelah kelima foto terkumpul', function () {
         $toko = buatToko();
         tugaskan($toko, $this->sales);
 
@@ -308,7 +308,7 @@ describe('foto bukti', function () {
         $kunjungan->refresh();
 
         expect($kunjungan->status)->toBe(StatusKunjungan::Selesai)
-            ->and($kunjungan->fotos)->toHaveCount(6)
+            ->and($kunjungan->fotos)->toHaveCount(5)
             ->and($kunjungan->selesai_at)->not->toBeNull()
             ->and($kunjungan->catatan_sales)->toBe('Pemilik ramah');
     });

@@ -17,8 +17,13 @@ return [
     |--------------------------------------------------------------------------
     | Foto bukti kunjungan
     |--------------------------------------------------------------------------
-    | Keenam foto ini wajib ada sebelum kunjungan bisa diselesaikan. Urutannya
+    | Kelima foto ini wajib ada sebelum kunjungan bisa diselesaikan. Urutannya
     | menentukan urutan pengambilan di layar sales.
+    |
+    | 'flag_hanger' sengaja TIDAK disertakan di sini lagi (dinonaktifkan,
+    | bukan dihapus dari App\Enums\JenisFotoKunjungan) — kunjungan lama yang
+    | sudah pernah menyimpan foto berjenis itu tetap valid dan tetap tampil
+    | apa adanya, ia hanya tidak lagi dituntut untuk kunjungan baru.
     */
 
     'foto_wajib' => [
@@ -26,7 +31,6 @@ return [
         'freezer_sebelum',
         'freezer_sesudah',
         'spanduk',
-        'flag_hanger',
         'suhu_freezer',
     ],
 
@@ -37,6 +41,45 @@ return [
         'mutu_jpeg' => (int) env('VISIT_FOTO_MUTU', 82),
         'ukuran_maks_kb' => (int) env('VISIT_FOTO_UKURAN_MAKS_KB', 8192),
         'disk' => env('VISIT_FOTO_DISK', 'public'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kunjungan offline
+    |--------------------------------------------------------------------------
+    | Sales di daerah tanpa sinyal mengerjakan kunjungannya di perangkat,
+    | lalu mengirimnya menyusul. Waktu kunjungan otomatis berasal dari jam
+    | PONSEL — yang bisa diubah sendiri oleh pemakainya — jadi batas di bawah
+    | ini yang menjaganya tetap masuk akal.
+    |
+    | 'toleransi_maju_menit' memberi kelonggaran untuk jam ponsel yang
+    | melenceng sedikit ke depan; lebih dari itu ditolak. 'maks_umur_hari'
+    | membatasi seberapa lama sebuah kunjungan boleh ditahan sebelum
+    | dikirim — cukup panjang untuk perjalanan luar kota yang tertunda,
+    | tapi tidak membuka pintu bagi kunjungan "susulan" berbulan-bulan.
+    |
+    | 'maks_per_kiriman' membatasi jumlah kunjungan per permintaan, karena
+    | tiap kunjungan membawa foto-fotonya sekaligus. Perangkat sebaiknya
+    | mengirim satu per satu supaya tidak menabrak post_max_size PHP.
+    */
+
+    'offline' => [
+        'toleransi_maju_menit' => (int) env('VISIT_OFFLINE_TOLERANSI_MAJU_MENIT', 60),
+        'maks_umur_hari' => (int) env('VISIT_OFFLINE_MAKS_UMUR_HARI', 14),
+        'maks_per_kiriman' => (int) env('VISIT_OFFLINE_MAKS_PER_KIRIMAN', 5),
+
+        // Saklar utama mode offline di perangkat: service worker hanya
+        // didaftarkan ketika ini menyala, dan HANYA untuk peran sales.
+        // Sengaja mati secara bawaan supaya penyalaannya jadi keputusan
+        // sadar, bukan efek samping penempatan kode.
+        //
+        // Mematikannya kembali TIDAK perlu deploy: halaman selalu diambil
+        // network-first, jadi begitu perangkat sales daring sekali saja, ia
+        // membaca tanda mati ini lalu mencabut service worker-nya sendiri
+        // dan membuang cache-nya. Itulah kill-switch yang dijanjikan saat
+        // risiko PWA dibahas — tidak ada perangkat yang bisa terkunci di
+        // versi lama tanpa jalan pulang.
+        'pwa_aktif' => (bool) env('VISIT_PWA_AKTIF', false),
     ],
 
     /*

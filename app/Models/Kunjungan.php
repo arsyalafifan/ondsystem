@@ -16,9 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'periode_kunjungan_id', 'periode_sales_id', 'sales_id', 'toko_id', 'status',
-    'asset_id_terpindai', 'mulai_at', 'selesai_at', 'latitude', 'longitude',
-    'akurasi_m', 'jarak_dari_toko_m', 'catatan_sales', 'catatan_admin',
-    'ditinjau_oleh', 'ditinjau_at',
+    'asset_id_terpindai', 'uuid_klien', 'mulai_at', 'selesai_at', 'disinkronkan_at',
+    'latitude', 'longitude', 'akurasi_m', 'jarak_dari_toko_m', 'catatan_sales',
+    'catatan_admin', 'ditinjau_oleh', 'ditinjau_at',
 ])]
 class Kunjungan extends Model
 {
@@ -34,6 +34,7 @@ class Kunjungan extends Model
             'status' => StatusKunjungan::class,
             'mulai_at' => 'datetime',
             'selesai_at' => 'datetime',
+            'disinkronkan_at' => 'datetime',
             'ditinjau_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
@@ -113,6 +114,28 @@ class Kunjungan extends Model
     {
         return Attribute::get(fn (): bool => $this->jarak_dari_toko_m !== null
             && $this->jarak_dari_toko_m > (int) config('visit.lokasi.jarak_wajar_m'));
+    }
+
+    /**
+     * Kunjungan ini dikerjakan tanpa jaringan lalu dikirim menyusul. Waktu
+     * dan lokasinya berasal dari ponsel sales, bukan dari server, jadi
+     * admin perlu memeriksanya berbeda dari kunjungan daring.
+     */
+    protected function dibuatOffline(): Attribute
+    {
+        return Attribute::get(fn (): bool => $this->disinkronkan_at !== null);
+    }
+
+    /** Selisih antara kunjungan dikerjakan di lapangan dan datanya sampai di server. */
+    protected function jedaSinkronMenit(): Attribute
+    {
+        return Attribute::get(function (): ?int {
+            if ($this->disinkronkan_at === null || $this->selesai_at === null) {
+                return null;
+            }
+
+            return (int) $this->selesai_at->diffInMinutes($this->disinkronkan_at);
+        });
     }
 
     #[Scope]

@@ -32,11 +32,22 @@
     {{-- Penanda lokasi, selalu terlihat supaya sales tahu GPS-nya sudah dapat --}}
     <div class="mb-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
          :class="lokasi ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'">
-        <span x-text="lokasi ? '<x-heroicon-o-map-pin class="size-4 inline" />' : '<x-heroicon-o-signal class="size-4 inline" />'"></span>
+        {{-- Ikonnya dipasang sebagai markup, bukan sebagai string di dalam
+             x-text: SVG hasil render Blade membawa petik ganda dan baris baru
+             sendiri, yang memutus atribut sekaligus literal JS-nya sehingga
+             Alpine melempar SyntaxError tiap kali layar ini dibuka. --}}
+        <span x-show="lokasi" x-cloak><x-heroicon-o-map-pin class="size-4 inline" /></span>
+        <span x-show="!lokasi"><x-heroicon-o-signal class="size-4 inline" /></span>
         <span x-show="lokasi" x-cloak
               x-text="'{{ __('kunjungan.lokasi_terbaca', ['akurasi' => '__A__']) }}'.replace('__A__', lokasi?.akurasi ?? '?')"></span>
         <span x-show="!lokasi">{{ __('kunjungan.lokasi_belum') }}</span>
     </div>
+
+    {{-- Seluruh alur daring dibungkus supaya bisa disembunyikan sekaligus saat
+         jaringan hilang: tanpa server, tombol-tombol Livewire di dalamnya
+         tidak akan pernah menjawab, dan membiarkannya terlihat hanya membuat
+         sales menekan tombol mati berulang kali. --}}
+    <div id="layar-daring">
 
     {{-- ============ Cara memilih toko ============ --}}
     @if ($tahap === 'pindai')
@@ -279,6 +290,10 @@
         </div>
     @endif
 
+    </div>{{-- /#layar-daring --}}
+
+    @include('livewire.kunjungan.partials.panel-offline')
+
     {{-- ============ Jendela kamera ============ --}}
     {{-- Wadah kamera juga selalu ada di DOM. Livewire tidak boleh menyentuhnya
          supaya aliran video tidak terputus setiap kali foto tersimpan. --}}
@@ -472,6 +487,43 @@
             el.textContent = teks ?? '';
             el.classList.toggle('hidden', !teks);
         }
+
+        // --- Mode offline ---
+        //
+        // Dipasang SELALU, bukan hanya saat sedang luring: antrean yang masih
+        // menunggu harus tetap terkirim begitu sinyal kembali, dan bekal
+        // daftar toko harus diambil justru selagi jaringan masih ada.
+        const pemindaiOffline = window.pasangPemindaiQr('pemindai-qr-offline', { pesan });
+
+        document.getElementById('tombol-mulai-pindai-offline')
+            ?.addEventListener('click', () => pemindaiOffline?.mulai());
+        document.getElementById('tombol-ganti-lensa-offline')
+            ?.addEventListener('click', () => pemindaiOffline?.gantiKamera());
+        document.getElementById('tombol-senter-offline')
+            ?.addEventListener('click', () => pemindaiOffline?.alihkanSenter());
+
+        document.getElementById('pemindai-qr-offline')
+            ?.addEventListener('qr:galat', (e) => tampilkanPesan('pesan-pindai-offline', e.detail));
+
+        window.pasangKunjunganOffline({
+            pesanKamera: pesan,
+            lebarMaks: @js((int) config('visit.foto.lebar_maks')),
+            mutu: @js((int) config('visit.foto.mutu_jpeg') / 100),
+            teks: @js([
+                'tidakAdaToko' => __('pesanan.tidak_ada_toko'),
+                'sudahDiambil' => __('kunjungan.foto_sudah_diambil'),
+                'terkumpul' => __('kunjungan.foto_terkumpul', ['sudah' => ':sudah', 'total' => ':total']),
+                'tersimpan' => __('kunjungan.offline_tersimpan'),
+                'catatanWajib' => __('kunjungan.galat_catatan_tutup_wajib'),
+                'asetTidakDikenal' => __('kunjungan.offline_aset_tidak_dikenal'),
+                'sudahDikunjungi' => __('kunjungan.offline_sudah_dikunjungi'),
+                'butuhLogin' => __('kunjungan.offline_butuh_login'),
+                'bermasalah' => __('kunjungan.offline_bermasalah', ['jumlah' => ':jumlah']),
+                'buang' => __('kunjungan.offline_buang'),
+                'hasilKirim' => __('kunjungan.offline_hasil_kirim', ['terkirim' => ':terkirim', 'gagal' => ':gagal']),
+                'dataPer' => __('kunjungan.offline_data_per', ['waktu' => ':waktu']),
+            ]),
+        });
     </script>
     @endscript
 </div>

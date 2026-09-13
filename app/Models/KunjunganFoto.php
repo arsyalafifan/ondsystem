@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
-    'kunjungan_id', 'jenis', 'path', 'diambil_at', 'latitude', 'longitude',
-    'akurasi_m', 'lebar', 'tinggi', 'ukuran_byte',
+    'kunjungan_id', 'jenis', 'path', 'diambil_at', 'disinkronkan_at', 'latitude',
+    'longitude', 'akurasi_m', 'lebar', 'tinggi', 'ukuran_byte',
 ])]
 class KunjunganFoto extends Model
 {
@@ -24,6 +24,7 @@ class KunjunganFoto extends Model
         return [
             'jenis' => JenisFotoKunjungan::class,
             'diambil_at' => 'datetime',
+            'disinkronkan_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
         ];

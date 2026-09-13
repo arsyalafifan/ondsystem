@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\NotaPesananController;
 use App\Http\Controllers\PackingListController;
+use App\Http\Controllers\SinkronKunjunganController;
+use App\Http\Controllers\TanggunganSalesController;
 use App\Livewire\Akun\GantiKataSandi;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
@@ -146,6 +148,21 @@ Route::middleware('auth')->group(function () {
     Route::middleware('peran:sales')->group(function () {
         Route::get('/kunjungan/tugas', TugasSaya::class)->name('kunjungan.tugas');
         Route::get('/kunjungan', Kunjungi::class)->name('kunjungan.kunjungi');
+
+        // Kiriman susulan dari perangkat yang tadi tidak punya sinyal.
+        //
+        // Berawalan /api/ bukan karena hidup di luar sesi — ia tetap memakai
+        // middleware web yang sama persis (sesi, CSRF, bahasa, depot) — tapi
+        // karena bootstrap/app.php menetapkan `api/*` sebagai penanda
+        // permintaan yang galatnya dijawab JSON, bukan dialihkan ke halaman.
+        // Perangkat yang mengirim antrean butuh 422/401 yang bisa dibaca
+        // mesin, bukan pengalihan ke layar masuk.
+        Route::post('/api/kunjungan/sinkron', SinkronKunjunganController::class)->name('kunjungan.sinkron');
+
+        // Daftar toko tanggungan untuk disimpan di perangkat selagi masih
+        // ada sinyal — tanpa ini, hasil pindaian QR tidak bisa dicocokkan
+        // ke toko mana pun saat jaringan hilang.
+        Route::get('/api/kunjungan/tanggungan', TanggunganSalesController::class)->name('kunjungan.tanggungan');
     });
 
     // --- Driver ---

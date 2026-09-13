@@ -7,6 +7,16 @@
     <title>{{ $title ?? __('auth.judul') }} — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+
+    {{-- Satu ponsel bisa dipakai bergantian oleh dua sales. Halaman hasil
+         cache milik pemakai sebelumnya dibuang begitu layar masuk terbuka,
+         supaya tidak ada sisa layar orang lain yang terbawa ke sesi
+         berikutnya. Antrean kunjungan di IndexedDB SENGAJA tidak ikut
+         dihapus — isinya pekerjaan lapangan yang belum terkirim, dan itu
+         tidak boleh hilang hanya karena seseorang membuka layar masuk. --}}
+    <script>
+        window.addEventListener('load', () => window.bersihkanCacheHalaman?.());
+    </script>
 </head>
 <body class="grid h-full place-items-center bg-slate-900 p-4 font-sans text-gray-900 antialiased">
     <div class="w-full max-w-sm">

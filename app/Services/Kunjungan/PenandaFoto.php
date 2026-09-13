@@ -18,10 +18,23 @@ use RuntimeException;
  * jam ponselnya untuk membuat foto lama tampak baru — persis hal yang ingin
  * dicegah. Titik lokasi tetap berasal dari peramban karena hanya di sanalah
  * GPS bisa dibaca, dan itu ditandai apa adanya bila tidak tersedia.
+ *
+ * SATU pengecualian: foto yang diambil saat tidak ada jaringan. Server tidak
+ * pernah melihat foto itu pada saat pengambilannya, jadi waktunya mau tidak
+ * mau berasal dari jam ponsel ($diambilAt diisi pemanggil). Karena jaminannya
+ * memang lebih lemah, foto seperti itu TIDAK disamarkan sebagai foto biasa:
+ * watermark-nya diberi baris tambahan bertuliskan OFFLINE beserta waktu
+ * datanya sampai di server, supaya bedanya terlihat langsung di gambar — bukan
+ * cuma tersimpan diam-diam di basis data.
  */
 class PenandaFoto
 {
     /**
+     * @param  ?CarbonImmutable  $diambilAt  waktu dari jam PONSEL untuk foto yang
+     *                                       diambil saat offline. Biarkan null
+     *                                       untuk alur daring biasa — jam server
+     *                                       yang dipakai, dan tidak ada tanda
+     *                                       OFFLINE yang dicetak.
      * @return array{path: string, lebar: int, tinggi: int, ukuran: int, diambil_at: CarbonImmutable}
      */
     public function simpan(
@@ -31,8 +44,10 @@ class PenandaFoto
         ?float $lat = null,
         ?float $lng = null,
         ?int $akurasi = null,
+        ?CarbonImmutable $diambilAt = null,
     ): array {
-        $diambilAt = CarbonImmutable::now();
+        $offline = $diambilAt !== null;
+        $diambilAt ??= CarbonImmutable::now();
 
         $gambar = @imagecreatefromstring($isiGambar);
 
@@ -41,7 +56,7 @@ class PenandaFoto
         }
 
         $gambar = $this->perkecil($gambar);
-        $this->cetakKeterangan($gambar, $toko, $sales, $diambilAt, $lat, $lng, $akurasi);
+        $this->cetakKeterangan($gambar, $toko, $sales, $diambilAt, $lat, $lng, $akurasi, $offline);
 
         $lebar = imagesx($gambar);
         $tinggi = imagesy($gambar);
@@ -100,6 +115,7 @@ class PenandaFoto
         ?float $lat,
         ?float $lng,
         ?int $akurasi,
+        bool $offline = false,
     ): void {
         $baris = array_values(array_filter([
             $waktu->isoFormat('dddd, D MMMM Y').' · '.$waktu->format('H:i:s').' '.$waktu->format('T'),
@@ -108,6 +124,11 @@ class PenandaFoto
             $lat !== null && $lng !== null
                 ? sprintf('%s: %.6f, %.6f%s', __('kunjungan.wm_lokasi'), $lat, $lng, $akurasi ? " (±{$akurasi} m)" : '')
                 : __('kunjungan.wm_tanpa_lokasi'),
+            // Baris ini sengaja paling bawah supaya paling dekat dengan tepi
+            // gambar dan sulit dipotong tanpa merusak baris waktu di atasnya.
+            $offline
+                ? __('kunjungan.wm_offline', ['waktu' => CarbonImmutable::now()->format('d/m/Y H:i')])
+                : null,
         ]));
 
         $lebar = imagesx($gambar);

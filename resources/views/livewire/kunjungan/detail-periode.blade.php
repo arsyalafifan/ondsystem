@@ -110,7 +110,18 @@
                                                 <span>{{ $kunjungan->selesai_at->isoFormat('ll') }} {{ $kunjungan->selesai_at->format('H:i') }}</span>
                                             @endif
                                             <span><x-heroicon-o-camera class="size-4 inline" /> {{ $kunjungan->fotos->count() }}/{{ $kunjungan->jumlah_foto_wajib }}</span>
+                                            @if ($kunjungan->dibuat_offline)
+                                                <span class="inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 font-medium text-violet-800">
+                                                    <x-heroicon-o-signal-slash class="size-3.5 inline" /> {{ __('kunjungan.badge_offline') }}
+                                                </span>
+                                            @endif
                                         </p>
+
+                                        @if ($kunjungan->dibuat_offline)
+                                            <p class="mt-1 rounded bg-violet-50 px-2 py-1 text-xs text-violet-800">
+                                                {{ __('kunjungan.ket_offline', ['waktu' => $kunjungan->disinkronkan_at->isoFormat('ll').' '.$kunjungan->disinkronkan_at->format('H:i')]) }}
+                                            </p>
+                                        @endif
 
                                         @if ($kunjungan->catatan_sales)
                                             <p class="mt-1 rounded bg-gray-50 px-2 py-1 text-xs text-gray-700">

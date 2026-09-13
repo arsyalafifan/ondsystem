@@ -26,7 +26,8 @@ use RuntimeException;
  *
  *  1. Satu toko hanya boleh dikunjungi sekali dalam satu periode mingguan.
  *  2. Sales hanya boleh mengunjungi toko yang ditugaskan admin kepadanya.
- *  3. Kunjungan baru dianggap selesai setelah keenam foto wajib terkumpul.
+ *  3. Kunjungan baru dianggap selesai setelah seluruh foto wajib terkumpul
+ *     (lihat `config('visit.foto_wajib')`).
  *
  * Toko yang dilaporkan tutup tidak diselesaikan sendiri oleh sales — laporan
  * itu menunggu pembenaran admin. Setelah dibenarkan, toko tersebut keluar dari
