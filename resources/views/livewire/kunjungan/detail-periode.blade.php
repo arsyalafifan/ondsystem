@@ -162,10 +162,18 @@
                                 </p>
                                 <ul class="mt-2 flex flex-wrap gap-1.5">
                                     @foreach ($this->tokoBelumDikunjungi as $toko)
-                                        <li class="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700">
+                                        @php $ditolak = $toko->kunjungans->first()?->status === \App\Enums\StatusKunjungan::TutupDitolak; @endphp
+                                        <li @class([
+                                            'rounded-full border px-2.5 py-1 text-xs',
+                                            'border-red-200 bg-red-50 text-red-700' => $ditolak,
+                                            'border-gray-200 bg-white text-gray-700' => ! $ditolak,
+                                        ])>
                                             {{ $toko->nama }}
                                             @if ($toko->penugasanToko)
                                                 <span class="text-gray-400">· {{ $toko->penugasanToko->hari->label() }}</span>
+                                            @endif
+                                            @if ($ditolak)
+                                                <span class="font-medium">· {{ __('kunjungan.status_tutup_ditolak') }}</span>
                                             @endif
                                         </li>
                                     @endforeach

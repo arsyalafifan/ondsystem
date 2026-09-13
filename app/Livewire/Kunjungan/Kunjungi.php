@@ -112,7 +112,7 @@ class Kunjungi extends Component
 
         return app(KunjunganService::class)
             ->tanggungan(auth()->user(), $periode)
-            ->filter(fn ($toko) => $toko->asset_id !== null && $toko->kunjungans->isEmpty())
+            ->filter(fn ($toko) => $toko->asset_id !== null && $toko->perluDikunjungi())
             ->take(15)
             ->map(fn ($toko) => [
                 'nama' => $toko->nama,
@@ -198,8 +198,11 @@ class Kunjungi extends Component
             ->tanggungan(auth()->user(), $periode)
             // Toko yang sudah punya kunjungan periode ini (selesai, berjalan,
             // atau menunggu persetujuan tutup) tidak perlu ditawarkan lagi;
-            // mulai() akan menolaknya dengan pesan yang sama persis.
-            ->filter(fn (Toko $t) => $t->kunjungans->isEmpty())
+            // mulai() akan menolaknya dengan pesan yang sama persis. Kecuali
+            // yang laporan tutupnya DITOLAK admin — toko itu tetap wajib
+            // dikunjungi, jadi harus tetap muncul supaya bisa dimulai lagi
+            // (lihat Toko::perluDikunjungi() dan mulai()).
+            ->filter(fn (Toko $t) => $t->perluDikunjungi())
             ->filter(fn (Toko $t) => str_contains(mb_strtoupper($t->nama), $kataAtas)
                 || str_contains(mb_strtoupper($t->kode), $kataAtas)
                 || str_contains(mb_strtoupper((string) $t->alamat), $kataAtas)
