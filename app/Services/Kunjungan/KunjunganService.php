@@ -4,6 +4,7 @@ namespace App\Services\Kunjungan;
 
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\StatusKunjungan;
+use App\Enums\SumberFotoKunjungan;
 use App\Models\Kunjungan;
 use App\Models\KunjunganFoto;
 use App\Models\PenugasanToko;
@@ -40,6 +41,7 @@ class KunjunganService
         private readonly PeriodeKunjunganService $periodeService,
         private readonly PenandaFoto $penandaFoto,
         private readonly PenguraiQr $penguraiQr,
+        private readonly PembacaExif $pembacaExif,
     ) {}
 
     /**
@@ -148,12 +150,29 @@ class KunjunganService
         ?float $lat = null,
         ?float $lng = null,
         ?int $akurasi = null,
+        SumberFotoKunjungan $sumber = SumberFotoKunjungan::Kamera,
     ): KunjunganFoto {
         if ($kunjungan->status !== StatusKunjungan::Berjalan) {
             throw new RuntimeException(__('kunjungan.galat_tidak_berjalan'));
         }
 
         $kunjungan->loadMissing(['toko', 'sales']);
+
+        $exif = ['diambil_at' => null, 'latitude' => null, 'longitude' => null];
+
+        if ($sumber === SumberFotoKunjungan::Unggah) {
+            // Dibaca dari bita ASLI, sebelum PenandaFoto menggambar ulang
+            // gambarnya — proses itu membuang seluruh EXIF.
+            $exif = $this->pembacaExif->baca($isiGambar);
+
+            // Lokasi unggahan HANYA boleh berasal dari berkasnya sendiri.
+            // Titik GPS peramban menyatakan di mana sales berdiri saat
+            // mengunggah, bukan di mana fotonya diambil — memakainya akan
+            // mengarang riwayat yang tidak pernah terjadi.
+            $lat = $exif['latitude'];
+            $lng = $exif['longitude'];
+            $akurasi = null;
+        }
 
         $hasil = $this->penandaFoto->simpan(
             isiGambar: $isiGambar,
@@ -162,9 +181,14 @@ class KunjunganService
             lat: $lat,
             lng: $lng,
             akurasi: $akurasi,
+            // EXIF kosong berarti waktunya memang tidak diketahui; jam server
+            // dipakai supaya watermark tetap punya keterangan, dan kolom
+            // exif_diambil_at yang kosong yang memberitahu admin bedanya.
+            diambilAt: $exif['diambil_at'],
+            sumber: $sumber,
         );
 
-        return DB::transaction(function () use ($kunjungan, $jenis, $hasil, $lat, $lng, $akurasi): KunjunganFoto {
+        return DB::transaction(function () use ($kunjungan, $jenis, $hasil, $lat, $lng, $akurasi, $sumber, $exif): KunjunganFoto {
             $lama = $kunjungan->fotos()->where('jenis', $jenis->value)->first();
 
             if ($lama !== null) {
@@ -174,8 +198,10 @@ class KunjunganService
 
             return $kunjungan->fotos()->create([
                 'jenis' => $jenis,
+                'sumber' => $sumber,
                 'path' => $hasil['path'],
                 'diambil_at' => $hasil['diambil_at'],
+                'exif_diambil_at' => $exif['diambil_at'],
                 'latitude' => $lat,
                 'longitude' => $lng,
                 'akurasi_m' => $akurasi,

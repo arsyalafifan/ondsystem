@@ -260,6 +260,30 @@
                                     {{ $foto->diambil_at->isoFormat('ll') }} {{ $foto->diambil_at->format('H:i:s') }}
                                     @unless ($foto->punya_lokasi) · {{ __('kunjungan.lokasi_tidak_ada') }} @endunless
                                 </span>
+
+                                {{-- Foto unggahan ditandai mencolok: berkasnya
+                                     dipilih dari galeri, bukan dibidik langsung,
+                                     jadi kekuatan buktinya berbeda dan admin
+                                     harus tahu itu tanpa perlu mencari. --}}
+                                @if ($foto->sumber->perluDiperiksa())
+                                    <span class="mt-1 flex flex-col gap-0.5 rounded bg-amber-50 px-1.5 py-1 text-amber-900">
+                                        <span class="font-medium">
+                                            <x-heroicon-o-arrow-up-tray class="size-3.5 inline" /> {{ $foto->sumber->label() }}
+                                        </span>
+                                        <span>
+                                            @if ($foto->waktu_tidak_diketahui)
+                                                {{ __('kunjungan.exif_waktu_kosong') }}
+                                            @else
+                                                {{ __('kunjungan.exif_waktu', [
+                                                    'waktu' => $foto->exif_diambil_at->isoFormat('ll').' '.$foto->exif_diambil_at->format('H:i'),
+                                                ]) }}
+                                            @endif
+                                        </span>
+                                        @unless ($foto->punya_lokasi)
+                                            <span>{{ __('kunjungan.exif_lokasi_kosong') }}</span>
+                                        @endunless
+                                    </span>
+                                @endif
                             </figcaption>
                         </figure>
                     @endforeach

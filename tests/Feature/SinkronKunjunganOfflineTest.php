@@ -31,6 +31,15 @@ use Illuminate\Support\Str;
 beforeEach(function () {
     Storage::fake('public');
 
+    // Waktu dibekukan di tengah pekan (Rabu). Banyak tes di sini membuat
+    // kunjungan beberapa jam ke belakang, dan periode kunjungan berjalan
+    // Senin–Sabtu — kalau suite kebetulan dijalankan tepat setelah tengah
+    // malam Senin, "dua jam lalu" jatuh ke periode minggu LALU dan tes
+    // bentrokan gagal karena pembandingnya ada di periode yang berbeda.
+    // Itu kerapuhan tesnya, bukan cacat aturannya; membekukan waktu
+    // membuat hasilnya sama kapan pun suite dijalankan.
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-16 10:00:00'));
+
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
     $this->sales = User::factory()->create(['role' => PeranPengguna::Sales, 'name' => 'Sales Offline']);
     $this->salesLain = User::factory()->create(['role' => PeranPengguna::Sales, 'name' => 'Sales Lain']);
