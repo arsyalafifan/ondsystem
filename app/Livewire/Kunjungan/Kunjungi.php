@@ -4,6 +4,7 @@ namespace App\Livewire\Kunjungan;
 
 use App\Enums\JenisFotoKunjungan;
 use App\Enums\StatusKunjungan;
+use App\Enums\SumberFotoKunjungan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kunjungan;
 use App\Models\Toko;
@@ -15,6 +16,7 @@ use App\Support\ModeUji;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use RuntimeException;
 
 /**
@@ -31,6 +33,7 @@ use RuntimeException;
 class Kunjungi extends Component
 {
     use MembutuhkanDepotTerkunci;
+    use WithFileUploads;
 
     /** 'pindai' saat menunggu QR, 'kunjungan' saat mengambil foto. */
     public string $tahap = 'pindai';
@@ -59,6 +62,15 @@ class Kunjungi extends Component
 
     /** Isi QR yang ditempel manual. Hanya dipakai saat mode uji menyala. */
     public string $qrManual = '';
+
+    /**
+     * Berkas yang dipilih sales dari galeri, sebagai jalan keluar ketika
+     * kamera tidak bisa diakses. Jenis fotonya dibawa terpisah karena satu
+     * input berkas dipakai bergantian untuk kelima jenis.
+     */
+    public $berkasUnggahan = null;
+
+    public ?string $jenisUnggahan = null;
 
     public function mount(): void
     {
@@ -318,6 +330,79 @@ class Kunjungi extends Component
         $this->dispatch('notifikasi', pesan: __('kunjungan.notif_foto_tersimpan', [
             'jenis' => $jenisFoto->label(),
         ]));
+    }
+
+    /**
+     * Menerima foto dari galeri — jalan keluar ketika kamera tidak bisa
+     * diakses sama sekali.
+     *
+     * Ini sengaja MELONGGARKAN aturan yang dijaga ketat di jalur kamera:
+     * berkas dari galeri bisa gambar apa pun dari kapan pun. Dibuka karena
+     * kamera yang bermasalah mengunci sales dari seluruh pekerjaannya, dan
+     * bukti lemah yang ditandai jujur lebih berguna daripada tidak ada
+     * kunjungan sama sekali. Yang menjaganya tetap bisa dipertanggungjawabkan
+     * bukan pembatasan di sini, melainkan jejaknya: sumber 'unggah' tercatat
+     * di basis data, tercetak pada watermark, dan tampil mencolok di layar
+     * admin — lihat SumberFotoKunjungan.
+     */
+    public function unggahFoto(KunjunganService $service): void
+    {
+        $kunjungan = $this->kunjungan;
+
+        if ($kunjungan === null || $this->jenisUnggahan === null) {
+            return;
+        }
+
+        $this->validate([
+            'berkasUnggahan' => 'required|image|max:'.(int) config('visit.foto.ukuran_maks_kb'),
+        ], [
+            'berkasUnggahan.image' => __('kunjungan.galat_unggahan_bukan_gambar'),
+            'berkasUnggahan.max' => __('kunjungan.galat_unggahan_kebesaran'),
+        ]);
+
+        $jenisFoto = JenisFotoKunjungan::tryFrom($this->jenisUnggahan);
+
+        if ($jenisFoto === null) {
+            $this->dispatch('notifikasi', pesan: __('kunjungan.galat_jenis_foto'), jenis: 'error');
+
+            return;
+        }
+
+        try {
+            $service->simpanFoto(
+                kunjungan: $kunjungan,
+                jenis: $jenisFoto,
+                // Bita ASLI berkasnya, belum disentuh apa pun — EXIF-nya masih
+                // utuh di sini dan akan hilang begitu gambarnya digambar ulang.
+                isiGambar: file_get_contents($this->berkasUnggahan->getRealPath()),
+                sumber: SumberFotoKunjungan::Unggah,
+            );
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
+        $this->reset(['berkasUnggahan', 'jenisUnggahan']);
+        unset($this->kunjungan);
+
+        $this->dispatch('notifikasi', pesan: __('kunjungan.notif_foto_diunggah', [
+            'jenis' => $jenisFoto->label(),
+        ]), jenis: 'info');
+    }
+
+    /** Membuka pemilih berkas untuk satu jenis foto tertentu. */
+    public function pilihUnggahan(string $jenis): void
+    {
+        $this->jenisUnggahan = $jenis;
+        $this->reset('berkasUnggahan');
+        $this->resetValidation();
+    }
+
+    public function batalUnggahan(): void
+    {
+        $this->reset(['berkasUnggahan', 'jenisUnggahan']);
+        $this->resetValidation();
     }
 
     /**

@@ -1,5 +1,11 @@
-<div x-data="{ jenisAktif: null, kameraTerbuka: false, lokasi: null }"
-     x-on:kamera:lokasi.window="lokasi = $event.detail">
+{{-- kameraBermasalah menyala begitu modul kamera melaporkan galat (izin
+     ditolak, lensa dipakai aplikasi lain, peramban tidak mendukung). Sekali
+     menyala ia TIDAK dimatikan lagi selama layar ini terbuka: sales yang
+     kameranya bermasalah perlu melihat jalan keluarnya tetap di tempat,
+     bukan berkedip hilang setiap kali ia mencoba lagi. --}}
+<div x-data="{ jenisAktif: null, kameraTerbuka: false, lokasi: null, kameraBermasalah: false, galatKamera: null }"
+     x-on:kamera:lokasi.window="lokasi = $event.detail"
+     x-on:kamera:galat.window="kameraBermasalah = true; galatKamera = $event.detail">
 
     @php $k = $this->kunjungan; $p = $this->progres; @endphp
 
@@ -198,6 +204,18 @@
                 <span class="block text-xs text-gray-500">{{ __('kunjungan.ket_foto_wajib') }}</span>
             </div>
 
+            {{-- Kondisi abnormal: kamera tidak bisa diakses. Sales diberi tahu
+                 apa yang terjadi dan ke mana harus lari, bukan dibiarkan
+                 menekan tombol yang tidak pernah membuka apa pun. --}}
+            <div x-show="kameraBermasalah" x-cloak
+                 class="border-b border-amber-200 bg-amber-50 px-4 py-3">
+                <p class="flex items-center gap-2 text-sm font-medium text-amber-900">
+                    <x-heroicon-o-exclamation-triangle class="size-5 inline" /> {{ __('kunjungan.kamera_bermasalah') }}
+                </p>
+                <p class="mt-1 text-xs text-amber-800" x-text="galatKamera"></p>
+                <p class="mt-1 text-xs text-amber-800">{{ __('kunjungan.kamera_bermasalah_ket') }}</p>
+            </div>
+
             <div class="divide-y divide-gray-100">
                 @foreach ($this->jenisFoto as $jenis)
                     @php $foto = $sudah->get($jenis->value); @endphp
@@ -220,6 +238,44 @@
                                     <img src="{{ $foto->url }}" alt="{{ $jenis->label() }}"
                                          class="h-24 rounded-lg border border-gray-200">
                                 </a>
+
+                                @if ($foto->sumber === \App\Enums\SumberFotoKunjungan::Unggah)
+                                    <p class="mt-1 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                                        <x-heroicon-o-arrow-up-tray class="size-3.5 inline" /> {{ __('kunjungan.sumber_unggah') }}
+                                    </p>
+                                @endif
+                            @endif
+
+                            {{-- Pemilih berkas hanya muncul untuk jenis yang
+                                 sedang diunggah, supaya kelima input tidak
+                                 berebut nama yang sama. --}}
+                            @if ($jenisUnggahan === $jenis->value)
+                                <div class="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2">
+                                    <p class="text-xs text-amber-900">{{ __('kunjungan.ket_unggah_foto') }}</p>
+
+                                    <input type="file" accept="image/*" wire:model="berkasUnggahan"
+                                           class="mt-1.5 block w-full text-xs text-gray-700 file:mr-2 file:rounded-md file:border-0 file:bg-amber-600 file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-white">
+
+                                    @error('berkasUnggahan')
+                                        <p class="mt-1 text-xs text-red-700">{{ $message }}</p>
+                                    @enderror
+
+                                    <div wire:loading wire:target="berkasUnggahan" class="mt-1 text-xs text-amber-800">
+                                        {{ __('kunjungan.sedang_menyimpan_foto') }}
+                                    </div>
+
+                                    <div class="mt-2 flex gap-1.5">
+                                        <button type="button" wire:click="unggahFoto" wire:loading.attr="disabled"
+                                                wire:target="berkasUnggahan,unggahFoto"
+                                                class="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
+                                            {{ __('kunjungan.simpan_unggahan') }}
+                                        </button>
+                                        <button type="button" wire:click="batalUnggahan"
+                                                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50">
+                                            {{ __('umum.batal') }}
+                                        </button>
+                                    </div>
+                                </div>
                             @endif
                         </div>
 
@@ -232,6 +288,18 @@
                                         'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => (bool) $foto,
                                     ])>
                                 {{ $foto ? __('kunjungan.ulangi_foto') : __('kunjungan.ambil_foto') }}
+                            </button>
+
+                            {{-- Jalan keluar untuk kamera yang bermasalah.
+                                 Sengaja tampil sebagai pilihan kedua, bukan
+                                 sejajar dengan tombol ambil foto: bidikan
+                                 langsung tetap cara yang benar, unggahan
+                                 hanya penolong saat kamera tidak bisa
+                                 dipakai sama sekali. --}}
+                            <button type="button" wire:click="pilihUnggahan('{{ $jenis->value }}')"
+                                    class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                    x-bind:class="kameraBermasalah ? 'border-amber-400 bg-amber-50 text-amber-800' : ''">
+                                <x-heroicon-o-arrow-up-tray class="size-3.5 inline" /> {{ __('kunjungan.unggah_foto') }}
                             </button>
 
                             @if ($this->modeUji)

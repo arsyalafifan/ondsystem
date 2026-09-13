@@ -2,6 +2,7 @@
 
 namespace App\Services\Kunjungan;
 
+use App\Enums\SumberFotoKunjungan;
 use App\Models\Toko;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -26,15 +27,28 @@ use RuntimeException;
  * watermark-nya diberi baris tambahan bertuliskan OFFLINE beserta waktu
  * datanya sampai di server, supaya bedanya terlihat langsung di gambar — bukan
  * cuma tersimpan diam-diam di basis data.
+ *
+ * Hal yang sama berlaku untuk foto UNGGAHAN, dengan alasan berbeda: berkasnya
+ * dipilih dari galeri, jadi bisa gambar apa saja dari kapan saja. Waktunya
+ * berasal dari EXIF berkas itu sendiri (atau jam server bila EXIF-nya kosong),
+ * dan watermark-nya diberi tanda tersendiri.
+ *
+ * `$offline` dan `$diambilAt` sengaja jadi dua parameter terpisah, bukan satu
+ * yang menurunkan yang lain: unggahan daring juga membawa waktunya sendiri
+ * tanpa pernah menyentuh keadaan luring, dan menyamakan keduanya akan
+ * mencetak tanda OFFLINE pada foto yang sebenarnya dikirim saat ada sinyal.
  */
 class PenandaFoto
 {
     /**
-     * @param  ?CarbonImmutable  $diambilAt  waktu dari jam PONSEL untuk foto yang
-     *                                       diambil saat offline. Biarkan null
-     *                                       untuk alur daring biasa — jam server
-     *                                       yang dipakai, dan tidak ada tanda
-     *                                       OFFLINE yang dicetak.
+     * @param  ?CarbonImmutable  $diambilAt  waktu yang dicetak pada watermark:
+     *                                       jam ponsel untuk kunjungan luring,
+     *                                       atau waktu EXIF untuk unggahan.
+     *                                       Null berarti pakai jam server.
+     * @param  bool  $offline  menandai foto yang dikerjakan tanpa jaringan
+     * @param  SumberFotoKunjungan  $sumber  bidikan langsung atau berkas unggahan;
+     *                                       unggahan mendapat tanda tersendiri
+     *                                       karena kekuatan buktinya berbeda
      * @return array{path: string, lebar: int, tinggi: int, ukuran: int, diambil_at: CarbonImmutable}
      */
     public function simpan(
@@ -45,8 +59,9 @@ class PenandaFoto
         ?float $lng = null,
         ?int $akurasi = null,
         ?CarbonImmutable $diambilAt = null,
+        SumberFotoKunjungan $sumber = SumberFotoKunjungan::Kamera,
+        bool $offline = false,
     ): array {
-        $offline = $diambilAt !== null;
         $diambilAt ??= CarbonImmutable::now();
 
         $gambar = @imagecreatefromstring($isiGambar);
@@ -56,7 +71,7 @@ class PenandaFoto
         }
 
         $gambar = $this->perkecil($gambar);
-        $this->cetakKeterangan($gambar, $toko, $sales, $diambilAt, $lat, $lng, $akurasi, $offline);
+        $this->cetakKeterangan($gambar, $toko, $sales, $diambilAt, $lat, $lng, $akurasi, $offline, $sumber);
 
         $lebar = imagesx($gambar);
         $tinggi = imagesy($gambar);
@@ -116,6 +131,7 @@ class PenandaFoto
         ?float $lng,
         ?int $akurasi,
         bool $offline = false,
+        SumberFotoKunjungan $sumber = SumberFotoKunjungan::Kamera,
     ): void {
         $baris = array_values(array_filter([
             $waktu->isoFormat('dddd, D MMMM Y').' · '.$waktu->format('H:i:s').' '.$waktu->format('T'),
@@ -129,6 +145,12 @@ class PenandaFoto
             $offline
                 ? __('kunjungan.wm_offline', ['waktu' => CarbonImmutable::now()->format('d/m/Y H:i')])
                 : null,
+            // Foto unggahan tidak pernah dilihat kamera halaman ini. Tanda
+            // ini yang membedakannya dari bidikan langsung ketika gambarnya
+            // sudah keluar dari aplikasi — dicetak ke dalam gambar, bukan
+            // cuma disimpan di basis data yang bisa tertinggal saat foto
+            // disalin atau dikirim ulang.
+            $sumber === SumberFotoKunjungan::Unggah ? __('kunjungan.wm_unggahan') : null,
         ]));
 
         $lebar = imagesx($gambar);

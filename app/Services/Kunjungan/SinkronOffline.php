@@ -312,6 +312,7 @@ class SinkronOffline
             lng: $lng,
             akurasi: $akurasi,
             diambilAt: $diambilAt,
+            offline: true,
         );
 
         $berkasTertulis[] = $hasil['path'];
