@@ -3,7 +3,9 @@
 namespace App\Livewire\Master;
 
 use App\Enums\JenisMutasiStok;
+use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Models\PesananItem;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Support\DepotContext;
@@ -60,15 +62,40 @@ class DaftarProduk extends Component
         $this->resetPage();
     }
 
+    /**
+     * `stok_reserved` adalah kuncian TOTAL (lihat dokumentasi di
+     * `PesananService`), tanpa membedakan pesanan yang masih menunggu di
+     * gudang dari yang sudah dimuat ke kendaraan dan sedang di jalan.
+     * Baris ini memecahnya jadi dua supaya admin tahu berapa yang MASIH
+     * bisa dibatalkan/diampaskan di gudang, berapa yang sudah "berangkat"
+     * secara fisik. Pesanan berstatus Delivery = sudah dirutekan, belum
+     * tuntas — dus-nya masih dikunci PENUH (belum ada koreksi nota),
+     * jadi cukup dijumlah dari `jumlah_dus` mentah tiap item (termasuk
+     * bonus, yang juga ikut mengunci stok saat pesanan dibuat).
+     */
     #[Computed]
     public function produks()
     {
-        return Produk::query()
+        $produks = Produk::query()
             ->when($this->cari !== '', fn ($q) => $q
                 ->where('nama', 'like', "%{$this->cari}%")
                 ->orWhere('kode', 'like', "%{$this->cari}%"))
             ->orderBy('nama')
             ->paginate(20);
+
+        $dalamPengiriman = PesananItem::query()
+            ->whereIn('produk_id', $produks->pluck('id'))
+            ->whereHas('pesanan', fn ($q) => $q->where('status', StatusPesanan::Delivery))
+            ->selectRaw('produk_id, sum(jumlah_dus) as total')
+            ->groupBy('produk_id')
+            ->pluck('total', 'produk_id');
+
+        $produks->getCollection()->each(function (Produk $p) use ($dalamPengiriman): void {
+            $p->dalam_pengiriman = (int) ($dalamPengiriman[$p->id] ?? 0);
+            $p->dikunci_gudang = max(0, $p->stok_reserved - $p->dalam_pengiriman);
+        });
+
+        return $produks;
     }
 
     public function buatBaru(): void

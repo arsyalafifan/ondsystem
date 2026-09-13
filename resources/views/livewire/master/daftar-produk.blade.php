@@ -23,6 +23,7 @@
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('master.dikunci') }}</th>
+                        <th class="px-4 py-2 text-right font-medium">{{ __('master.dikunci_pengiriman') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('pesanan.tersedia') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('umum.harga') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.status') }}</th>
@@ -41,7 +42,8 @@
                                 <span class="text-xs text-gray-500">/ {{ $p->satuan }}</span>
                             </td>
                             <td class="px-4 py-2 text-right tabular-nums">@angka($p->stok)</td>
-                            <td class="px-4 py-2 text-right tabular-nums text-amber-700">@angka($p->stok_reserved)</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-amber-700">@angka($p->dikunci_gudang)</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-violet-700">@angka($p->dalam_pengiriman)</td>
                             <td class="px-4 py-2 text-right font-semibold tabular-nums {{ $p->stok_tersedia === 0 ? 'text-red-600' : 'text-emerald-700' }}">
                                 @angka($p->stok_tersedia)
                             </td>
@@ -72,7 +74,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9">
+                            <td colspan="10">
                                 <x-kosong ikon="cube" :judul="__('master.produk_kosong')" :keterangan="__('master.produk_kosong_ket')" />
                             </td>
                         </tr>
