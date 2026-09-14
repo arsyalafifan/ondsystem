@@ -1,4 +1,4 @@
-@props(['opsi', 'nilai' => '', 'set', 'placeholder' => ''])
+@props(['opsi', 'nilai' => '', 'set', 'placeholder' => '', 'bisaKosong' => false])
 
 @php
     // firstWhere() membandingkan dengan == (longgar), jadi id yang datang
@@ -36,8 +36,41 @@
     (dan pada seluruh panelnya) mencegah kotak teks kehilangan fokus sama
     sekali saat sebuah baris diklik, jadi blur tidak keburu menutup
     daftarnya sebelum pilih() sempat jalan.
+
+    Konsekuensi KEDUA dari teleport yang sama: kalau komponen ini dipakai
+    di dalam <x-modal>, panel yang di-teleport ke <body> itu secara DOM
+    juga "di luar" kotak modal — x-on:click.outside milik <x-modal> akan
+    salah mengira klik pada satu baris pilihan sebagai klik di luar modal,
+    dan menutup seluruh modal sebelum pilih() sempat menyimpan apa pun.
+    Atribut `data-popover-teleport` pada panelnya adalah penanda yang
+    dibaca <x-modal> (lihat resources/views/components/modal.blade.php)
+    untuk mengecualikan elemen ini dari deteksi klik-di-luar miliknya.
+
+    `bisaKosong`: dimatikan bawaan karena keenam pemakaian yang sudah ada
+    (pilih produk di baris pesanan) selalu wajib — mengosongkannya berarti
+    menghapus barisnya, bukan mengosongkan pilihan. Dinyalakan eksplisit
+    untuk field yang OPSIONAL (mis. menautkan karyawan ke akun pengguna),
+    menambah tombol "×" supaya pilihan yang sudah dibuat bisa dilepas lagi
+    tanpa perlu tahu harus mengetik apa untuk membuatnya kosong.
+
+    wire:ignore pada elemen akar: TANPA ini, setiap pilih() memanggil
+    $wire.set() yang memicu render ulang seluruh komponen Livewire — dan
+    Livewire mengganti node <div x-data> ini dengan yang baru (morph),
+    menghancurkan instans Alpine lama TANPA ikut membereskan panel yang
+    sudah kadung di-teleport ke <body>. Sisa panel lamanya jadi yatim:
+    binding reaktifnya masih mencoba mengevaluasi variabel perulangan
+    x-for ("o", "i") dari cakupan yang sudah tidak ada, melempar
+    "i is not defined"/"o is not defined" di konsol, dan komponen berhenti
+    merespons interaksi berikutnya (mis. tombol "×" tidak lagi berfungsi).
+    Bug ini SUDAH ADA sejak sebelumnya di keenam pemakaian produk yang ada
+    (diverifikasi terjadi juga di pemilih produk POS) — bukan sesuatu yang
+    baru muncul di sini, cuma baru ketahuan sekarang. wire:ignore membuat
+    Livewire sama sekali tidak menyentuh subtree ini setelah dipasang
+    pertama kali, jadi instans Alpine (dan panel teleport-nya) tetap hidup
+    utuh — aman karena nilai yang tersimpan memang tidak pernah dibaca
+    balik lewat wire:model, cuma didorong SEKALI ARAH lewat $wire.set().
 --}}
-<div x-data="{
+<div wire:ignore x-data="{
         terbuka: false,
         sorot: -1,
         teks: @js($terpilih['label'] ?? ''),
@@ -80,8 +113,24 @@
         },
         pilih(o) {
             this.teks = o.label;
+            // Tulis langsung ke elemen: pada kotak ini x-model kadang tidak
+            // menyorongkan balik nilai reaktifnya ke DOM tepat setelah
+            // sebuah baris pilihan diklik (teramati lewat Alpine.$data(),
+            // state teks sudah benar tapi input.value masih nilai lama)
+            // — penulisan langsung ini tidak bergantung pada efek reaktif
+            // itu sama sekali, jadi selalu benar apa pun penyebabnya.
+            this.$refs.masukan.value = o.label;
+            // Tombol clear (kalau ada) ikut kena masalah yang sama: x-show
+            // miliknya cuma bereaksi pada perubahan teks yang PERTAMA,
+            // bukan yang berikutnya — jadi ditoggle manual juga di sini.
+            if (this.$refs.tombolKosong) {
+                this.$refs.tombolKosong.style.display = o.label === '' ? 'none' : '';
+            }
             this.terbuka = false;
             $wire.set(@js($set), o.value);
+        },
+        kosongkan() {
+            this.pilih({ value: '', label: '' });
         },
         turun() { this.sorot = Math.min(this.sorot + 1, this.hasil.length - 1); },
         naik() { this.sorot = Math.max(this.sorot - 1, -1); },
@@ -110,11 +159,21 @@
                target sentuh yang lebih lega, dan mencegah kolom produk pada
                tabel diperas terlalu sempit di layar sempit.
            --}}
-           {{ $attributes->merge(['class' => 'block w-full min-w-40 rounded-lg border-gray-400 bg-gray-50 px-4 py-3 text-base text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20']) }}>
+           {{ $attributes->merge(['class' => 'block w-full min-w-40 rounded-lg border-gray-400 bg-gray-50 px-4 py-3 text-base text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20'.($bisaKosong ? ' pr-9' : '')]) }}>
+
+    @if ($bisaKosong)
+        <button type="button" x-ref="tombolKosong" x-show="teks !== ''" x-cloak
+                x-on:mousedown.prevent="kosongkan()"
+                title="{{ __('umum.kosongkan') }}"
+                class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+            <x-heroicon-o-x-mark class="size-4" />
+        </button>
+    @endif
 
     <template x-teleport="body">
         <div x-show="terbuka" x-cloak
              x-on:mousedown.prevent=""
+             data-popover-teleport
              :style="`top: ${posisi.top}px; left: ${posisi.left}px; width: ${posisi.width}px;`"
              class="absolute z-50 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
             <template x-for="(o, i) in hasil" :key="o.value">

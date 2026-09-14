@@ -12,6 +12,7 @@ return [
     'cari' => '搜尋',
     'tidak_ada_hasil' => '沒有符合的結果。',
     'bersihkan' => '清除',
+    'kosongkan' => '清空',
     'ganti' => '更換',
     'terapkan' => '套用',
     'setujui' => '核准',

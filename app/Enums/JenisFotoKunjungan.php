@@ -5,12 +5,15 @@ namespace App\Enums;
 /**
  * Jenis foto bukti kunjungan. Yang WAJIB diambil sales ditentukan lewat
  * `config('visit.foto_wajib')`, bukan lewat daftar case ini — lihat
- * `urut()`. `FlagHanger` masih ada di sini walau sudah dinonaktifkan dari
- * daftar wajib, supaya kunjungan lama yang pernah menyimpan foto jenis itu
+ * `urut()`. `SalesDepanToko`, `FreezerSebelum`, `FreezerSesudah`, `Spanduk`,
+ * dan `FlagHanger` masih ada di sini walau sudah dinonaktifkan dari daftar
+ * wajib (digantikan pasangan atas/bawah freezer dan foto spanduk+sales
+ * gabungan), supaya kunjungan lama yang pernah menyimpan foto jenis itu
  * tetap bisa di-cast dan ditampilkan.
  *
  * Urutan case yang WAJIB sengaja mengikuti urutan pekerjaan di lapangan:
- * datang, bersihkan freezer, lalu periksa perlengkapan promosi dan suhu.
+ * bersihkan freezer (bawah lalu atas, sebelum lalu sesudah), periksa suhu,
+ * pindai barcode, lalu foto spanduk bersama sales sebagai penutup.
  */
 enum JenisFotoKunjungan: string
 {
@@ -20,6 +23,12 @@ enum JenisFotoKunjungan: string
     case Spanduk = 'spanduk';
     case FlagHanger = 'flag_hanger';
     case SuhuFreezer = 'suhu_freezer';
+    case FreezerBawahSebelum = 'freezer_bawah_sebelum';
+    case FreezerAtasSebelum = 'freezer_atas_sebelum';
+    case FreezerBawahSesudah = 'freezer_bawah_sesudah';
+    case FreezerAtasSesudah = 'freezer_atas_sesudah';
+    case Barcode = 'barcode';
+    case SpandukBesertaSales = 'spanduk_beserta_sales';
 
     public function label(): string
     {
@@ -40,6 +49,10 @@ enum JenisFotoKunjungan: string
             self::Spanduk => 'heroicon-o-flag',
             self::FlagHanger => 'heroicon-o-bookmark',
             self::SuhuFreezer => 'heroicon-o-fire',
+            self::FreezerBawahSebelum, self::FreezerBawahSesudah => 'heroicon-o-cube-transparent',
+            self::FreezerAtasSebelum, self::FreezerAtasSesudah => 'heroicon-o-sparkles',
+            self::Barcode => 'heroicon-o-qr-code',
+            self::SpandukBesertaSales => 'heroicon-o-flag',
         };
     }
 

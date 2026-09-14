@@ -35,21 +35,39 @@
         ]],
     ];
 
-    $menu = match ($peran) {
-        \App\Enums\PeranPengguna::Admin => $menuAdmin,
-        \App\Enums\PeranPengguna::Superadmin => [
-            ...$menuAdmin,
-            ['rute' => 'pengguna.daftar', 'label' => __('nav.manage_pengguna'), 'ikon' => 'user-group'],
-            ['rute' => 'depot.daftar', 'label' => __('nav.manage_depot'), 'ikon' => 'building-office-2'],
-        ],
-        \App\Enums\PeranPengguna::Sales => [
+    // Menu aplikasi HR System — dilihat peran Hr sendiri, ATAU Admin/
+    // Superadmin selagi sedang membuka rute hr.* (lihat AplikasiSaatIni).
+    $menuHr = [
+        ['rute' => 'hr.dashboard', 'label' => __('nav.dashboard'), 'ikon' => 'chart-pie'],
+        ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
+            ['rute' => 'hr.karyawan', 'label' => __('nav.hr_karyawan'), 'ikon' => 'identification'],
+            ['rute' => 'hr.department', 'label' => __('nav.hr_department'), 'ikon' => 'building-office'],
+            ['rute' => 'hr.jabatan', 'label' => __('nav.hr_jabatan'), 'ikon' => 'briefcase'],
+        ]],
+    ];
+
+    // Menu aplikasi User Admin — item ini SEBELUMNYA langsung ada di
+    // $menuAdmin khusus Superadmin; sekarang dipindah ke bawah "aplikasi"
+    // tersendiri (lihat <x-pemilih-aplikasi />), rute-nya sendiri TIDAK
+    // berubah nama (pengguna.daftar/depot.daftar tetap sama).
+    $menuUserAdmin = [
+        ['rute' => 'pengguna.daftar', 'label' => __('nav.manage_pengguna'), 'ikon' => 'user-group'],
+        ['rute' => 'depot.daftar', 'label' => __('nav.manage_depot'), 'ikon' => 'building-office-2'],
+    ];
+
+    $menu = match (true) {
+        $peran === \App\Enums\PeranPengguna::Hr => $menuHr,
+        \App\Support\AplikasiSaatIni::hr() => $menuHr,
+        \App\Support\AplikasiSaatIni::userAdmin() && $peran === \App\Enums\PeranPengguna::Superadmin => $menuUserAdmin,
+        $peran === \App\Enums\PeranPengguna::Admin, $peran === \App\Enums\PeranPengguna::Superadmin => $menuAdmin,
+        $peran === \App\Enums\PeranPengguna::Sales => [
             ['rute' => 'kunjungan.kunjungi', 'label' => __('nav.mulai_kunjungan'), 'ikon' => 'camera'],
             ['rute' => 'kunjungan.tugas', 'label' => __('nav.tugas_saya'), 'ikon' => 'paper-airplane'],
             ['rute' => 'toko.lengkapi-data', 'label' => __('nav.lengkapi_data_toko'), 'ikon' => 'identification'],
             ['rute' => 'pesanan.buat', 'label' => __('nav.input_pesanan'), 'ikon' => 'plus-circle'],
             ['rute' => 'pesanan.daftar', 'label' => __('nav.riwayat_pesanan'), 'ikon' => 'clipboard-document-list'],
         ],
-        \App\Enums\PeranPengguna::Driver => [
+        $peran === \App\Enums\PeranPengguna::Driver => [
             ['label' => __('nav.pengiriman'), 'ikon' => 'truck', 'anak' => [
                 ['rute' => 'driver.pilih-mobil', 'label' => __('nav.pengiriman_driver'), 'ikon' => 'truck'],
             ]],
@@ -113,6 +131,14 @@
         </div>
 
         <nav :class="buka ? 'block' : 'hidden'" class="px-4 pb-6 lg:!flex lg:flex-1 lg:flex-col lg:w-72 overflow-y-auto">
+            @if (in_array($peran, [\App\Enums\PeranPengguna::Admin, \App\Enums\PeranPengguna::Superadmin], true))
+                {{-- Hr/Sales/Driver tidak melihat pemilih ini: peran Hr hidup
+                     sepenuhnya di dalam HR System (tidak ada aplikasi lain
+                     untuk dipindah), Sales/Driver belum punya akses ke
+                     aplikasi selain O&D sama sekali. --}}
+                <x-pemilih-aplikasi :peran="$peran" />
+            @endif
+
             <div class="lg:flex-1 space-y-1">
                 @foreach ($menu as $item)
                     @if (isset($item['anak']))

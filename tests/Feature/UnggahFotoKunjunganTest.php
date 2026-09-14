@@ -190,7 +190,7 @@ describe('menyimpan foto unggahan', function () {
 
         $foto = $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegBerExif('2026:09:10 08:30:00'),
             sumber: SumberFotoKunjungan::Unggah,
         );
@@ -209,7 +209,7 @@ describe('menyimpan foto unggahan', function () {
 
         $foto = $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegBerExif(gps: [
                 'lat_d' => 6, 'lat_m' => 10, 'lat_s' => 48, 'lat_ref' => 'S',
                 'lng_d' => 106, 'lng_m' => 49, 'lng_s' => 48, 'lng_ref' => 'E',
@@ -229,7 +229,7 @@ describe('menyimpan foto unggahan', function () {
 
         $foto = $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegPolos(),
             sumber: SumberFotoKunjungan::Unggah,
         );
@@ -255,7 +255,7 @@ describe('menyimpan foto unggahan', function () {
 
         $foto = $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegPolos(),
             lat: -6.99,
             lng: 106.99,
@@ -277,7 +277,7 @@ describe('menyimpan foto unggahan', function () {
         // membacanya sama sekali, karena jam server lebih dipercaya.
         $foto = $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegBerExif('2020:01:01 00:00:00'),
             lat: -6.18,
             lng: 106.83,
@@ -303,7 +303,7 @@ describe('layar sales', function () {
 
         Livewire::actingAs($this->sales)
             ->test(Kunjungi::class)
-            ->call('pilihUnggahan', JenisFotoKunjungan::Spanduk->value)
+            ->call('pilihUnggahan', JenisFotoKunjungan::Barcode->value)
             ->set('berkasUnggahan', $berkas)
             ->call('unggahFoto')
             ->assertHasNoErrors();
@@ -322,7 +322,7 @@ describe('layar sales', function () {
 
         Livewire::actingAs($this->sales)
             ->test(Kunjungi::class)
-            ->call('pilihUnggahan', JenisFotoKunjungan::Spanduk->value)
+            ->call('pilihUnggahan', JenisFotoKunjungan::Barcode->value)
             ->set('berkasUnggahan', UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'))
             ->call('unggahFoto')
             ->assertHasErrors('berkasUnggahan');
@@ -351,7 +351,7 @@ describe('layar admin', function () {
         $kunjungan = $this->service->mulai($toko, $this->sales);
         $this->service->simpanFoto(
             kunjungan: $kunjungan,
-            jenis: JenisFotoKunjungan::Spanduk,
+            jenis: JenisFotoKunjungan::Barcode,
             isiGambar: jpegPolos(),
             sumber: SumberFotoKunjungan::Unggah,
         );

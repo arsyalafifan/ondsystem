@@ -283,12 +283,12 @@ describe('aturan kunjungan', function () {
 
 // =====================================================================
 describe('foto bukti', function () {
-    it('menolak penyelesaian sebelum kelima foto lengkap', function () {
+    it('menolak penyelesaian sebelum ketujuh foto lengkap', function () {
         $toko = buatToko();
         tugaskan($toko, $this->sales);
 
         $kunjungan = $this->service->mulai($toko, $this->sales);
-        $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::SalesDepanToko, gambarUji());
+        $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::Barcode, gambarUji());
 
         expect(fn () => $this->service->selesaikan($kunjungan->fresh()))
             ->toThrow(RuntimeException::class);
@@ -296,7 +296,7 @@ describe('foto bukti', function () {
         expect($kunjungan->fresh()->status)->toBe(StatusKunjungan::Berjalan);
     });
 
-    it('menyelesaikan kunjungan setelah kelima foto terkumpul', function () {
+    it('menyelesaikan kunjungan setelah ketujuh foto terkumpul', function () {
         $toko = buatToko();
         tugaskan($toko, $this->sales);
 
@@ -308,7 +308,7 @@ describe('foto bukti', function () {
         $kunjungan->refresh();
 
         expect($kunjungan->status)->toBe(StatusKunjungan::Selesai)
-            ->and($kunjungan->fotos)->toHaveCount(5)
+            ->and($kunjungan->fotos)->toHaveCount(7)
             ->and($kunjungan->selesai_at)->not->toBeNull()
             ->and($kunjungan->catatan_sales)->toBe('Pemilik ramah');
     });
@@ -318,7 +318,7 @@ describe('foto bukti', function () {
         tugaskan($toko, $this->sales);
 
         $kunjungan = $this->service->mulai($toko, $this->sales);
-        $foto = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::Spanduk, gambarUji(), -6.18, 106.83, 8);
+        $foto = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::SpandukBesertaSales, gambarUji(), -6.18, 106.83, 8);
 
         Storage::disk('public')->assertExists($foto->path);
 
@@ -334,7 +334,7 @@ describe('foto bukti', function () {
         tugaskan($toko, $this->sales);
 
         $kunjungan = $this->service->mulai($toko, $this->sales);
-        $foto = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::Spanduk, gambarUji(2400, 1800));
+        $foto = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::SpandukBesertaSales, gambarUji(2400, 1800));
 
         expect($foto->lebar)->toBe((int) config('visit.foto.lebar_maks'));
     });
@@ -345,8 +345,8 @@ describe('foto bukti', function () {
 
         $kunjungan = $this->service->mulai($toko, $this->sales);
 
-        $pertama = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::Spanduk, gambarUji());
-        $kedua = $this->service->simpanFoto($kunjungan->fresh(), JenisFotoKunjungan::Spanduk, gambarUji());
+        $pertama = $this->service->simpanFoto($kunjungan, JenisFotoKunjungan::SpandukBesertaSales, gambarUji());
+        $kedua = $this->service->simpanFoto($kunjungan->fresh(), JenisFotoKunjungan::SpandukBesertaSales, gambarUji());
 
         expect($kunjungan->fresh()->fotos)->toHaveCount(1)
             ->and($kedua->path)->not->toBe($pertama->path);

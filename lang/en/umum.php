@@ -12,6 +12,7 @@ return [
     'cari' => 'Search',
     'tidak_ada_hasil' => 'No match found.',
     'bersihkan' => 'Clear',
+    'kosongkan' => 'Clear',
     'ganti' => 'Change',
     'terapkan' => 'Apply',
     'setujui' => 'Approve',

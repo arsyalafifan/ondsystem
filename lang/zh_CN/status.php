@@ -15,4 +15,5 @@ return [
     'peran_sales' => '销售',
     'peran_driver' => '司机',
     'peran_superadmin' => '超级管理员',
+    'peran_hr' => 'HR',
 ];
