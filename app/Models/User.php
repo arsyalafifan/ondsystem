@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -80,6 +81,18 @@ class User extends Authenticatable
         return $this->hasMany(PenugasanToko::class, 'sales_id');
     }
 
+    /**
+     * Profil HR yang ditautkan ke akun ini, kalau ada. Karyawan sengaja
+     * tidak di-scope per depot (lihat dokumentasi App\Models\Karyawan),
+     * jadi relasi ini selalu bisa ditemukan terlepas dari konteks depot
+     * yang sedang aktif di sesi mana pun.
+     */
+    /** @return HasOne<Karyawan, $this> */
+    public function karyawan(): HasOne
+    {
+        return $this->hasOne(Karyawan::class);
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role, [PeranPengguna::Admin, PeranPengguna::Superadmin], true);
@@ -98,6 +111,11 @@ class User extends Authenticatable
     public function isSuperadmin(): bool
     {
         return $this->role === PeranPengguna::Superadmin;
+    }
+
+    public function isHr(): bool
+    {
+        return $this->role === PeranPengguna::Hr;
     }
 
     #[Scope]

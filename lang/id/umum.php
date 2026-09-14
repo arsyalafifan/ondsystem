@@ -12,6 +12,7 @@ return [
     'cari' => 'Cari',
     'tidak_ada_hasil' => 'Tidak ada yang cocok.',
     'bersihkan' => 'Bersihkan',
+    'kosongkan' => 'Kosongkan',
     'ganti' => 'Ganti',
     'terapkan' => 'Terapkan',
     'setujui' => 'Setujui',

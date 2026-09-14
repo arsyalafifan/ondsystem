@@ -10,6 +10,10 @@ use App\Livewire\Dashboard;
 use App\Livewire\Depot\DaftarDepot;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
+use App\Livewire\Hr\DaftarDepartment;
+use App\Livewire\Hr\DaftarJabatan;
+use App\Livewire\Hr\DaftarKaryawan;
+use App\Livewire\Hr\Dashboard as HrDashboard;
 use App\Livewire\Insentif\InsentifSales;
 use App\Livewire\Kunjungan\DaftarPeriode;
 use App\Livewire\Kunjungan\DetailPeriode;
@@ -174,6 +178,16 @@ Route::middleware('auth')->group(function () {
     Route::middleware('peran:driver,admin')->group(function () {
         Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
+    });
+
+    // --- HR ---
+    // 'peran:admin,hr' otomatis meloloskan superadmin juga lewat bypass di
+    // PastikanPeran, tidak perlu disebut eksplisit di daftar peran.
+    Route::middleware('peran:admin,hr')->prefix('hr')->name('hr.')->group(function () {
+        Route::get('/dashboard', HrDashboard::class)->name('dashboard');
+        Route::get('/karyawan', DaftarKaryawan::class)->name('karyawan');
+        Route::get('/department', DaftarDepartment::class)->name('department');
+        Route::get('/jabatan', DaftarJabatan::class)->name('jabatan');
     });
 
     // --- Superadmin ---
