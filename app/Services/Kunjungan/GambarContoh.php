@@ -23,6 +23,12 @@ class GambarContoh
         'spanduk' => [201, 116, 44],
         'flag_hanger' => [186, 63, 96],
         'suhu_freezer' => [70, 130, 150],
+        'freezer_bawah_sebelum' => [124, 92, 175],
+        'freezer_atas_sebelum' => [98, 71, 150],
+        'freezer_bawah_sesudah' => [37, 152, 122],
+        'freezer_atas_sesudah' => [27, 122, 98],
+        'barcode' => [46, 46, 46],
+        'spanduk_beserta_sales' => [201, 116, 44],
     ];
 
     public function buat(JenisFotoKunjungan $jenis, int $lebar = 1280, int $tinggi = 960): string

@@ -17,21 +17,26 @@ return [
     |--------------------------------------------------------------------------
     | Foto bukti kunjungan
     |--------------------------------------------------------------------------
-    | Kelima foto ini wajib ada sebelum kunjungan bisa diselesaikan. Urutannya
+    | Ketujuh foto ini wajib ada sebelum kunjungan bisa diselesaikan. Urutannya
     | menentukan urutan pengambilan di layar sales.
     |
-    | 'flag_hanger' sengaja TIDAK disertakan di sini lagi (dinonaktifkan,
+    | 'sales_depan_toko', 'freezer_sebelum', 'freezer_sesudah', 'spanduk',
+    | dan 'flag_hanger' sengaja TIDAK disertakan di sini lagi (dinonaktifkan,
     | bukan dihapus dari App\Enums\JenisFotoKunjungan) — kunjungan lama yang
     | sudah pernah menyimpan foto berjenis itu tetap valid dan tetap tampil
-    | apa adanya, ia hanya tidak lagi dituntut untuk kunjungan baru.
+    | apa adanya, ia hanya tidak lagi dituntut untuk kunjungan baru. Foto
+    | freezer sekarang dipecah jadi bawah+atas (sebelum dan sesudah), dan
+    | foto sales-depan-toko+spanduk digabung jadi satu foto spanduk+sales.
     */
 
     'foto_wajib' => [
-        'sales_depan_toko',
-        'freezer_sebelum',
-        'freezer_sesudah',
-        'spanduk',
+        'freezer_bawah_sebelum',
+        'freezer_atas_sebelum',
+        'freezer_bawah_sesudah',
+        'freezer_atas_sesudah',
         'suhu_freezer',
+        'barcode',
+        'spanduk_beserta_sales',
     ],
 
     'foto' => [
