@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Hr;
 
+use App\Akses\HakAkses;
+use App\Enums\CakupanData;
 use App\Enums\JenisKelamin;
 use App\Enums\StatusKaryawan;
 use App\Models\Department;
@@ -10,6 +12,7 @@ use App\Models\Jabatan;
 use App\Models\Karyawan;
 use App\Models\Scopes\DepotScope;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -101,10 +104,23 @@ class DaftarKaryawan extends Component
         }
     }
 
+    /**
+     * Titik awal kueri karyawan di layar ini — "hanya milik sendiri" di Hak
+     * Akses = data karyawan yang tertaut ke akun pengguna ini. Dipakai juga
+     * saat mencari karyawan lewat id untuk disunting/dihapus.
+     */
+    private function kueriKaryawan(): Builder
+    {
+        return Karyawan::query()->when(
+            app(HakAkses::class)->cakupan(auth()->user(), 'hr.karyawan') === CakupanData::Sendiri,
+            fn ($q) => $q->where('user_id', auth()->id()),
+        );
+    }
+
     #[Computed]
     public function karyawans()
     {
-        return Karyawan::query()
+        return $this->kueriKaryawan()
             ->with(['department:id,nama', 'jabatan:id,nama', 'depot:id,nama'])
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('nama_lengkap', 'like', "%{$this->cari}%")
@@ -174,7 +190,7 @@ class DaftarKaryawan extends Component
 
     public function sunting(int $id): void
     {
-        $karyawan = Karyawan::findOrFail($id);
+        $karyawan = $this->kueriKaryawan()->findOrFail($id);
 
         $this->karyawanId = $karyawan->id;
         $this->kodeKaryawan = $karyawan->kode_karyawan;
@@ -332,7 +348,7 @@ class DaftarKaryawan extends Component
 
     public function hapus(int $id): void
     {
-        $karyawan = Karyawan::findOrFail($id);
+        $karyawan = $this->kueriKaryawan()->findOrFail($id);
         $nama = $karyawan->nama_lengkap;
         $karyawan->delete();
 

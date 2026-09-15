@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Middleware\AturBahasa;
-use App\Http\Middleware\PastikanPeran;
+use App\Http\Middleware\PastikanAkses;
 use App\Http\Middleware\SemuaDepotUntukCetak;
 use App\Http\Middleware\TentukanDepot;
 use App\Support\DepotContext;
@@ -41,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'peran' => PastikanPeran::class,
+            'akses' => PastikanAkses::class,
             'depot.semua' => SemuaDepotUntukCetak::class,
         ]);
 

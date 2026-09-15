@@ -14,9 +14,9 @@ use Livewire\Livewire;
 
 /**
  * Admin dan superadmin bisa membuka /driver untuk memantau, bukan cuma
- * superadmin — PastikanPeran HANYA membebaskan superadmin secara otomatis;
- * peran admin biasa harus disebut eksplisit di rute
- * (`peran:driver,admin`), sama seperti /driver/mobil/{kendaraan}.
+ * superadmin — hanya superadmin yang otomatis boleh semua menu; peran admin
+ * biasa harus disebut di bawaan menu `ond.pengiriman_driver`
+ * (App\Akses\DaftarAkses), yang juga menjaga /driver/mobil/{kendaraan}.
  *
  * Dua bug nyata yang diperbaiki di sini, keduanya baru kelihatan lewat
  * rute HTTP sungguhan (`->get(route(...))`), bukan lewat

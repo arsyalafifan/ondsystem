@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Akses\HakAkses;
 use App\Auth\DepotAwareUserProvider;
+use App\Http\Middleware\PastikanAkses;
 use App\Services\Peta\NominatimGeocoder;
 use App\Services\Peta\OsrmClient;
 use App\Support\DepotContext;
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,11 +31,20 @@ class AppServiceProvider extends ServiceProvider
         // dan tidak ada yang bocor dari satu job ke job berikutnya di proses
         // worker yang sama.
         $this->app->scoped(DepotContext::class, fn () => new DepotContext);
+
+        // scoped() dengan alasan yang sama: pengecualian hak akses dimuat
+        // sekali per permintaan/job, tidak terbawa basi ke job berikutnya.
+        $this->app->scoped(HakAkses::class);
     }
 
     public function boot(): void
     {
         $this->percayaiProksi();
+
+        // Aksi Livewire (/livewire/update) ikut diperiksa ulang hak aksesnya
+        // memakai middleware `akses:` rute halaman asalnya — akses yang
+        // dicabut berlaku juga untuk halaman yang sudah terlanjur terbuka.
+        Livewire::addPersistentMiddleware([PastikanAkses::class]);
 
         // Provider auth khusus (lihat docblock DepotAwareUserProvider) —
         // menemukan siapa pemilik sesi tidak boleh terhambat DepotScope,

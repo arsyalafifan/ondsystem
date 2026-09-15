@@ -20,6 +20,7 @@ return [
     'dus_terjual_driver' => '司机送达箱数',
     'dus_pulang_driver' => '司机退回箱数',
     'form_pembelian_produk' => '终端日进货表',
+    'hak_akses' => '权限管理',
     'master' => '主数据',
     'master_toko' => '商店主数据',
     'master_produk' => '产品主数据',

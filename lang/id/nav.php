@@ -20,6 +20,7 @@ return [
     'dus_terjual_driver' => 'Dus Terjual Driver',
     'dus_pulang_driver' => 'Dus Pulang Driver',
     'form_pembelian_produk' => 'Form Pembelian Produk',
+    'hak_akses' => 'Hak Akses Management',
     'master' => 'Master',
     'master_toko' => 'Master Toko',
     'master_produk' => 'Master Produk',

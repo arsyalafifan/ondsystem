@@ -16,4 +16,5 @@ return [
     'peran_driver' => '司機',
     'peran_superadmin' => '超級管理員',
     'peran_hr' => 'HR',
+    'peran_supervisor' => '主管',
 ];

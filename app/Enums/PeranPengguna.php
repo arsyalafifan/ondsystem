@@ -9,6 +9,7 @@ enum PeranPengguna: string
     case Driver = 'driver';
     case Superadmin = 'superadmin';
     case Hr = 'hr';
+    case Supervisor = 'supervisor';
 
     public function label(): string
     {
@@ -24,6 +25,7 @@ enum PeranPengguna: string
     {
         return match ($this) {
             self::Admin, self::Superadmin => 'dashboard',
+            self::Supervisor => 'pesanan.daftar',
             self::Hr => 'hr.dashboard',
             self::Sales => 'pesanan.buat',
             self::Driver => 'driver.pilih-mobil',
