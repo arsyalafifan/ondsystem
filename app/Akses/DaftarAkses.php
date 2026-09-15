@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Akses;
+
+/**
+ * SATU-SATUNYA daftar aplikasi, grup, dan menu aplikasi ini.
+ *
+ * Disimpan di kode (bukan database) supaya struktur menu selalu sama di
+ * localhost maupun live — ikut deploy, tanpa input manual. Yang disimpan di
+ * database hanya PENGECUALIAN hak akses per peran dari layar Hak Akses
+ * Management (tabel `hak_akses_perans`), lihat App\Akses\HakAkses.
+ *
+ * Cara pakai:
+ * - Tambah APLIKASI: tambah entri di APLIKASI (urutan = urutan di pemilih
+ *   aplikasi). `segera_hadir` = tampil tapi belum bisa diklik.
+ * - Tambah GRUP (menu yang punya anak): tambah entri di GRUP.
+ * - Tambah MENU: tambah entri di MENU pada posisi yang diinginkan (urutan
+ *   array = urutan tampil; anak satu grup ditulis berurutan), lalu pasang
+ *   `->middleware('akses:<kunci menu>')` di rutenya.
+ *     - `peran`        peran yang BAWAAN-nya boleh (tanpa superadmin — ia
+ *                      selalu boleh). Setting di layar menimpa bawaan ini.
+ *     - `cakupan_data` true bila menu ini mendukung "hanya data milik
+ *                      sendiri" (komponennya wajib membaca HakAkses::cakupan()).
+ *     - `label_peran`  label khusus untuk peran tertentu (opsional).
+ * - Tambah PERAN: tambah `case` di App\Enums\PeranPengguna (+ label di
+ *   lang/.../status.php), lalu sebut perannya di `peran` menu yang relevan.
+ * - Urutan menu khusus satu peran: URUTAN_PERAN.
+ *
+ * PENTING: kunci menu jangan diganti nama setelah dipakai — setting yang
+ * sudah tersimpan mengacu ke kunci ini.
+ */
+final class DaftarAkses
+{
+    public const APLIKASI = [
+        'ond' => ['label' => 'nav.aplikasi_ond', 'ikon' => 'truck'],
+        'hr' => ['label' => 'nav.aplikasi_hr', 'ikon' => 'identification'],
+        'accounting' => ['label' => 'nav.aplikasi_accounting', 'ikon' => 'calculator', 'segera_hadir' => true],
+        'user_admin' => ['label' => 'nav.aplikasi_user_admin', 'ikon' => 'shield-check'],
+    ];
+
+    public const GRUP = [
+        'ond.pembayaran' => ['label' => 'nav.pembayaran', 'ikon' => 'banknotes'],
+        'ond.statistik' => ['label' => 'nav.statistik', 'ikon' => 'chart-bar-square'],
+        'ond.master' => ['label' => 'nav.master', 'ikon' => 'archive-box'],
+        'ond.pengiriman' => ['label' => 'nav.pengiriman', 'ikon' => 'truck'],
+        'hr.master' => ['label' => 'nav.master', 'ikon' => 'archive-box'],
+    ];
+
+    public const MENU = [
+        // --- O&D System ---
+        // `tanpa_superadmin`: menu kerja lapangan milik sales sendiri — rutenya
+        // tetap bisa dibuka superadmin, tapi tidak ditampilkan di sidebarnya.
+        'ond.kunjungi' => ['aplikasi' => 'ond', 'rute' => 'kunjungan.kunjungi', 'label' => 'nav.mulai_kunjungan', 'ikon' => 'camera', 'peran' => ['sales'], 'tanpa_superadmin' => true],
+        'ond.tugas' => ['aplikasi' => 'ond', 'rute' => 'kunjungan.tugas', 'label' => 'nav.tugas_saya', 'ikon' => 'paper-airplane', 'peran' => ['sales'], 'tanpa_superadmin' => true],
+        'ond.dashboard' => ['aplikasi' => 'ond', 'rute' => 'dashboard', 'label' => 'nav.dashboard', 'ikon' => 'chart-pie', 'peran' => ['admin']],
+        'ond.pesanan' => [
+            'aplikasi' => 'ond', 'rute' => 'pesanan.daftar', 'label' => 'nav.pesanan', 'ikon' => 'clipboard-document-list',
+            'peran' => ['admin', 'sales', 'supervisor'], 'cakupan_data' => true, 'label_peran' => ['sales' => 'nav.riwayat_pesanan'],
+        ],
+        'ond.input_pesanan' => ['aplikasi' => 'ond', 'rute' => 'pesanan.buat', 'label' => 'nav.input_pesanan', 'ikon' => 'plus-circle', 'peran' => ['admin', 'sales']],
+        'ond.pos' => ['aplikasi' => 'ond', 'rute' => 'pos.kasir', 'label' => 'nav.pos', 'ikon' => 'shopping-cart', 'peran' => ['admin']],
+        'ond.lengkapi_data_toko' => ['aplikasi' => 'ond', 'rute' => 'toko.lengkapi-data', 'label' => 'nav.lengkapi_data_toko', 'ikon' => 'identification', 'peran' => ['admin', 'sales', 'supervisor']],
+        'ond.generate_routing' => ['aplikasi' => 'ond', 'rute' => 'routing.generate', 'label' => 'nav.generate_routing', 'ikon' => 'map', 'peran' => ['admin']],
+        'ond.riwayat_routing' => ['aplikasi' => 'ond', 'rute' => 'routing.riwayat', 'label' => 'nav.riwayat_routing', 'ikon' => 'clock', 'peran' => ['admin']],
+        'ond.visit_sales' => ['aplikasi' => 'ond', 'rute' => 'kunjungan.periode', 'label' => 'nav.visit_sales', 'ikon' => 'paper-airplane', 'peran' => ['admin']],
+        'ond.penugasan' => ['aplikasi' => 'ond', 'rute' => 'kunjungan.penugasan', 'label' => 'nav.penugasan', 'ikon' => 'folder-open', 'peran' => ['admin']],
+
+        'ond.pelunasan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pelunasan', 'label' => 'nav.pelunasan', 'ikon' => 'check-circle', 'peran' => ['admin']],
+        'ond.belum_lunas' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.belum-lunas', 'label' => 'nav.belum_lunas', 'ikon' => 'exclamation-circle', 'peran' => ['admin']],
+        'ond.pendapatan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pendapatan', 'label' => 'nav.pendapatan', 'ikon' => 'chart-bar', 'peran' => ['admin']],
+
+        'ond.insentif_sales' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'insentif.sales', 'label' => 'nav.insentif_sales', 'ikon' => 'user-group', 'peran' => ['admin']],
+        'ond.barang_terjual' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'penjualan.barang-terjual', 'label' => 'nav.barang_terjual', 'ikon' => 'archive-box', 'peran' => ['admin']],
+        'ond.repeat_order_sales' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.repeat-order-sales', 'label' => 'nav.repeat_order_sales', 'ikon' => 'arrow-path', 'peran' => ['admin']],
+        'ond.dus_terjual_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.dus-terjual-driver', 'label' => 'nav.dus_terjual_driver', 'ikon' => 'user-group', 'peran' => ['admin']],
+        'ond.dus_pulang_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.dus-pulang-driver', 'label' => 'nav.dus_pulang_driver', 'ikon' => 'archive-box-arrow-down', 'peran' => ['admin']],
+        'ond.form_pembelian_produk' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.form-pembelian-produk', 'label' => 'nav.form_pembelian_produk', 'ikon' => 'table-cells', 'peran' => ['admin']],
+
+        'ond.master_toko' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.toko', 'label' => 'nav.master_toko', 'ikon' => 'building-storefront', 'peran' => ['admin']],
+        'ond.master_produk' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.produk', 'label' => 'nav.master_produk', 'ikon' => 'cube', 'peran' => ['admin']],
+        'ond.master_wilayah' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.wilayah', 'label' => 'nav.master_wilayah', 'ikon' => 'map-pin', 'peran' => ['admin']],
+        'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],
+
+        'ond.pengiriman_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'driver.pilih-mobil', 'label' => 'nav.pengiriman_driver', 'ikon' => 'truck', 'peran' => ['driver', 'admin']],
+
+        // --- HR System ---
+        'hr.dashboard' => ['aplikasi' => 'hr', 'rute' => 'hr.dashboard', 'label' => 'nav.dashboard', 'ikon' => 'chart-pie', 'peran' => ['admin', 'hr']],
+        'hr.karyawan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.karyawan', 'label' => 'nav.hr_karyawan', 'ikon' => 'identification', 'peran' => ['admin', 'hr'], 'cakupan_data' => true],
+        'hr.department' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.department', 'label' => 'nav.hr_department', 'ikon' => 'building-office', 'peran' => ['admin', 'hr']],
+        'hr.jabatan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.jabatan', 'label' => 'nav.hr_jabatan', 'ikon' => 'briefcase', 'peran' => ['admin', 'hr']],
+
+        // --- User Admin (bawaan: hanya superadmin) ---
+        'user_admin.pengguna' => ['aplikasi' => 'user_admin', 'rute' => 'pengguna.daftar', 'label' => 'nav.manage_pengguna', 'ikon' => 'user-group', 'peran' => []],
+        'user_admin.depot' => ['aplikasi' => 'user_admin', 'rute' => 'depot.daftar', 'label' => 'nav.manage_depot', 'ikon' => 'building-office-2', 'peran' => []],
+        'user_admin.hak_akses' => ['aplikasi' => 'user_admin', 'rute' => 'hak-akses.kelola', 'label' => 'nav.hak_akses', 'ikon' => 'key', 'peran' => []],
+    ];
+
+    /** Urutan menu khusus peran; menu yang tidak disebut menyusul dengan urutan bawaan. */
+    public const URUTAN_PERAN = [
+        'sales' => ['ond.kunjungi', 'ond.tugas', 'ond.lengkapi_data_toko', 'ond.input_pesanan', 'ond.pesanan'],
+    ];
+
+    /** @return array<string, mixed>|null */
+    public static function menu(string $kunci): ?array
+    {
+        return self::MENU[$kunci] ?? null;
+    }
+
+    /** @return list<string> kunci menu milik aplikasi, urutan bawaan */
+    public static function menuAplikasi(string $aplikasi): array
+    {
+        return array_keys(array_filter(self::MENU, fn (array $m) => $m['aplikasi'] === $aplikasi));
+    }
+}

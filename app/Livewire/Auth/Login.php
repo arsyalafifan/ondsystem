@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Akses\HakAkses;
 use App\Models\Depot;
 use App\Models\Scopes\DepotScope;
 use App\Models\User;
@@ -118,7 +119,7 @@ class Login extends Component
         // sesilah tempat pilihan tamu tercatat.
         Bahasa::pakai(Bahasa::pilihan(null), $pengguna);
 
-        return redirect()->intended(route($pengguna->role->beranda()));
+        return redirect()->intended(route(app(HakAkses::class)->beranda($pengguna)));
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Pesanan;
 
+use App\Akses\HakAkses;
+use App\Enums\CakupanData;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
@@ -109,9 +111,26 @@ class DaftarPesanan extends Component
         $this->resetPage();
     }
 
+    /**
+     * Titik awal kueri pesanan di layar ini — menerapkan cakupan data dari
+     * Hak Akses: "hanya milik sendiri" = pesanan yang diinput pengguna ini
+     * atau dibuat atas namanya. Dipakai juga saat mencari pesanan lewat id
+     * untuk sebuah aksi, supaya id pesanan orang lain yang dikirim lewat
+     * permintaan rakitan tetap tidak ketemu.
+     */
+    private function kueriPesanan(): Builder
+    {
+        return Pesanan::query()->when(
+            app(HakAkses::class)->cakupan(auth()->user(), 'ond.pesanan') === CakupanData::Sendiri,
+            fn (Builder $q) => $q->where(fn (Builder $w) => $w
+                ->where('dibuat_oleh', auth()->id())
+                ->orWhere('sales_id', auth()->id())),
+        );
+    }
+
     private function dasarKueri(): Builder
     {
-        return Pesanan::query()
+        return $this->kueriPesanan()
             ->with([
                 'toko:id,nama,kode,alamat,latitude,longitude', 'wilayah:id,nama', 'stop.kendaraan:id,nomor,nama',
                 // Keempatnya dimuat di depan untuk kolom "Update By | Date"
@@ -150,7 +169,7 @@ class DaftarPesanan extends Component
     #[Computed]
     public function ringkasan(): array
     {
-        $hitung = Pesanan::query()
+        $hitung = $this->kueriPesanan()
             ->when($this->filterWilayah !== '', fn ($q) => $q->where('wilayah_id', $this->filterWilayah))
             ->when($this->filterTanggal !== '', fn ($q) => $q->whereDate('tanggal', $this->filterTanggal))
             ->when($this->filterPenginput !== '', fn ($q) => $q->where('dibuat_oleh', $this->filterPenginput))
@@ -178,7 +197,7 @@ class DaftarPesanan extends Component
     public function penginputs()
     {
         return User::query()
-            ->whereIn('id', Pesanan::query()->select('dibuat_oleh')->distinct())
+            ->whereIn('id', $this->kueriPesanan()->select('dibuat_oleh')->distinct())
             ->orderBy('name')
             ->get(['id', 'name']);
     }
@@ -188,7 +207,7 @@ class DaftarPesanan extends Component
     {
         return $this->pesananDilihat === null
             ? null
-            : Pesanan::with(['items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name', 'stop.kendaraan:id,nomor,nama'])
+            : $this->kueriPesanan()->with(['items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name', 'stop.kendaraan:id,nomor,nama'])
                 ->find($this->pesananDilihat);
     }
 
@@ -214,7 +233,7 @@ class DaftarPesanan extends Component
         }
 
         try {
-            $service->setujui(Pesanan::findOrFail($id), auth()->user());
+            $service->setujui($this->kueriPesanan()->findOrFail($id), auth()->user());
             $this->dispatch('notifikasi', pesan: __('pesanan.notif_disetujui'));
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
@@ -232,7 +251,7 @@ class DaftarPesanan extends Component
         $berhasil = 0;
         $gagal = 0;
 
-        foreach (Pesanan::whereIn('id', $this->terpilih)->get() as $pesanan) {
+        foreach ($this->kueriPesanan()->whereIn('id', $this->terpilih)->get() as $pesanan) {
             try {
                 $service->setujui($pesanan, auth()->user());
                 $berhasil++;
@@ -279,7 +298,7 @@ class DaftarPesanan extends Component
 
         try {
             $service->batalkan(
-                pesanan: Pesanan::findOrFail($this->pesananDibatalkan),
+                pesanan: $this->kueriPesanan()->findOrFail($this->pesananDibatalkan),
                 admin: auth()->user(),
                 alasan: $this->alasanCancel,
                 catatan: $this->catatanCancel ?: null,
@@ -303,7 +322,7 @@ class DaftarPesanan extends Component
     {
         return $this->pesananOrderUlang === null
             ? null
-            : Pesanan::with(['items.produk:id,nama,kode', 'toko', 'pembuat'])->find($this->pesananOrderUlang);
+            : $this->kueriPesanan()->with(['items.produk:id,nama,kode', 'toko', 'pembuat'])->find($this->pesananOrderUlang);
     }
 
     /** @return Collection<int, Produk> */
@@ -326,7 +345,7 @@ class DaftarPesanan extends Component
             abort(403);
         }
 
-        $pesanan = Pesanan::with(['items', 'pembuat'])->findOrFail($id);
+        $pesanan = $this->kueriPesanan()->with(['items', 'pembuat'])->findOrFail($id);
 
         if (! $pesanan->bisa_order_ulang) {
             $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');
@@ -393,7 +412,7 @@ class DaftarPesanan extends Component
         // diperbaiki tetap menampilkan galat lama yang sudah tidak relevan.
         $this->resetValidation();
 
-        $pesananAsli = Pesanan::with(['toko'])->findOrFail($this->pesananOrderUlang);
+        $pesananAsli = $this->kueriPesanan()->with(['toko'])->findOrFail($this->pesananOrderUlang);
 
         if (! $pesananAsli->bisa_order_ulang) {
             $this->dispatch('notifikasi', pesan: __('pesanan.galat_bukan_batal_lapangan'), jenis: 'error');
@@ -446,7 +465,7 @@ class DaftarPesanan extends Component
         }
 
         try {
-            $service->tandaiBatalKarenaToko(Pesanan::findOrFail($id), auth()->user());
+            $service->tandaiBatalKarenaToko($this->kueriPesanan()->findOrFail($id), auth()->user());
             $this->dispatch('notifikasi', pesan: __('pesanan.notif_batal_final'));
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');

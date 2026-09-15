@@ -20,6 +20,7 @@ return [
     'dus_terjual_driver' => 'Driver Delivered Boxes',
     'dus_pulang_driver' => 'Driver Returned Boxes',
     'form_pembelian_produk' => 'Product Purchase Form',
+    'hak_akses' => 'Access Management',
     'master' => 'Master Data',
     'master_toko' => 'Stores',
     'master_produk' => 'Products',

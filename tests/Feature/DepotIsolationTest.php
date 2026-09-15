@@ -299,8 +299,8 @@ it('superadmin di mode semua depot mendapat notifikasi ramah saat menyimpan penu
 
 /**
  * Audit menyeluruh: superadmin bisa membuka HAMPIR semua halaman (lihat
- * App\Http\Middleware\PastikanPeran — superadmin lolos dari setiap
- * pembatasan peran), termasuk yang punya aksi tulis (buat/ubah data)
+ * App\Akses\HakAkses — superadmin selalu boleh setiap menu), termasuk
+ * yang punya aksi tulis (buat/ubah data)
  * yang tadinya cuma diuji lewat menu Pesanan & Generate Routing. Setiap
  * titik di bawah ini ditemukan lewat audit manual seluruh pemanggilan
  * ::create()/updateOrCreate()/firstOrCreate() pada model yang pakai

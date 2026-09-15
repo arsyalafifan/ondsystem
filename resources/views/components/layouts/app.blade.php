@@ -2,78 +2,11 @@
     $bahasa = \App\Support\Bahasa::info();
     $peran = auth()->user()->role;
 
-    $menuAdmin = [
-        ['rute' => 'dashboard', 'label' => __('nav.dashboard'), 'ikon' => 'chart-pie'],
-        ['rute' => 'pesanan.daftar', 'label' => __('nav.pesanan'), 'ikon' => 'clipboard-document-list'],
-        ['rute' => 'pesanan.buat', 'label' => __('nav.input_pesanan'), 'ikon' => 'plus-circle'],
-        ['rute' => 'pos.kasir', 'label' => __('nav.pos'), 'ikon' => 'shopping-cart'],
-        ['rute' => 'toko.lengkapi-data', 'label' => __('nav.lengkapi_data_toko'), 'ikon' => 'identification'],
-        ['rute' => 'routing.generate', 'label' => __('nav.generate_routing'), 'ikon' => 'map'],
-        ['rute' => 'routing.riwayat', 'label' => __('nav.riwayat_routing'), 'ikon' => 'clock'],
-        ['rute' => 'kunjungan.periode', 'label' => __('nav.visit_sales'), 'ikon' => 'paper-airplane'],
-        ['rute' => 'kunjungan.penugasan', 'label' => __('nav.penugasan'), 'ikon' => 'folder-open'],
-        ['label' => __('nav.pembayaran'), 'ikon' => 'banknotes', 'anak' => [
-            ['rute' => 'pembayaran.pelunasan', 'label' => __('nav.pelunasan'), 'ikon' => 'check-circle'],
-            ['rute' => 'pembayaran.belum-lunas', 'label' => __('nav.belum_lunas'), 'ikon' => 'exclamation-circle'],
-            ['rute' => 'pembayaran.pendapatan', 'label' => __('nav.pendapatan'), 'ikon' => 'chart-bar'],
-        ]],
-        ['label' => __('nav.statistik'), 'ikon' => 'chart-bar-square', 'anak' => [
-            ['rute' => 'insentif.sales', 'label' => __('nav.insentif_sales'), 'ikon' => 'user-group'],
-            ['rute' => 'penjualan.barang-terjual', 'label' => __('nav.barang_terjual'), 'ikon' => 'archive-box'],
-            ['rute' => 'statistik.repeat-order-sales', 'label' => __('nav.repeat_order_sales'), 'ikon' => 'arrow-path'],
-            ['rute' => 'statistik.dus-terjual-driver', 'label' => __('nav.dus_terjual_driver'), 'ikon' => 'user-group'],
-            ['rute' => 'statistik.dus-pulang-driver', 'label' => __('nav.dus_pulang_driver'), 'ikon' => 'archive-box-arrow-down'],
-            ['rute' => 'statistik.form-pembelian-produk', 'label' => __('nav.form_pembelian_produk'), 'ikon' => 'table-cells'],
-        ]],
-        ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
-            ['rute' => 'master.toko', 'label' => __('nav.master_toko'), 'ikon' => 'building-storefront'],
-            ['rute' => 'master.produk', 'label' => __('nav.master_produk'), 'ikon' => 'cube'],
-            ['rute' => 'master.wilayah', 'label' => __('nav.master_wilayah'), 'ikon' => 'map-pin'],
-            ['rute' => 'master.promo', 'label' => __('nav.master_promo'), 'ikon' => 'gift'],
-        ]],
-        ['label' => __('nav.pengiriman'), 'ikon' => 'truck', 'anak' => [
-            ['rute' => 'driver.pilih-mobil', 'label' => __('nav.pengiriman_driver'), 'ikon' => 'truck'],
-        ]],
-    ];
-
-    // Menu aplikasi HR System — dilihat peran Hr sendiri, ATAU Admin/
-    // Superadmin selagi sedang membuka rute hr.* (lihat AplikasiSaatIni).
-    $menuHr = [
-        ['rute' => 'hr.dashboard', 'label' => __('nav.dashboard'), 'ikon' => 'chart-pie'],
-        ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
-            ['rute' => 'hr.karyawan', 'label' => __('nav.hr_karyawan'), 'ikon' => 'identification'],
-            ['rute' => 'hr.department', 'label' => __('nav.hr_department'), 'ikon' => 'building-office'],
-            ['rute' => 'hr.jabatan', 'label' => __('nav.hr_jabatan'), 'ikon' => 'briefcase'],
-        ]],
-    ];
-
-    // Menu aplikasi User Admin — item ini SEBELUMNYA langsung ada di
-    // $menuAdmin khusus Superadmin; sekarang dipindah ke bawah "aplikasi"
-    // tersendiri (lihat <x-pemilih-aplikasi />), rute-nya sendiri TIDAK
-    // berubah nama (pengguna.daftar/depot.daftar tetap sama).
-    $menuUserAdmin = [
-        ['rute' => 'pengguna.daftar', 'label' => __('nav.manage_pengguna'), 'ikon' => 'user-group'],
-        ['rute' => 'depot.daftar', 'label' => __('nav.manage_depot'), 'ikon' => 'building-office-2'],
-    ];
-
-    $menu = match (true) {
-        $peran === \App\Enums\PeranPengguna::Hr => $menuHr,
-        \App\Support\AplikasiSaatIni::hr() => $menuHr,
-        \App\Support\AplikasiSaatIni::userAdmin() && $peran === \App\Enums\PeranPengguna::Superadmin => $menuUserAdmin,
-        $peran === \App\Enums\PeranPengguna::Admin, $peran === \App\Enums\PeranPengguna::Superadmin => $menuAdmin,
-        $peran === \App\Enums\PeranPengguna::Sales => [
-            ['rute' => 'kunjungan.kunjungi', 'label' => __('nav.mulai_kunjungan'), 'ikon' => 'camera'],
-            ['rute' => 'kunjungan.tugas', 'label' => __('nav.tugas_saya'), 'ikon' => 'paper-airplane'],
-            ['rute' => 'toko.lengkapi-data', 'label' => __('nav.lengkapi_data_toko'), 'ikon' => 'identification'],
-            ['rute' => 'pesanan.buat', 'label' => __('nav.input_pesanan'), 'ikon' => 'plus-circle'],
-            ['rute' => 'pesanan.daftar', 'label' => __('nav.riwayat_pesanan'), 'ikon' => 'clipboard-document-list'],
-        ],
-        $peran === \App\Enums\PeranPengguna::Driver => [
-            ['label' => __('nav.pengiriman'), 'ikon' => 'truck', 'anak' => [
-                ['rute' => 'driver.pilih-mobil', 'label' => __('nav.pengiriman_driver'), 'ikon' => 'truck'],
-            ]],
-        ],
-    };
+    // Menu & aplikasi berasal dari App\Akses\DaftarAkses, disaring hak akses
+    // peran ini (bawaan + setting Hak Akses Management).
+    $hakAkses = app(\App\Akses\HakAkses::class);
+    $aplikasiAktif = $hakAkses->aplikasiAktif(auth()->user());
+    $menu = $hakAkses->menuUntuk(auth()->user(), $aplikasiAktif);
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $bahasa['html'] }}" dir="{{ $bahasa['arah'] }}" class="h-full">
@@ -116,7 +49,7 @@
            :class="sidebarTerbuka ? 'lg:w-72' : 'lg:w-0 lg:overflow-hidden lg:border-r-0'"
            class="bg-white border-b lg:border-b-0 lg:border-r border-slate-200 text-slate-600 lg:flex lg:shrink-0 lg:flex-col shadow-sm lg:shadow-none z-10 lg:transition-[width] lg:duration-200">
         <div class="flex items-center justify-between px-6 py-4 lg:py-6 lg:w-72">
-            <a href="{{ route($peran->beranda()) }}" wire:navigate class="flex items-center gap-3 transition-opacity hover:opacity-80">
+            <a href="{{ route($hakAkses->beranda(auth()->user())) }}" wire:navigate class="flex items-center gap-3 transition-opacity hover:opacity-80">
                 <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
                     <x-heroicon-s-truck class="size-6" />
                 </div>
@@ -132,12 +65,10 @@
         </div>
 
         <nav :class="buka ? 'block' : 'hidden'" class="px-4 pb-6 lg:!flex lg:flex-1 lg:flex-col lg:w-72 overflow-y-auto">
-            @if (in_array($peran, [\App\Enums\PeranPengguna::Admin, \App\Enums\PeranPengguna::Superadmin], true))
-                {{-- Hr/Sales/Driver tidak melihat pemilih ini: peran Hr hidup
-                     sepenuhnya di dalam HR System (tidak ada aplikasi lain
-                     untuk dipindah), Sales/Driver belum punya akses ke
-                     aplikasi selain O&D sama sekali. --}}
-                <x-pemilih-aplikasi :peran="$peran" />
+            {{-- Hanya untuk yang punya lebih dari satu aplikasi — pengguna
+                 dengan satu aplikasi saja tidak punya tujuan untuk pindah. --}}
+            @if (count($hakAkses->aplikasiUntuk(auth()->user())) > 1)
+                <x-pemilih-aplikasi :aplikasi-aktif="$aplikasiAktif" />
             @endif
 
             <div class="lg:flex-1 space-y-1">

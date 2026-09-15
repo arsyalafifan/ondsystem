@@ -1,5 +1,6 @@
 <?php
 
+use App\Akses\HakAkses;
 use App\Http\Controllers\NotaPesananController;
 use App\Http\Controllers\PackingListController;
 use App\Http\Controllers\SinkronKunjunganController;
@@ -10,6 +11,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Depot\DaftarDepot;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
+use App\Livewire\HakAkses\KelolaHakAkses;
 use App\Livewire\Hr\DaftarDepartment;
 use App\Livewire\Hr\DaftarJabatan;
 use App\Livewire\Hr\DaftarKaryawan;
@@ -47,7 +49,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return Auth::check()
-        ? redirect()->route(Auth::user()->role->beranda())
+        ? redirect()->route(app(HakAkses::class)->beranda(Auth::user()))
         : redirect()->route('masuk');
 });
 
@@ -103,56 +105,60 @@ Route::middleware('auth')->group(function () {
         return back();
     })->name('depot.ganti');
 
-    // --- Admin ---
-    Route::middleware('peran:admin')->group(function () {
-        Route::get('/dashboard', Dashboard::class)->name('dashboard');
+    // Setiap rute di bawah dijaga lewat kunci menu di App\Akses\DaftarAkses
+    // (`akses:`), bukan nama peran — siapa yang boleh diatur di sana (bawaan)
+    // dan di layar Hak Akses Management (pengecualian). Rute yang dipakai
+    // lebih dari satu menu menyebut semuanya: cukup salah satu yang boleh.
 
-        Route::get('/routing/generate', GenerateRouting::class)->name('routing.generate');
-        Route::get('/routing/riwayat', RiwayatRouting::class)->name('routing.riwayat');
+    // --- O&D System ---
+    Route::get('/dashboard', Dashboard::class)->name('dashboard')->middleware('akses:ond.dashboard');
+
+    Route::get('/routing/generate', GenerateRouting::class)->name('routing.generate')->middleware('akses:ond.generate_routing');
+    Route::get('/routing/riwayat', RiwayatRouting::class)->name('routing.riwayat')->middleware('akses:ond.riwayat_routing');
+
+    Route::middleware('akses:ond.generate_routing,ond.riwayat_routing')->group(function () {
         Route::get('/routing/{batch}', GenerateRouting::class)->name('routing.lihat');
-
         Route::get('/routing/{kendaraan}/packing-list', [PackingListController::class, 'cetak'])->name('routing.packing-list');
         Route::get('/routing/{kendaraan}/packing-list/pdf', [PackingListController::class, 'unduhPdf'])->name('routing.packing-list.pdf');
         Route::get('/routing/{kendaraan}/packing-list/escp', [PackingListController::class, 'unduhEscp'])->name('routing.packing-list.escp');
-
-        Route::get('/kunjungan/periode', DaftarPeriode::class)->name('kunjungan.periode');
-        Route::get('/kunjungan/periode/{periode}', DetailPeriode::class)->name('kunjungan.periode.lihat');
-        Route::get('/kunjungan/penugasan', Penugasan::class)->name('kunjungan.penugasan');
-
-        Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan');
-        Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas');
-        Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan');
-
-        Route::get('/insentif/sales', InsentifSales::class)->name('insentif.sales');
-
-        Route::get('/penjualan/barang-terjual', BarangTerjual::class)->name('penjualan.barang-terjual');
-
-        Route::get('/statistik/repeat-order-sales', RepeatOrderSales::class)->name('statistik.repeat-order-sales');
-        Route::get('/statistik/dus-pulang-driver', DusPulangDriver::class)->name('statistik.dus-pulang-driver');
-        Route::get('/statistik/dus-terjual-driver', DusTerjualDriver::class)->name('statistik.dus-terjual-driver');
-        Route::get('/statistik/form-pembelian-produk', FormPembelianProduk::class)->name('statistik.form-pembelian-produk');
-
-        Route::get('/master/toko', DaftarToko::class)->name('master.toko');
-        Route::get('/master/produk', DaftarProduk::class)->name('master.produk');
-        Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah');
-        Route::get('/master/promo', DaftarPromo::class)->name('master.promo');
-
-        Route::get('/pos', Kasir::class)->name('pos.kasir');
     });
 
-    // --- Sales dan Admin ---
-    Route::middleware('peran:admin,sales')->group(function () {
-        Route::get('/pesanan/buat', BuatPesanan::class)->name('pesanan.buat');
-        Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar');
+    Route::middleware('akses:ond.visit_sales')->group(function () {
+        Route::get('/kunjungan/periode', DaftarPeriode::class)->name('kunjungan.periode');
+        Route::get('/kunjungan/periode/{periode}', DetailPeriode::class)->name('kunjungan.periode.lihat');
+    });
+    Route::get('/kunjungan/penugasan', Penugasan::class)->name('kunjungan.penugasan')->middleware('akses:ond.penugasan');
+
+    Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan')->middleware('akses:ond.pelunasan');
+    Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas')->middleware('akses:ond.belum_lunas');
+    Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan')->middleware('akses:ond.pendapatan');
+
+    Route::get('/insentif/sales', InsentifSales::class)->name('insentif.sales')->middleware('akses:ond.insentif_sales');
+    Route::get('/penjualan/barang-terjual', BarangTerjual::class)->name('penjualan.barang-terjual')->middleware('akses:ond.barang_terjual');
+    Route::get('/statistik/repeat-order-sales', RepeatOrderSales::class)->name('statistik.repeat-order-sales')->middleware('akses:ond.repeat_order_sales');
+    Route::get('/statistik/dus-pulang-driver', DusPulangDriver::class)->name('statistik.dus-pulang-driver')->middleware('akses:ond.dus_pulang_driver');
+    Route::get('/statistik/dus-terjual-driver', DusTerjualDriver::class)->name('statistik.dus-terjual-driver')->middleware('akses:ond.dus_terjual_driver');
+    Route::get('/statistik/form-pembelian-produk', FormPembelianProduk::class)->name('statistik.form-pembelian-produk')->middleware('akses:ond.form_pembelian_produk');
+
+    Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
+    Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
+    Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');
+    Route::get('/master/promo', DaftarPromo::class)->name('master.promo')->middleware('akses:ond.master_promo');
+
+    Route::get('/pos', Kasir::class)->name('pos.kasir')->middleware('akses:ond.pos');
+
+    Route::get('/pesanan/buat', BuatPesanan::class)->name('pesanan.buat')->middleware('akses:ond.input_pesanan');
+    Route::get('/pesanan', DaftarPesanan::class)->name('pesanan.daftar')->middleware('akses:ond.pesanan');
+    Route::middleware('akses:ond.pesanan,ond.input_pesanan')->group(function () {
         Route::get('/pesanan/{pesanan}/nota', [NotaPesananController::class, 'cetak'])->name('pesanan.nota');
         Route::get('/pesanan/{pesanan}/nota/pdf', [NotaPesananController::class, 'unduhPdf'])->name('pesanan.nota.pdf');
         Route::get('/pesanan/{pesanan}/nota/escp', [NotaPesananController::class, 'unduhEscp'])->name('pesanan.nota.escp');
-        Route::get('/toko/lengkapi-data', LengkapiData::class)->name('toko.lengkapi-data');
     });
+    Route::get('/toko/lengkapi-data', LengkapiData::class)->name('toko.lengkapi-data')->middleware('akses:ond.lengkapi_data_toko');
 
-    // --- Sales ---
-    Route::middleware('peran:sales')->group(function () {
-        Route::get('/kunjungan/tugas', TugasSaya::class)->name('kunjungan.tugas');
+    Route::get('/kunjungan/tugas', TugasSaya::class)->name('kunjungan.tugas')->middleware('akses:ond.tugas');
+
+    Route::middleware('akses:ond.kunjungi')->group(function () {
         Route::get('/kunjungan', Kunjungi::class)->name('kunjungan.kunjungi');
 
         // Kiriman susulan dari perangkat yang tadi tidak punya sinyal.
@@ -177,26 +183,23 @@ Route::middleware('auth')->group(function () {
     // DaftarKunjungan::pastikanBisaBertindak() sendiri yang mengunci semua
     // tindakan driver untuk peran selain driver), jadi keduanya perlu
     // peran admin juga, bukan cuma driver.
-    Route::middleware('peran:driver,admin')->group(function () {
+    Route::middleware('akses:ond.pengiriman_driver')->group(function () {
         Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
 
-    // --- HR ---
-    // 'peran:admin,hr' otomatis meloloskan superadmin juga lewat bypass di
-    // PastikanPeran, tidak perlu disebut eksplisit di daftar peran.
-    Route::middleware('peran:admin,hr')->prefix('hr')->name('hr.')->group(function () {
-        Route::get('/dashboard', HrDashboard::class)->name('dashboard');
-        Route::get('/karyawan', DaftarKaryawan::class)->name('karyawan');
-        Route::get('/department', DaftarDepartment::class)->name('department');
-        Route::get('/jabatan', DaftarJabatan::class)->name('jabatan');
+    // --- HR System ---
+    Route::prefix('hr')->name('hr.')->group(function () {
+        Route::get('/dashboard', HrDashboard::class)->name('dashboard')->middleware('akses:hr.dashboard');
+        Route::get('/karyawan', DaftarKaryawan::class)->name('karyawan')->middleware('akses:hr.karyawan');
+        Route::get('/department', DaftarDepartment::class)->name('department')->middleware('akses:hr.department');
+        Route::get('/jabatan', DaftarJabatan::class)->name('jabatan')->middleware('akses:hr.jabatan');
     });
 
-    // --- Superadmin ---
-    Route::middleware('peran:superadmin')->group(function () {
-        Route::get('/pengguna', DaftarPengguna::class)->name('pengguna.daftar');
-        Route::get('/depot', DaftarDepot::class)->name('depot.daftar');
-    });
+    // --- User Admin ---
+    Route::get('/pengguna', DaftarPengguna::class)->name('pengguna.daftar')->middleware('akses:user_admin.pengguna');
+    Route::get('/depot', DaftarDepot::class)->name('depot.daftar')->middleware('akses:user_admin.depot');
+    Route::get('/hak-akses', KelolaHakAkses::class)->name('hak-akses.kelola')->middleware('akses:user_admin.hak_akses');
 
     // --- Semua peran yang sudah masuk ---
     Route::get('/akun/kata-sandi', GantiKataSandi::class)->name('akun.kata-sandi');

@@ -1,47 +1,29 @@
-@props(['peran'])
+@props(['aplikasiAktif'])
 
 @php
-    $daftarAplikasi = [
-        [
-            'kunci' => 'ond',
-            'label' => __('nav.aplikasi_ond'),
-            'ikon' => 'truck',
-            'rute' => $peran->beranda(),
-            'aktif' => ! \App\Support\AplikasiSaatIni::hr() && ! \App\Support\AplikasiSaatIni::userAdmin(),
-        ],
-        [
-            'kunci' => 'hr',
-            'label' => __('nav.aplikasi_hr'),
-            'ikon' => 'identification',
-            'rute' => 'hr.dashboard',
-            'aktif' => \App\Support\AplikasiSaatIni::hr(),
-        ],
-        [
-            'kunci' => 'accounting',
-            'label' => __('nav.aplikasi_accounting'),
-            'ikon' => 'calculator',
-            'rute' => null,
-            'aktif' => false,
-        ],
-    ];
+    $hakAkses = app(\App\Akses\HakAkses::class);
 
-    if (auth()->user()->isSuperadmin()) {
-        $daftarAplikasi[] = [
-            'kunci' => 'user_admin',
-            'label' => __('nav.aplikasi_user_admin'),
-            'ikon' => 'shield-check',
-            'rute' => 'pengguna.daftar',
-            'aktif' => \App\Support\AplikasiSaatIni::userAdmin(),
-        ];
-    }
+    // Daftar & urutan dari App\Akses\DaftarAkses::APLIKASI. Aplikasi yang
+    // belum punya menu yang boleh dibuka tidak ditampilkan; yang ditandai
+    // "segera hadir" tetap tampil tapi tidak bisa diklik.
+    $daftarAplikasi = collect(\App\Akses\DaftarAkses::APLIKASI)
+        ->map(fn (array $aplikasi, string $kunci) => [
+            'label' => __($aplikasi['label']),
+            'ikon' => $aplikasi['ikon'],
+            'segera_hadir' => $aplikasi['segera_hadir'] ?? false,
+            'rute' => ($aplikasi['segera_hadir'] ?? false) ? null : $hakAkses->ruteAplikasi(auth()->user(), $kunci),
+            'aktif' => $kunci === $aplikasiAktif,
+        ])
+        ->filter(fn (array $a) => $a['segera_hadir'] || $a['rute'] !== null)
+        ->values()
+        ->all();
 
     $terpilih = collect($daftarAplikasi)->firstWhere('aktif', true);
 @endphp
 
 {{-- Pemilih aplikasi (O&D System / HR System / Accounting / User Admin).
-     Bukan form POST seperti <x-pemilih-depot /> — tidak ada state sesi yang
-     ditulis, cuma tautan biasa ke rute beranda aplikasi tujuan (lihat
-     App\Support\AplikasiSaatIni). --}}
+     Cuma tautan biasa ke halaman pertama aplikasi tujuan — aplikasi aktif
+     ditentukan dari rute yang sedang dibuka (HakAkses::aplikasiAktif). --}}
 <div x-data="{ buka: false }" @click.outside="buka = false" class="relative mb-2">
     <button type="button" @click="buka = !buka"
             :aria-expanded="buka.toString()"
