@@ -36,6 +36,7 @@ use App\Livewire\Routing\GenerateRouting;
 use App\Livewire\Routing\RiwayatRouting;
 use App\Livewire\Statistik\DusPulangDriver;
 use App\Livewire\Statistik\DusTerjualDriver;
+use App\Livewire\Statistik\FormPembelianProduk;
 use App\Livewire\Statistik\RepeatOrderSales;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
@@ -129,6 +130,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/statistik/repeat-order-sales', RepeatOrderSales::class)->name('statistik.repeat-order-sales');
         Route::get('/statistik/dus-pulang-driver', DusPulangDriver::class)->name('statistik.dus-pulang-driver');
         Route::get('/statistik/dus-terjual-driver', DusTerjualDriver::class)->name('statistik.dus-terjual-driver');
+        Route::get('/statistik/form-pembelian-produk', FormPembelianProduk::class)->name('statistik.form-pembelian-produk');
 
         Route::get('/master/toko', DaftarToko::class)->name('master.toko');
         Route::get('/master/produk', DaftarProduk::class)->name('master.produk');

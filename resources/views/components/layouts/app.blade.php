@@ -23,6 +23,7 @@
             ['rute' => 'statistik.repeat-order-sales', 'label' => __('nav.repeat_order_sales'), 'ikon' => 'arrow-path'],
             ['rute' => 'statistik.dus-terjual-driver', 'label' => __('nav.dus_terjual_driver'), 'ikon' => 'user-group'],
             ['rute' => 'statistik.dus-pulang-driver', 'label' => __('nav.dus_pulang_driver'), 'ikon' => 'archive-box-arrow-down'],
+            ['rute' => 'statistik.form-pembelian-produk', 'label' => __('nav.form_pembelian_produk'), 'ikon' => 'table-cells'],
         ]],
         ['label' => __('nav.master'), 'ikon' => 'archive-box', 'anak' => [
             ['rute' => 'master.toko', 'label' => __('nav.master_toko'), 'ikon' => 'building-storefront'],

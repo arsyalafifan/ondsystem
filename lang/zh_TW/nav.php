@@ -19,6 +19,7 @@ return [
     'repeat_order_sales' => 'Repeat Order Sales',
     'dus_terjual_driver' => '司機送達箱數',
     'dus_pulang_driver' => '司機退回箱數',
+    'form_pembelian_produk' => '終端日進貨表',
     'master' => '主檔',
     'master_toko' => '商店主檔',
     'master_produk' => '產品主檔',

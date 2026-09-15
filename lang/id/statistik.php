@@ -32,4 +32,13 @@ return [
     'total_dus_terjual' => 'Total Dus Terjual',
     'dus_terantar' => 'Dus Terantar',
     'kosong_dus_terjual' => 'Belum ada pesanan selesai pada rentang ini.',
+    'judul_form_pembelian' => 'Form Pembelian Produk',
+    'ket_form_pembelian' => 'Dus yang diterima tiap toko per hari (pesanan selesai, dihitung dari yang benar-benar diterima toko). Sales diambil dari penugasan toko. Tampilan dan hasil Excel memakai format yang sama.',
+    'mode_tahun' => 'Tahunan',
+    'bulan' => 'Bulan',
+    'tahun' => 'Tahun',
+    'unduh_excel' => 'Unduh Excel',
+    'total_dus_periode' => 'Total Dus Dibeli',
+    'jumlah_toko_membeli' => 'Toko yang Membeli',
+    'kosong_form_pembelian' => 'Belum ada toko untuk ditampilkan.',
 ];

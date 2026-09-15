@@ -32,4 +32,13 @@ return [
     'total_dus_terjual' => '送達總箱數',
     'dus_terantar' => '送達箱數',
     'kosong_dus_terjual' => '此區間內尚無已完成的訂單。',
+    'judul_form_pembelian' => '終端日進貨表',
+    'ket_form_pembelian' => '每家門店每天收到的箱數（已完成訂單，按門店實際收到的數量計算）。業務員取自門店分配。頁面與 Excel 檔案格式相同。',
+    'mode_tahun' => '按年',
+    'bulan' => '月份',
+    'tahun' => '年份',
+    'unduh_excel' => '下載 Excel',
+    'total_dus_periode' => '進貨總箱數',
+    'jumlah_toko_membeli' => '有進貨的門店',
+    'kosong_form_pembelian' => '暫無可顯示的門店。',
 ];
