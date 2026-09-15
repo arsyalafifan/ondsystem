@@ -32,4 +32,13 @@ return [
     'total_dus_terjual' => 'Total Boxes Delivered',
     'dus_terantar' => 'Boxes Delivered',
     'kosong_dus_terjual' => 'No completed orders in this range yet.',
+    'judul_form_pembelian' => 'Product Purchase Form',
+    'ket_form_pembelian' => 'Boxes received by each store per day (completed orders, counted from what the store actually received). Sales rep comes from the store assignment. The screen and the Excel file share the same format.',
+    'mode_tahun' => 'Yearly',
+    'bulan' => 'Month',
+    'tahun' => 'Year',
+    'unduh_excel' => 'Download Excel',
+    'total_dus_periode' => 'Total Boxes Purchased',
+    'jumlah_toko_membeli' => 'Stores That Purchased',
+    'kosong_form_pembelian' => 'No stores to show yet.',
 ];
