@@ -49,7 +49,7 @@ it('header kolomnya persis sama dengan yang dikenali impor', function () {
 
     expect($baris[0])->toBe([
         'kode', 'nama', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
-        'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id',
+        'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id', 'status',
     ]);
 });
 
@@ -75,7 +75,7 @@ it('berisi seluruh toko dengan datanya masing-masing', function () {
     expect($baris[1])->toBe([
         'TK-0001', 'Toko Satu', 'Budi', '3171012501900001', 'Jl. Satu No. 1',
         'Kel A', 'Kec A', 'Kota A', '12345', '081234567890',
-        '-6.1751', '106.8272', 'Wilayah Satu', 'IDNAH202528000001',
+        '-6.1751', '106.8272', 'Wilayah Satu', 'IDNAH202528000001', 'aktif',
     ]);
 
     // Toko Dua sengaja tanpa wilayah/koordinat/kontak — kolom kosongnya
@@ -83,6 +83,19 @@ it('berisi seluruh toko dengan datanya masing-masing', function () {
     expect($baris[2][0])->toBe('TK-0002')
         ->and($baris[2][1])->toBe('Toko Dua')
         ->and($baris[2][12])->toBeNull(); // kolom wilayah
+});
+
+it('kolom status membedakan toko aktif dan nonaktif', function () {
+    Toko::create(['kode' => 'TK-0001', 'nama' => 'Toko Buka', 'wilayah_id' => $this->wilayah->id, 'alamat' => 'Jl. Buka']);
+    Toko::create(['kode' => 'TK-0002', 'nama' => 'Toko Tutup', 'wilayah_id' => $this->wilayah->id, 'alamat' => 'Jl. Tutup', 'aktif' => false]);
+
+    $test = Livewire::actingAs($this->admin)->test(DaftarToko::class)->call('unduhExcel');
+    $baris = bacaBarisEksporToko($test);
+
+    expect(array_column(array_slice($baris, 1), 14, 0))->toBe([
+        'TK-0001' => 'aktif',
+        'TK-0002' => 'nonaktif',
+    ]);
 });
 
 it('toko internal (Tanpa Toko, untuk transaksi POS) tidak ikut diekspor', function () {
@@ -156,6 +169,12 @@ it('berkas hasil ekspor bisa diimpor ulang tanpa membuat toko baru atau mengubah
         'sumber_koordinat' => 'manual',
     ]);
 
+    // Toko nonaktif harus TETAP nonaktif setelah berkas ekspornya diimpor ulang.
+    $tokoNonaktif = Toko::create([
+        'kode' => 'TK-0002', 'nama' => 'Toko Nonaktif', 'wilayah_id' => $this->wilayah->id,
+        'alamat' => 'Jl. Nonaktif No. 2', 'aktif' => false,
+    ]);
+
     $eksporTest = Livewire::actingAs($this->admin)->test(DaftarToko::class)->call('unduhExcel');
     $kontenEkspor = base64_decode(data_get($eksporTest->effects, 'download.content'));
 
@@ -167,7 +186,7 @@ it('berkas hasil ekspor bisa diimpor ulang tanpa membuat toko baru atau mengubah
         ->call('mulaiImporCsv')
         ->call('lanjutkanImporCsv');
 
-    expect(Toko::count())->toBe(1);
+    expect(Toko::count())->toBe(2);
 
     $toko->refresh();
 
@@ -182,7 +201,7 @@ it('berkas hasil ekspor bisa diimpor ulang tanpa membuat toko baru atau mengubah
         ->and((float) $toko->latitude)->toEqualWithDelta(-6.1751, 0.0001)
         ->and((float) $toko->longitude)->toEqualWithDelta(106.8272, 0.0001)
         ->and($toko->asset_id)->toBe('IDNAH202528000001')
-        ->and($toko->wilayah_id)->toBe($this->wilayah->id);
-
-    @unlink($berkasSementara);
+        ->and($toko->wilayah_id)->toBe($this->wilayah->id)
+        ->and($toko->aktif)->toBeTrue()
+        ->and($tokoNonaktif->refresh()->aktif)->toBeFalse();
 });

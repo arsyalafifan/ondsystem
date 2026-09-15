@@ -773,10 +773,16 @@ class DaftarToko extends Component
                 // diproses, hanya kolom kritisnya yang dikunci dan dicatat.
                 $pesananAktifAda = $adaSebelumnya && isset($tokoIdPesananAktif[$tokoLama->id]);
 
+                // Kolom `status` (ada di berkas hasil ekspor) dihormati supaya
+                // toko nonaktif tidak diam-diam aktif lagi saat berkas ekspor
+                // diimpor ulang. Kosong/tidak dikenali = aktif, sama seperti
+                // berkas impor lama yang belum punya kolom ini.
+                $status = mb_strtolower(trim((string) ($data['status'] ?? '')));
+
                 $dataSimpan = [
                     'nama' => $nama,
                     'alamat' => $alamat,
-                    'aktif' => true,
+                    'aktif' => ! in_array($status, ['nonaktif', 'non-aktif', 'tidak aktif', '0', 'false'], true),
                 ];
 
                 // Kolom opsional (termasuk nomor aset dan wilayah) hanya ditimpa
@@ -1067,7 +1073,7 @@ class DaftarToko extends Component
 
         $sheet->fromArray([
             'kode', 'nama', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
-            'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id',
+            'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id', 'status',
         ], null, 'A1');
 
         $baris = 2;
@@ -1088,6 +1094,9 @@ class DaftarToko extends Component
                 null, // longitude — idem
                 $toko->wilayah?->nama,
                 null, // asset_id — idem
+                // Nilai tetap (bukan label terjemahan), sama seperti judul
+                // kolomnya — dibaca kembali oleh impor.
+                $toko->aktif ? 'aktif' : 'nonaktif',
             ], null, "A{$baris}");
 
             // Ditulis eksplisit bertipe STRING, bukan cuma diformat tampilan
@@ -1124,7 +1133,7 @@ class DaftarToko extends Component
             $sheet->getStyle("{$kolom}1:{$kolom}{$barisTerakhir}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         }
 
-        foreach (range('A', 'N') as $kolom) {
+        foreach (range('A', 'O') as $kolom) {
             $sheet->getColumnDimension($kolom)->setAutoSize(true);
         }
 
