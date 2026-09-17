@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\KategoriToko;
 use App\Enums\PeranPengguna;
 use App\Livewire\Master\DaftarToko;
 use App\Models\Toko;
@@ -48,14 +49,14 @@ it('header kolomnya persis sama dengan yang dikenali impor', function () {
     $baris = bacaBarisEksporToko($test);
 
     expect($baris[0])->toBe([
-        'kode', 'nama', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
+        'kode', 'nama', 'kategori', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
         'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id', 'status',
     ]);
 });
 
 it('berisi seluruh toko dengan datanya masing-masing', function () {
     Toko::create([
-        'kode' => 'TK-0001', 'nama' => 'Toko Satu', 'wilayah_id' => $this->wilayah->id,
+        'kode' => 'TK-0001', 'nama' => 'Toko Satu', 'kategori' => 'sekolah', 'wilayah_id' => $this->wilayah->id,
         'alamat' => 'Jl. Satu No. 1', 'kelurahan' => 'Kel A', 'kecamatan' => 'Kec A',
         'kota' => 'Kota A', 'kode_pos' => '12345', 'telepon' => '081234567890',
         'nama_pemilik' => 'Budi', 'nik_pemilik' => '3171012501900001',
@@ -73,16 +74,18 @@ it('berisi seluruh toko dengan datanya masing-masing', function () {
     expect($baris)->toHaveCount(3); // header + 2 toko
 
     expect($baris[1])->toBe([
-        'TK-0001', 'Toko Satu', 'Budi', '3171012501900001', 'Jl. Satu No. 1',
+        'TK-0001', 'Toko Satu', 'Sekolah', 'Budi', '3171012501900001', 'Jl. Satu No. 1',
         'Kel A', 'Kec A', 'Kota A', '12345', '081234567890',
         '-6.1751', '106.8272', 'Wilayah Satu', 'IDNAH202528000001', 'aktif',
     ]);
 
-    // Toko Dua sengaja tanpa wilayah/koordinat/kontak — kolom kosongnya
-    // harus benar-benar kosong (null lewat toArray), bukan string "null".
+    // Toko Dua sengaja tanpa kategori/wilayah/koordinat/kontak — kolom
+    // kosongnya harus benar-benar kosong (null lewat toArray), bukan
+    // string "null".
     expect($baris[2][0])->toBe('TK-0002')
         ->and($baris[2][1])->toBe('Toko Dua')
-        ->and($baris[2][12])->toBeNull(); // kolom wilayah
+        ->and($baris[2][2])->toBeNull() // kolom kategori
+        ->and($baris[2][13])->toBeNull(); // kolom wilayah
 });
 
 it('kolom status membedakan toko aktif dan nonaktif', function () {
@@ -92,7 +95,7 @@ it('kolom status membedakan toko aktif dan nonaktif', function () {
     $test = Livewire::actingAs($this->admin)->test(DaftarToko::class)->call('unduhExcel');
     $baris = bacaBarisEksporToko($test);
 
-    expect(array_column(array_slice($baris, 1), 14, 0))->toBe([
+    expect(array_column(array_slice($baris, 1), 15, 0))->toBe([
         'TK-0001' => 'aktif',
         'TK-0002' => 'nonaktif',
     ]);
@@ -146,8 +149,8 @@ it('kolom rawan salah baca Excel (nik, kode pos, telepon, koordinat, asset_id) b
     $sheet = IOFactory::load($path)->getActiveSheet();
     unlink($path);
 
-    // D=nik, I=kode_pos, J=telepon, K=latitude, L=longitude, N=asset_id.
-    foreach (['D', 'I', 'J', 'K', 'L', 'N'] as $kolom) {
+    // E=nik, J=kode_pos, K=telepon, L=latitude, M=longitude, O=asset_id.
+    foreach (['E', 'J', 'K', 'L', 'M', 'O'] as $kolom) {
         expect($sheet->getStyle("{$kolom}2")->getNumberFormat()->getFormatCode())->toBe(NumberFormat::FORMAT_TEXT);
     }
 });
@@ -161,7 +164,7 @@ it('kolom rawan salah baca Excel (nik, kode pos, telepon, koordinat, asset_id) b
  */
 it('berkas hasil ekspor bisa diimpor ulang tanpa membuat toko baru atau mengubah data (round-trip)', function () {
     $toko = Toko::create([
-        'kode' => 'TK-0001', 'nama' => 'Toko Checkpoint', 'wilayah_id' => $this->wilayah->id,
+        'kode' => 'TK-0001', 'nama' => 'Toko Checkpoint', 'kategori' => 'perusahaan', 'wilayah_id' => $this->wilayah->id,
         'alamat' => 'Jl. Checkpoint No. 1', 'kelurahan' => 'Kel A', 'kecamatan' => 'Kec A',
         'kota' => 'Kota A', 'kode_pos' => '12345', 'telepon' => '081234567890',
         'nama_pemilik' => 'Budi', 'nik_pemilik' => '3171012501900001',
@@ -202,6 +205,7 @@ it('berkas hasil ekspor bisa diimpor ulang tanpa membuat toko baru atau mengubah
         ->and((float) $toko->longitude)->toEqualWithDelta(106.8272, 0.0001)
         ->and($toko->asset_id)->toBe('IDNAH202528000001')
         ->and($toko->wilayah_id)->toBe($this->wilayah->id)
+        ->and($toko->kategori)->toBe(KategoriToko::Perusahaan)
         ->and($toko->aktif)->toBeTrue()
         ->and($tokoNonaktif->refresh()->aktif)->toBeFalse();
 });

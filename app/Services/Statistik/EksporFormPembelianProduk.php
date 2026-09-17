@@ -35,6 +35,7 @@ final class EksporFormPembelianProduk
         ["SALES\n业务员", 20],
         ["IDN FREEZER\n冰柜编号", 19],
         ["NAMA TOKO\n终端店名", 24],
+        ["KATEGORI\n类别", 14],
         ["Alamat Toko\n终端地址", 32],
         ["NAMA PEMILIK TOKO\n店主姓名", 22],
         ["NO TELP\n终端电话", 15],
@@ -120,18 +121,22 @@ final class EksporFormPembelianProduk
             // berubah jadi notasi ilmiah kalau dibiarkan ditebak Excel.
             $sheet->setCellValueExplicit("C{$baris}", $toko['asset_id'], DataType::TYPE_STRING);
             $sheet->setCellValue("D{$baris}", $toko['nama']);
-            $sheet->setCellValue("E{$baris}", $toko['alamat']);
-            $sheet->setCellValue("F{$baris}", $toko['pemilik']);
-            $sheet->setCellValueExplicit("G{$baris}", $toko['telepon'], DataType::TYPE_STRING);
+            // Kosong apa adanya kalau toko belum dikategorikan — sesuai
+            // data dari RekapPembelianHarian::susun(), tidak ada nilai bawaan
+            // yang dipaksakan di sini.
+            $sheet->setCellValue("E{$baris}", $toko['kategori']);
+            $sheet->setCellValue("F{$baris}", $toko['alamat']);
+            $sheet->setCellValue("G{$baris}", $toko['pemilik']);
+            $sheet->setCellValueExplicit("H{$baris}", $toko['telepon'], DataType::TYPE_STRING);
 
             if ($toko['latitude'] !== null && $toko['longitude'] !== null) {
                 $koordinat = $toko['latitude'].', '.$toko['longitude'];
-                $sheet->setCellValueExplicit("H{$baris}", $koordinat, DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit("I{$baris}", $koordinat, DataType::TYPE_STRING);
                 // Tautan ke peta, meniru kolom alamat form asli yang berisi
                 // link Google Maps berwarna biru.
-                $sheet->getCell("H{$baris}")->getHyperlink()
+                $sheet->getCell("I{$baris}")->getHyperlink()
                     ->setUrl("https://www.google.com/maps?q={$toko['latitude']},{$toko['longitude']}");
-                $sheet->getStyle("H{$baris}")->getFont()->setUnderline(true)->getColor()->setRGB('0563C1');
+                $sheet->getStyle("I{$baris}")->getFont()->setUnderline(true)->getColor()->setRGB('0563C1');
             }
 
             $kolom = count(self::KOLOM_TETAP) + 1;

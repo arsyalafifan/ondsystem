@@ -37,7 +37,7 @@ final class RekapPembelianHarian
      *     judul_zh: string,
      *     judul_id: string,
      *     bulan: list<array{label: string, tanggal: list<string>}>,
-     *     baris: list<array{no: int, sales: string, asset_id: string, nama: string, alamat: string, pemilik: string, telepon: string, latitude: ?float, longitude: ?float, harian: array<string, int>, total: int}>,
+     *     baris: list<array{no: int, sales: string, asset_id: string, nama: string, kategori: string, alamat: string, pemilik: string, telepon: string, latitude: ?float, longitude: ?float, harian: array<string, int>, total: int}>,
      *     total_dus: int,
      * }
      */
@@ -63,6 +63,11 @@ final class RekapPembelianHarian
                     'sales' => $toko->penugasanToko?->sales?->name ?? '',
                     'asset_id' => (string) $toko->asset_id,
                     'nama' => $toko->nama,
+                    // Teks tetap (KategoriToko::teks()), bukan label()
+                    // terjemahan — form ini dwibahasa Mandarin/Indonesia
+                    // tetap, tidak ikut bahasa antarmuka yang sedang aktif.
+                    // Kosong apa adanya kalau toko belum dikategorikan.
+                    'kategori' => $toko->kategori?->teks() ?? '',
                     'alamat' => (string) $toko->alamat,
                     'pemilik' => (string) $toko->nama_pemilik,
                     'telepon' => (string) $toko->telepon,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\KategoriToko;
 use App\Enums\StatusKunjungan;
 use App\Enums\StatusPesanan;
 use App\Models\Concerns\BerDepot;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'id',
-    'kode', 'asset_id', 'freezer_tipe', 'freezer_pelanggan', 'nama', 'wilayah_id',
+    'kode', 'asset_id', 'freezer_tipe', 'freezer_pelanggan', 'nama', 'kategori', 'wilayah_id',
     'alamat', 'kelurahan', 'kecamatan', 'kota', 'provinsi', 'kode_pos', 'telepon',
     'nama_pemilik', 'nik_pemilik', 'latitude', 'longitude', 'sumber_koordinat', 'geocoded_at',
     'geocode_catatan', 'aktif',
@@ -88,6 +89,7 @@ class Toko extends Model
     protected function casts(): array
     {
         return [
+            'kategori' => KategoriToko::class,
             'latitude' => 'float',
             'longitude' => 'float',
             'geocoded_at' => 'datetime',

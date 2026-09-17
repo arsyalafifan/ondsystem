@@ -73,6 +73,7 @@
                         <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('kunjungan.asset_id') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('master.kategori') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.wilayah') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.alamat') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.koordinat') }}</th>
@@ -95,6 +96,13 @@
                                 <span class="font-medium text-gray-900">{{ $toko->nama }}</span>
                                 @if ($toko->pesanan_aktif)
                                     <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">{{ __('master.pesanan_aktif') }}</span>
+                                @endif
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                @if ($toko->kategori)
+                                    <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-800">{{ $toko->kategori->label() }}</span>
+                                @else
+                                    <span class="text-gray-300">—</span>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">
@@ -137,7 +145,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <x-kosong ikon="building-storefront" :judul="__('master.toko_kosong')" :keterangan="__('master.toko_kosong_ket')" />
                             </td>
                         </tr>
@@ -198,6 +206,18 @@
                         <input type="text" wire:model="nama"
                                class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('master.kategori') }}</label>
+                        <select wire:model="kategori"
+                                class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">{{ __('master.pilih_kategori') }}</option>
+                            @foreach ($this->kategoriCases as $k)
+                                <option value="{{ $k->value }}">{{ $k->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('kategori') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
