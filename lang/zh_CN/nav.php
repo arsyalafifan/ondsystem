@@ -42,4 +42,9 @@ return [
     'penugasan' => '门店分配',
     'tugas_saya' => '我的门店',
     'mulai_kunjungan' => '开始拜访',
+    'hr_posisi' => '岗位主数据',
+    'hr_shift' => '班次主数据',
+    'hr_jam_kerja' => '工作时间设置',
+    'hr_absensi' => '考勤打卡',
+    'hr_monitoring_absensi' => '考勤监控',
 ];

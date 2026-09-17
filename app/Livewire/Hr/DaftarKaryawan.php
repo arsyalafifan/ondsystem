@@ -10,7 +10,9 @@ use App\Models\Department;
 use App\Models\Depot;
 use App\Models\Jabatan;
 use App\Models\Karyawan;
+use App\Models\Posisi;
 use App\Models\Scopes\DepotScope;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +59,11 @@ class DaftarKaryawan extends Component
     public string $departmentId = '';
 
     public string $jabatanId = '';
+
+    public string $posisiId = '';
+
+    /** Kosong = "Normal", yaitu mengikuti jam kerja posisinya. */
+    public string $shiftId = '';
 
     public string $tanggalMasuk = '';
 
@@ -143,6 +150,18 @@ class DaftarKaryawan extends Component
     }
 
     #[Computed]
+    public function posisis()
+    {
+        return Posisi::aktif()->orderBy('nama')->get(['id', 'nama']);
+    }
+
+    #[Computed]
+    public function shifts()
+    {
+        return Shift::aktif()->orderBy('jam_masuk')->get(['id', 'nama', 'jam_masuk', 'jam_pulang']);
+    }
+
+    #[Computed]
     public function depots()
     {
         return Depot::aktif()->orderBy('nama')->get();
@@ -202,6 +221,8 @@ class DaftarKaryawan extends Component
         $this->alamatDomisili = $karyawan->alamat_domisili;
         $this->departmentId = (string) $karyawan->department_id;
         $this->jabatanId = (string) $karyawan->jabatan_id;
+        $this->posisiId = $karyawan->posisi_id === null ? '' : (string) $karyawan->posisi_id;
+        $this->shiftId = $karyawan->shift_id === null ? '' : (string) $karyawan->shift_id;
         $this->tanggalMasuk = $karyawan->tanggal_masuk->toDateString();
         $this->statusKaryawan = $karyawan->status_karyawan->value;
         $this->tanggalBerakhirKontrak = $karyawan->tanggal_berakhir_kontrak?->toDateString() ?? '';
@@ -228,7 +249,7 @@ class DaftarKaryawan extends Component
     {
         $this->reset([
             'karyawanId', 'kodeKaryawan', 'namaLengkap', 'nik', 'tanggalLahir',
-            'noHp', 'alamatDomisili', 'departmentId', 'jabatanId', 'tanggalMasuk',
+            'noHp', 'alamatDomisili', 'departmentId', 'jabatanId', 'posisiId', 'shiftId', 'tanggalMasuk',
             'tanggalBerakhirKontrak', 'noRekening', 'npwp', 'catatan', 'depotId',
             'userId', 'fotoKaryawan', 'fotoKtp', 'fotoKaryawanLama', 'fotoKtpLama',
         ]);
@@ -251,6 +272,9 @@ class DaftarKaryawan extends Component
             'alamatDomisili' => 'required|string',
             'departmentId' => 'required|exists:departments,id',
             'jabatanId' => 'required|exists:jabatans,id',
+            // Posisi menentukan jam kerja & kondisi absen karyawan ini.
+            'posisiId' => 'required|exists:posisis,id',
+            'shiftId' => 'nullable|exists:shifts,id',
             'tanggalMasuk' => 'required|date',
             'statusKaryawan' => ['required', Rule::enum(StatusKaryawan::class)],
             'tanggalBerakhirKontrak' => ['nullable', 'date', Rule::requiredIf($this->statusKaryawan === StatusKaryawan::Kontrak->value)],
@@ -272,6 +296,8 @@ class DaftarKaryawan extends Component
             'alamatDomisili' => __('hr.atr_alamat_domisili'),
             'departmentId' => __('hr.atr_department'),
             'jabatanId' => __('hr.atr_jabatan'),
+            'posisiId' => __('hr.atr_posisi'),
+            'shiftId' => __('hr.atr_shift'),
             'tanggalMasuk' => __('hr.atr_tanggal_masuk'),
             'statusKaryawan' => __('hr.atr_status_karyawan'),
             'tanggalBerakhirKontrak' => __('hr.atr_tanggal_berakhir_kontrak'),
@@ -294,6 +320,8 @@ class DaftarKaryawan extends Component
                     'alamat_domisili' => $data['alamatDomisili'],
                     'department_id' => $data['departmentId'],
                     'jabatan_id' => $data['jabatanId'],
+                    'posisi_id' => $data['posisiId'],
+                    'shift_id' => $data['shiftId'] ?: null,
                     'tanggal_masuk' => $data['tanggalMasuk'],
                     'status_karyawan' => $data['statusKaryawan'],
                     'tanggal_berakhir_kontrak' => $data['tanggalBerakhirKontrak'] ?: null,

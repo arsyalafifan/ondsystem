@@ -5,6 +5,7 @@ namespace App\Services\Kunjungan;
 use App\Enums\SumberFotoKunjungan;
 use App\Models\Toko;
 use App\Models\User;
+use App\Services\Foto\PenandaGambar;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -70,7 +71,7 @@ class PenandaFoto
             throw new RuntimeException(__('kunjungan.galat_gambar_rusak'));
         }
 
-        $gambar = $this->perkecil($gambar);
+        $gambar = PenandaGambar::perkecil($gambar);
         $this->cetakKeterangan($gambar, $toko, $sales, $diambilAt, $lat, $lng, $akurasi, $offline, $sumber);
 
         $lebar = imagesx($gambar);
@@ -98,27 +99,6 @@ class PenandaFoto
             'ukuran' => strlen($keluaran),
             'diambil_at' => $diambilAt,
         ];
-    }
-
-    /** @param \GdImage $gambar */
-    private function perkecil($gambar)
-    {
-        $lebarMaks = (int) config('visit.foto.lebar_maks');
-        $lebar = imagesx($gambar);
-        $tinggi = imagesy($gambar);
-
-        if ($lebar <= $lebarMaks) {
-            return $gambar;
-        }
-
-        $lebarBaru = $lebarMaks;
-        $tinggiBaru = (int) round($tinggi * ($lebarMaks / $lebar));
-
-        $kecil = imagecreatetruecolor($lebarBaru, $tinggiBaru);
-        imagecopyresampled($kecil, $gambar, 0, 0, 0, 0, $lebarBaru, $tinggiBaru, $lebar, $tinggi);
-        imagedestroy($gambar);
-
-        return $kecil;
     }
 
     /** @param \GdImage $gambar */
@@ -153,47 +133,6 @@ class PenandaFoto
             $sumber === SumberFotoKunjungan::Unggah ? __('kunjungan.wm_unggahan') : null,
         ]));
 
-        $lebar = imagesx($gambar);
-        $tinggi = imagesy($gambar);
-
-        // Ukuran huruf mengikuti lebar gambar supaya tetap terbaca baik pada
-        // foto kecil maupun besar.
-        $font = max(2, min(5, (int) round($lebar / 320)));
-        $tinggiBaris = imagefontheight($font) + 4;
-        $padding = 10;
-        $tinggiPanel = $tinggiBaris * count($baris) + $padding * 2;
-
-        $hitam = imagecolorallocatealpha($gambar, 0, 0, 0, 45);
-        imagefilledrectangle($gambar, 0, $tinggi - $tinggiPanel, $lebar, $tinggi, $hitam);
-
-        $putih = imagecolorallocate($gambar, 255, 255, 255);
-        $bayangan = imagecolorallocate($gambar, 0, 0, 0);
-
-        $y = $tinggi - $tinggiPanel + $padding;
-
-        foreach ($baris as $teks) {
-            // Teks Latin saja: GD tanpa berkas font TrueType tidak bisa
-            // menggambar aksara Han, jadi keterangan sengaja dibuat netral.
-            $bersih = $this->keLatin($teks);
-
-            imagestring($gambar, $font, $padding + 1, $y + 1, $bersih, $bayangan);
-            imagestring($gambar, $font, $padding, $y, $bersih, $putih);
-
-            $y += $tinggiBaris;
-        }
-    }
-
-    /**
-     * Menyiapkan teks agar aman digambar oleh GD.
-     *
-     * imagestring() hanya mengenal satu bita per huruf, sehingga aksara di
-     * luar Latin-1 akan tampil sebagai sampah. Teks diubah ke ASCII dulu,
-     * dan huruf yang tidak punya padanan dibuang.
-     */
-    private function keLatin(string $teks): string
-    {
-        $hasil = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $teks);
-
-        return $hasil === false ? preg_replace('/[^\x20-\x7E]/', '', $teks) ?? '' : $hasil;
+        PenandaGambar::cetakPanel($gambar, $baris);
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
@@ -32,7 +33,8 @@ use Illuminate\Support\Facades\Storage;
     'id', 'kode_karyawan', 'nama_lengkap', 'nik', 'jenis_kelamin', 'tanggal_lahir',
     'no_hp', 'alamat_domisili', 'department_id', 'jabatan_id', 'tanggal_masuk',
     'status_karyawan', 'tanggal_berakhir_kontrak', 'gaji_pokok', 'no_rekening',
-    'npwp', 'catatan', 'depot_id', 'foto_karyawan', 'foto_ktp', 'user_id', 'aktif',
+    'npwp', 'catatan', 'depot_id', 'posisi_id', 'shift_id', 'foto_karyawan',
+    'foto_ktp', 'user_id', 'aktif',
 ])]
 class Karyawan extends Model
 {
@@ -66,6 +68,35 @@ class Karyawan extends Model
     public function jabatan(): BelongsTo
     {
         return $this->belongsTo(Jabatan::class);
+    }
+
+    /**
+     * Posisi kerja — penentu jam kerja & kondisi absen karyawan ini
+     * (lihat App\Models\Posisi). Nullable untuk data lama yang dibuat
+     * sebelum modul absensi ada.
+     *
+     * @return BelongsTo<Posisi, $this>
+     */
+    public function posisi(): BelongsTo
+    {
+        return $this->belongsTo(Posisi::class);
+    }
+
+    /**
+     * Shift khusus karyawan ini. Null = "Normal", yaitu mengikuti jam kerja
+     * posisinya.
+     *
+     * @return BelongsTo<Shift, $this>
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
+    /** @return HasMany<Absensi, $this> */
+    public function absensis(): HasMany
+    {
+        return $this->hasMany(Absensi::class);
     }
 
     /** @return BelongsTo<Depot, $this> */

@@ -64,4 +64,9 @@ return [
     'butuh_depot_judul' => 'Select a depot first',
     'butuh_depot_ket' => 'This page creates or saves data for one specific depot, so it can\'t be opened while viewing "All Depots". Pick a depot from the sidebar switcher.',
     'butuh_depot_aksi' => 'Pick a single depot from the sidebar switcher before doing this.',
+    'semua' => 'All',
+    'jam' => 'Time',
+    'menit' => 'min',
+    'jam_singkat' => 'h',
+    'menit_singkat' => 'm',
 ];

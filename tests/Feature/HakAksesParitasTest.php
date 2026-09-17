@@ -64,6 +64,12 @@ const PARITAS_RUTE = [
     'hr.karyawan' => ['admin', 'hr'],
     'hr.department' => ['admin', 'hr'],
     'hr.jabatan' => ['admin', 'hr'],
+    'hr.posisi' => ['admin', 'hr'],
+    'hr.shift' => ['admin', 'hr'],
+    'hr.jam-kerja' => ['admin', 'hr'],
+    // Absensi dipakai semua peran — merekalah yang absen.
+    'hr.absensi' => ['admin', 'hr', 'sales', 'driver', 'supervisor'],
+    'hr.monitoring-absensi' => ['admin', 'hr'],
     'pengguna.daftar' => [],
     'depot.daftar' => [],
     'akun.kata-sandi' => ['admin', 'sales', 'driver', 'hr', 'supervisor'],
@@ -183,11 +189,22 @@ function paritasMenuHr(): array
 {
     return [
         paritasTautan('nav.dashboard', 'hr.dashboard'),
+        paritasTautan('nav.hr_absensi', 'hr.absensi'),
+        paritasTautan('nav.hr_monitoring_absensi', 'hr.monitoring-absensi'),
         '# '.__('nav.master'),
         paritasTautan('nav.hr_karyawan', 'hr.karyawan'),
         paritasTautan('nav.hr_department', 'hr.department'),
         paritasTautan('nav.hr_jabatan', 'hr.jabatan'),
+        paritasTautan('nav.hr_posisi', 'hr.posisi'),
+        paritasTautan('nav.hr_shift', 'hr.shift'),
+        paritasTautan('nav.hr_jam_kerja', 'hr.jam-kerja'),
     ];
+}
+
+/** Peran lapangan hanya punya satu menu di HR System: Absensi. */
+function paritasMenuAbsensiSaja(): array
+{
+    return [paritasTautan('nav.hr_absensi', 'hr.absensi')];
 }
 
 function paritasMenuSales(): array
@@ -212,7 +229,7 @@ it('setiap peran boleh/ditolak di setiap rute persis seperti sebelumnya', functi
     }
 });
 
-it('menu sidebar dan pemilih aplikasi tiap peran tidak berubah', function () {
+it('menu sidebar dan pemilih aplikasi tiap peran sesuai bawaannya', function () {
     $o = [__('nav.aplikasi_ond'), __('nav.aplikasi_hr'), __('nav.aplikasi_accounting')];
 
     $kasus = [
@@ -222,12 +239,16 @@ it('menu sidebar dan pemilih aplikasi tiap peran tidak berubah', function () {
         ['superadmin', 'dashboard', paritasMenuAdmin(), [...$o, __('nav.aplikasi_user_admin')]],
         ['superadmin', 'hr.dashboard', paritasMenuHr(), [...$o, __('nav.aplikasi_user_admin')]],
         ['superadmin', 'akun.kata-sandi', paritasMenuAdmin(), [...$o, __('nav.aplikasi_user_admin')]],
-        ['sales', 'pesanan.buat', paritasMenuSales(), null],
-        ['sales', 'akun.kata-sandi', paritasMenuSales(), null],
-        ['driver', 'driver.pilih-mobil', ['# '.__('nav.pengiriman'), paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil')], null],
+        // Sejak menu Absensi ada, peran lapangan punya dua aplikasi (O&D +
+        // HR System berisi Absensi saja), jadi pemilih aplikasinya tampil.
+        ['sales', 'pesanan.buat', paritasMenuSales(), $o],
+        ['sales', 'akun.kata-sandi', paritasMenuSales(), $o],
+        ['sales', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
+        ['driver', 'driver.pilih-mobil', ['# '.__('nav.pengiriman'), paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil')], $o],
+        ['driver', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
         ['hr', 'hr.dashboard', paritasMenuHr(), null],
         ['hr', 'akun.kata-sandi', paritasMenuHr(), null],
-        ['supervisor', 'pesanan.daftar', [paritasTautan('nav.pesanan', 'pesanan.daftar'), paritasTautan('nav.lengkapi_data_toko', 'toko.lengkapi-data')], null],
+        ['supervisor', 'pesanan.daftar', [paritasTautan('nav.pesanan', 'pesanan.daftar'), paritasTautan('nav.lengkapi_data_toko', 'toko.lengkapi-data')], $o],
     ];
 
     foreach ($kasus as [$peran, $rute, $menu, $aplikasi]) {

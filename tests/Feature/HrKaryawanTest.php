@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Depot;
 use App\Models\Jabatan;
 use App\Models\Karyawan;
+use App\Models\Posisi;
 use App\Models\User;
 use App\Support\DepotContext;
 use Illuminate\Http\UploadedFile;
@@ -18,6 +19,10 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
     $this->department = Department::create(['kode' => 'D1', 'nama' => 'Finance']);
     $this->jabatan = Jabatan::create(['kode' => 'J1', 'nama' => 'Staff']);
+
+    // Posisi wajib diisi sejak modul absensi ada — posisilah yang menentukan
+    // jam kerja & kondisi absen karyawan.
+    $this->posisi = Posisi::create(['kode' => 'P1', 'nama' => 'Staff Kantor']);
 });
 
 /** Data form minimal yang lengkap & valid — tiap tes menimpa field yang mau dirusak. */
@@ -36,6 +41,7 @@ function dataKaryawanValid(array $override = []): array
         'alamatDomisili' => 'Jl. Uji No. 1',
         'departmentId' => (string) test()->department->id,
         'jabatanId' => (string) test()->jabatan->id,
+        'posisiId' => (string) test()->posisi->id,
         'tanggalMasuk' => today()->toDateString(),
         'statusKaryawan' => 'tetap',
         'gajiPokok' => '5000000',

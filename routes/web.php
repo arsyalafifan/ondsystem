@@ -12,10 +12,15 @@ use App\Livewire\Depot\DaftarDepot;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
 use App\Livewire\HakAkses\KelolaHakAkses;
+use App\Livewire\Hr\Absensi as HrAbsensi;
 use App\Livewire\Hr\DaftarDepartment;
 use App\Livewire\Hr\DaftarJabatan;
 use App\Livewire\Hr\DaftarKaryawan;
+use App\Livewire\Hr\DaftarPosisi;
+use App\Livewire\Hr\DaftarShift;
 use App\Livewire\Hr\Dashboard as HrDashboard;
+use App\Livewire\Hr\MonitoringAbsensi;
+use App\Livewire\Hr\SettingJamKerja;
 use App\Livewire\Insentif\InsentifSales;
 use App\Livewire\Kunjungan\DaftarPeriode;
 use App\Livewire\Kunjungan\DetailPeriode;
@@ -194,6 +199,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/karyawan', DaftarKaryawan::class)->name('karyawan')->middleware('akses:hr.karyawan');
         Route::get('/department', DaftarDepartment::class)->name('department')->middleware('akses:hr.department');
         Route::get('/jabatan', DaftarJabatan::class)->name('jabatan')->middleware('akses:hr.jabatan');
+        Route::get('/posisi', DaftarPosisi::class)->name('posisi')->middleware('akses:hr.posisi');
+        Route::get('/shift', DaftarShift::class)->name('shift')->middleware('akses:hr.shift');
+        Route::get('/jam-kerja', SettingJamKerja::class)->name('jam-kerja')->middleware('akses:hr.jam_kerja');
+
+        // Absensi dibuka semua peran yang punya data karyawan — merekalah
+        // yang absen. Monitoring-nya tetap khusus admin/HR.
+        Route::get('/absensi', HrAbsensi::class)->name('absensi')->middleware('akses:hr.absensi');
+        Route::get('/monitoring-absensi', MonitoringAbsensi::class)->name('monitoring-absensi')->middleware('akses:hr.monitoring_absensi');
     });
 
     // --- User Admin ---

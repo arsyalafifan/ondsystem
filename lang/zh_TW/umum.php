@@ -64,4 +64,9 @@ return [
     'butuh_depot_judul' => '請先選擇一個倉庫',
     'butuh_depot_ket' => '此頁面會為某個特定倉庫建立或儲存資料，因此無法在「所有倉庫」模式下開啟。請從側邊欄切換器中選擇一個倉庫。',
     'butuh_depot_aksi' => '請先從側邊欄切換器中選擇一個倉庫，再執行此操作。',
+    'semua' => '全部',
+    'jam' => '時間',
+    'menit' => '分鐘',
+    'jam_singkat' => '小時',
+    'menit_singkat' => '分',
 ];
