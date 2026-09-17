@@ -242,7 +242,7 @@ export function ambilPilihan() {
  * berukuran kecil di dalam bingkai; makin banyak piksel, makin besar peluang
  * kodenya terbaca.
  */
-export function syaratVideo(deviceId) {
+export function syaratVideo(deviceId, arah = 'environment') {
     const dasar = {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
@@ -254,5 +254,5 @@ export function syaratVideo(deviceId) {
 
     return deviceId
         ? { ...dasar, deviceId: { exact: deviceId } }
-        : { ...dasar, facingMode: { ideal: 'environment' } };
+        : { ...dasar, facingMode: { ideal: arah } };
 }

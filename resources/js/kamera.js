@@ -47,6 +47,10 @@ export function pasangKamera(idWadah, pengaturan = {}) {
     let indeksKamera = 0;
     let senterNyala = false;
 
+    // 'depan' dipakai layar absensi (foto selfie); pemakaian lama tidak
+    // menyebut opsi ini dan tetap memakai kamera belakang seperti semula.
+    let lensa = pengaturan.lensa === 'depan' ? 'depan' : 'belakang';
+
     async function nyalakan(deviceId = null) {
         if (aliran && deviceId === null) {
             return true;
@@ -60,11 +64,14 @@ export function pasangKamera(idWadah, pengaturan = {}) {
 
         matikanAliran();
 
-        const pilihan = deviceId ?? ambilPilihan();
+        // Kamera depan hanya ada satu dan tidak punya persoalan lensa
+        // ultra-lebar seperti kamera belakang, jadi seluruh logika pemilihan
+        // lensa di bawah dilewati saat memakai kamera depan.
+        const pilihan = lensa === 'depan' ? null : (deviceId ?? ambilPilihan());
 
         try {
             aliran = await navigator.mediaDevices.getUserMedia({
-                video: syaratVideo(pilihan),
+                video: syaratVideo(pilihan, lensa === 'depan' ? 'user' : 'environment'),
                 audio: false,
             });
         } catch (e) {
@@ -89,6 +96,13 @@ export function pasangKamera(idWadah, pengaturan = {}) {
 
         track = aliran.getVideoTracks()[0] ?? null;
         await nyalakanAutofokus(track);
+
+        if (lensa === 'depan') {
+            senterNyala = false;
+            kabarkan('siap', { jumlahKamera: 1, adaSenter: false, lensa });
+
+            return true;
+        }
 
         kameraTersedia = await daftarKameraBelakang();
 
@@ -142,6 +156,16 @@ export function pasangKamera(idWadah, pengaturan = {}) {
         simpanPilihan(deviceId);
 
         await nyalakan(deviceId);
+    }
+
+    /** Beralih antara kamera depan dan belakang. */
+    async function gantiLensa() {
+        lensa = lensa === 'depan' ? 'belakang' : 'depan';
+
+        matikanAliran();
+        await nyalakan(null);
+
+        kabarkan('lensa', lensa);
     }
 
     async function alihkanSenter() {
@@ -230,6 +254,7 @@ export function pasangKamera(idWadah, pengaturan = {}) {
         pantauLokasi,
         lepasLokasi,
         gantiKamera,
+        gantiLensa,
         alihkanSenter,
         fokusDi,
         get lokasi() {

@@ -171,6 +171,29 @@
                             @error('jabatanId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_posisi') }}</label>
+                            <select wire:model="posisiId"
+                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                <option value="">{{ __('hr.pilih_posisi') }}</option>
+                                @foreach ($this->posisis as $p)
+                                    <option value="{{ $p->id }}">{{ $p->nama }}</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">{{ __('hr.ket_posisi_karyawan') }}</p>
+                            @error('posisiId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_shift') }}</label>
+                            <select wire:model="shiftId"
+                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                <option value="">{{ __('hr.shift_normal') }}</option>
+                                @foreach ($this->shifts as $s)
+                                    <option value="{{ $s->id }}">{{ $s->nama }} ({{ substr($s->jam_masuk, 0, 5) }}–{{ substr($s->jam_pulang, 0, 5) }})</option>
+                                @endforeach
+                            </select>
+                            @error('shiftId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_penempatan') }}</label>
                             <select wire:model="depotId"
                                     class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">

@@ -64,4 +64,9 @@ return [
     'butuh_depot_judul' => 'Pilih satu depot dulu',
     'butuh_depot_ket' => 'Halaman ini menyusun/menyimpan data untuk satu depot tertentu, jadi tidak bisa dibuka sambil melihat "Semua Depot". Pilih salah satu depot lewat menu di sidebar.',
     'butuh_depot_aksi' => 'Pilih satu depot dulu lewat switcher di sidebar sebelum melakukan ini.',
+    'semua' => 'Semua',
+    'jam' => 'Jam',
+    'menit' => 'menit',
+    'jam_singkat' => 'j',
+    'menit_singkat' => 'm',
 ];

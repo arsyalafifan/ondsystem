@@ -85,9 +85,16 @@ final class DaftarAkses
 
         // --- HR System ---
         'hr.dashboard' => ['aplikasi' => 'hr', 'rute' => 'hr.dashboard', 'label' => 'nav.dashboard', 'ikon' => 'chart-pie', 'peran' => ['admin', 'hr']],
+        // Absensi dipakai SEMUA peran (merekalah yang absen), jadi peran
+        // lapangan pun punya satu menu di HR System.
+        'hr.absensi' => ['aplikasi' => 'hr', 'rute' => 'hr.absensi', 'label' => 'nav.hr_absensi', 'ikon' => 'camera', 'peran' => ['admin', 'hr', 'sales', 'driver', 'supervisor']],
+        'hr.monitoring_absensi' => ['aplikasi' => 'hr', 'rute' => 'hr.monitoring-absensi', 'label' => 'nav.hr_monitoring_absensi', 'ikon' => 'clipboard-document-check', 'peran' => ['admin', 'hr'], 'cakupan_data' => true],
         'hr.karyawan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.karyawan', 'label' => 'nav.hr_karyawan', 'ikon' => 'identification', 'peran' => ['admin', 'hr'], 'cakupan_data' => true],
         'hr.department' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.department', 'label' => 'nav.hr_department', 'ikon' => 'building-office', 'peran' => ['admin', 'hr']],
         'hr.jabatan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.jabatan', 'label' => 'nav.hr_jabatan', 'ikon' => 'briefcase', 'peran' => ['admin', 'hr']],
+        'hr.posisi' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.posisi', 'label' => 'nav.hr_posisi', 'ikon' => 'user-group', 'peran' => ['admin', 'hr']],
+        'hr.shift' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.shift', 'label' => 'nav.hr_shift', 'ikon' => 'clock', 'peran' => ['admin', 'hr']],
+        'hr.jam_kerja' => ['aplikasi' => 'hr', 'rute' => 'hr.jam-kerja', 'label' => 'nav.hr_jam_kerja', 'ikon' => 'adjustments-horizontal', 'peran' => ['admin', 'hr']],
 
         // --- User Admin (bawaan: hanya superadmin) ---
         'user_admin.pengguna' => ['aplikasi' => 'user_admin', 'rute' => 'pengguna.daftar', 'label' => 'nav.manage_pengguna', 'ikon' => 'user-group', 'peran' => []],

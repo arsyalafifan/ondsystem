@@ -42,4 +42,9 @@ return [
     'penugasan' => 'Store Assignment',
     'tugas_saya' => 'My Stores',
     'mulai_kunjungan' => 'Start Visit',
+    'hr_posisi' => 'Positions',
+    'hr_shift' => 'Work Shifts',
+    'hr_jam_kerja' => 'Work Hours',
+    'hr_absensi' => 'Attendance',
+    'hr_monitoring_absensi' => 'Attendance Monitoring',
 ];
