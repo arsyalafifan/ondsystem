@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Master;
 
+use App\Enums\KategoriToko;
 use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Pesanan;
@@ -63,6 +64,8 @@ class DaftarToko extends Component
     public string $freezerTipe = '';
 
     public string $nama = '';
+
+    public string $kategori = '';
 
     public string $alamat = '';
 
@@ -173,6 +176,13 @@ class DaftarToko extends Component
         return Wilayah::aktif()->orderBy('nama')->get(['id', 'nama']);
     }
 
+    /** @return array<int, KategoriToko> */
+    #[Computed]
+    public function kategoriCases(): array
+    {
+        return KategoriToko::cases();
+    }
+
     #[Computed]
     public function jumlahTanpaKoordinat(): int
     {
@@ -232,6 +242,7 @@ class DaftarToko extends Component
         $this->assetId = $toko->asset_id ?? '';
         $this->freezerTipe = $toko->freezer_tipe ?? '';
         $this->nama = $toko->nama;
+        $this->kategori = $toko->kategori?->value ?? '';
         $this->alamat = $toko->alamat;
         $this->wilayahId = $toko->wilayah_id;
         $this->kelurahan = $toko->kelurahan ?? '';
@@ -259,7 +270,7 @@ class DaftarToko extends Component
     private function resetForm(): void
     {
         $this->reset([
-            'tokoId', 'kode', 'assetId', 'freezerTipe', 'nama', 'alamat', 'wilayahId',
+            'tokoId', 'kode', 'assetId', 'freezerTipe', 'nama', 'kategori', 'alamat', 'wilayahId',
             'kelurahan', 'kecamatan', 'kota', 'kodePos', 'telepon', 'namaPemilik', 'nikPemilik',
             'latitude', 'longitude', 'hasilGeocode', 'koordinatTempel',
         ]);
@@ -385,6 +396,7 @@ class DaftarToko extends Component
             ],
             'freezerTipe' => 'nullable|string|max:40',
             'nama' => 'required|string|max:255',
+            'kategori' => ['nullable', Rule::enum(KategoriToko::class)],
             'alamat' => 'required|string',
             'wilayahId' => 'required|exists:wilayahs,id',
             'kelurahan' => 'nullable|string|max:255',
@@ -422,6 +434,7 @@ class DaftarToko extends Component
             'asset_id' => $this->assetId === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $this->assetId)),
             'freezer_tipe' => $this->freezerTipe ?: null,
             'nama' => $data['nama'],
+            'kategori' => $this->kategori === '' ? null : $this->kategori,
             'alamat' => $data['alamat'],
             'wilayah_id' => $data['wilayahId'],
             'kelurahan' => $this->kelurahan ?: null,
@@ -696,6 +709,15 @@ class DaftarToko extends Component
                 $assetIdMentah = trim((string) ($data['asset_id'] ?? $data['kode_aset'] ?? $data['no_aset'] ?? ''));
                 $assetId = $assetIdMentah === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $assetIdMentah));
 
+                // Case-insensitif: "sekolah", "SEKOLAH", "Sekolah" semua
+                // dikenali sama (lihat KategoriToko::dariTeks()). Teks yang
+                // TIDAK cocok satu pun kategori dicatat sebagai catatan —
+                // baris tetap tersimpan, kategori lamanya (kalau ada) tidak
+                // ikut terhapus.
+                $kategoriMentah = trim((string) ($data['kategori'] ?? ''));
+                $kategori = KategoriToko::dariTeks($kategoriMentah);
+                $kategoriTidakDikenal = $kategoriMentah !== '' && $kategori === null;
+
                 if ($nama === '' || $alamat === '') {
                     $dilewati[] = __('master.lewat_kosong', ['nomor' => $nomor]);
 
@@ -800,6 +822,7 @@ class DaftarToko extends Component
                     'telepon' => $this->teksAtauNull($data['telepon'] ?? null),
                     'nama_pemilik' => $this->teksAtauNull($data['nama_pemilik'] ?? $data['pemilik'] ?? null),
                     'nik_pemilik' => $nikMentah,
+                    'kategori' => $kategori?->value,
                 ];
 
                 $kolomTerkunci = [];
@@ -877,6 +900,14 @@ class DaftarToko extends Component
                     $catatan[] = __('master.catatan_nik_tidak_valid', [
                         'nomor' => $nomor,
                         'kode' => $kodeAkhir,
+                    ]);
+                }
+
+                if ($kategoriTidakDikenal) {
+                    $catatan[] = __('master.catatan_kategori_tidak_dikenal', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                        'nilai' => $kategoriMentah,
                     ]);
                 }
 
@@ -1011,15 +1042,17 @@ class DaftarToko extends Component
         $sheet = $spreadsheet->getActiveSheet();
 
         $sheet->fromArray(
-            ['kode', 'nama', 'pemilik', 'alamat', 'nik', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id'],
+            ['kode', 'nama', 'pemilik', 'alamat', 'nik', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id', 'kategori'],
             null, 'A1',
         );
         $sheet->fromArray(
-            ['TK-0001', 'Toko Contoh Jaya', 'Budi', 'Jl. Merdeka No. 10', '3171012501900001', '081234567890', '-6.1751', '106.8272', $wilayah, 'IDNAH202528004381'],
+            ['TK-0001', 'Toko Contoh Jaya', 'Budi', 'Jl. Merdeka No. 10', '3171012501900001', '081234567890', '-6.1751', '106.8272', $wilayah, 'IDNAH202528004381', 'Toko'],
             null, 'A2',
         );
         $sheet->fromArray(
-            ['', 'Toko Tanpa Koordinat', '', 'Jl. Sudirman No. 5', '', '', '', '', $wilayah, ''],
+            // Kategori boleh dikosongkan — dan case-insensitif kalau diisi
+            // (Sekolah, PERUSAHAAN, pemerintah, dst. sama-sama dikenali).
+            ['', 'Toko Tanpa Koordinat', '', 'Jl. Sudirman No. 5', '', '', '', '', $wilayah, '', ''],
             null, 'A3',
         );
 
@@ -1033,7 +1066,7 @@ class DaftarToko extends Component
             $sheet->getStyle("{$kolom}1:{$kolom}1000")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         }
 
-        foreach (range('A', 'J') as $kolom) {
+        foreach (range('A', 'K') as $kolom) {
             $sheet->getColumnDimension($kolom)->setAutoSize(true);
         }
 
@@ -1072,7 +1105,7 @@ class DaftarToko extends Component
         $sheet = $spreadsheet->getActiveSheet();
 
         $sheet->fromArray([
-            'kode', 'nama', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
+            'kode', 'nama', 'kategori', 'pemilik', 'nik', 'alamat', 'kelurahan', 'kecamatan',
             'kota', 'kode_pos', 'telepon', 'latitude', 'longitude', 'wilayah', 'asset_id', 'status',
         ], null, 'A1');
 
@@ -1082,6 +1115,11 @@ class DaftarToko extends Component
             $sheet->fromArray([
                 $toko->kode,
                 $toko->nama,
+                // Teks tetap (bukan label terjemahan) — sama seperti kolom
+                // "status" di bawah, supaya berkas ini cocok diimpor ulang
+                // apa pun bahasa antarmuka saat diunduh. Kosong kalau
+                // kategorinya belum diisi.
+                $toko->kategori?->teks(),
                 $toko->nama_pemilik,
                 null, // nik — ditulis eksplisit sebagai teks di bawah, lihat catatan
                 $toko->alamat,
@@ -1109,12 +1147,12 @@ class DaftarToko extends Component
             // bukan tipe datanya. setCellValueExplicit(TYPE_STRING) di sini
             // memaksa nilainya tersimpan sebagai teks sejak awal.
             foreach ([
-                'D'.$baris => $toko->nik_pemilik,
-                'I'.$baris => $toko->kode_pos,
-                'J'.$baris => $toko->telepon,
-                'K'.$baris => $toko->latitude,
-                'L'.$baris => $toko->longitude,
-                'N'.$baris => $toko->asset_id,
+                'E'.$baris => $toko->nik_pemilik,
+                'J'.$baris => $toko->kode_pos,
+                'K'.$baris => $toko->telepon,
+                'L'.$baris => $toko->latitude,
+                'M'.$baris => $toko->longitude,
+                'O'.$baris => $toko->asset_id,
             ] as $sel => $nilai) {
                 if ($nilai !== null) {
                     $sheet->setCellValueExplicit($sel, (string) $nilai, DataType::TYPE_STRING);
@@ -1129,11 +1167,11 @@ class DaftarToko extends Component
         // Format tampilan teks tetap dipasang di seluruh kolom (termasuk
         // baris yang kosong) supaya kalau kelak diisi manual di Excel pun
         // tidak berubah jadi notasi ilmiah/pemisah ribuan yang keliru.
-        foreach (['D', 'I', 'J', 'K', 'L', 'N'] as $kolom) {
+        foreach (['E', 'J', 'K', 'L', 'M', 'O'] as $kolom) {
             $sheet->getStyle("{$kolom}1:{$kolom}{$barisTerakhir}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         }
 
-        foreach (range('A', 'O') as $kolom) {
+        foreach (range('A', 'P') as $kolom) {
             $sheet->getColumnDimension($kolom)->setAutoSize(true);
         }
 

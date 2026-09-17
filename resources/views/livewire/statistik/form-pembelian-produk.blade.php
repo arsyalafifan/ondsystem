@@ -112,6 +112,7 @@
                                 <th rowspan="2">SALES<br>业务员</th>
                                 <th rowspan="2">IDN FREEZER<br>冰柜编号</th>
                                 <th rowspan="2">NAMA TOKO<br>终端店名</th>
+                                <th rowspan="2">KATEGORI<br>类别</th>
                                 <th rowspan="2">Alamat Toko<br>终端地址</th>
                                 <th rowspan="2">NAMA PEMILIK TOKO<br>店主姓名</th>
                                 <th rowspan="2">NO TELP<br>终端电话</th>
@@ -136,6 +137,7 @@
                                     <td>{{ $toko['sales'] }}</td>
                                     <td class="font-mono">{{ $toko['asset_id'] }}</td>
                                     <td>{{ $toko['nama'] }}</td>
+                                    <td>{{ $toko['kategori'] }}</td>
                                     <td class="max-w-72 truncate" title="{{ $toko['alamat'] }}">{{ $toko['alamat'] }}</td>
                                     <td>{{ $toko['pemilik'] }}</td>
                                     <td class="tabular-nums">{{ $toko['telepon'] }}</td>

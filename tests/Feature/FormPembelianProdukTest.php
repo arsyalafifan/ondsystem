@@ -190,6 +190,7 @@ it('mode semua mengambil rentang dari data pembelian yang ada', function () {
 
 it('mengekspor Excel berformat form dengan header dibekukan', function () {
     $toko = tokoFp('Berkah Wak Gonjes', $this->sales);
+    $toko->update(['kategori' => 'toko']);
     pesananFp($toko, '2026-09-05', 6);
 
     $test = Livewire::actingAs($this->admin)
@@ -198,23 +199,41 @@ it('mengekspor Excel berformat form dengan header dibekukan', function () {
 
     $sheet = sheetFp($test);
 
-    // 8 kolom tetap + 30 tanggal + total = 39 kolom → AM.
+    // 9 kolom tetap (termasuk Kategori) + 30 tanggal + total = 40 kolom → AN.
     expect($sheet->getCell('A1')->getValue())->toContain('9月终端日进货表')
         ->and($sheet->getCell('A2')->getValue())->toContain('Form Pembelian Produk Harian Outlet halocoko Market')
         ->and($sheet->getCell('A2')->getValue())->toEndWith('bulan September')
         ->and($sheet->getCell('A3')->getValue())->toBe('NO序号')
         ->and($sheet->getCell('B3')->getValue())->toBe("SALES\n业务员")
-        ->and($sheet->getCell('H3')->getValue())->toBe("KOORDINAT\n坐标")
-        ->and($sheet->getCell('I3')->getValue())->toBe('9.2026')
-        ->and($sheet->getCell('I4')->getValue())->toBe(1)
-        ->and($sheet->getCell('AL4')->getValue())->toBe(30)
-        ->and($sheet->getCell('AM3')->getValue())->toBe("合计\nTotal")
+        ->and($sheet->getCell('E3')->getValue())->toBe("KATEGORI\n类别")
+        ->and($sheet->getCell('I3')->getValue())->toBe("KOORDINAT\n坐标")
+        ->and($sheet->getCell('J3')->getValue())->toBe('9.2026')
+        ->and($sheet->getCell('J4')->getValue())->toBe(1)
+        ->and($sheet->getCell('AM4')->getValue())->toBe(30)
+        ->and($sheet->getCell('AN3')->getValue())->toBe("合计\nTotal")
         ->and($sheet->getFreezePane())->toBe('A5')
         ->and($sheet->getCell('B5')->getValue())->toBe('Rama Dhoni')
-        ->and($sheet->getCell('G5')->getValue())->toBe($toko->telepon)
-        ->and($sheet->getCell('M5')->getValue())->toBe(6)
-        ->and($sheet->getCell('L5')->getValue())->toBeNull()
-        ->and($sheet->getCell('AM5')->getValue())->toBe(6)
+        ->and($sheet->getCell('E5')->getValue())->toBe('Toko')
+        ->and($sheet->getCell('H5')->getValue())->toBe($toko->telepon)
+        ->and($sheet->getCell('N5')->getValue())->toBe(6)
+        ->and($sheet->getCell('M5')->getValue())->toBeNull()
+        ->and($sheet->getCell('AN5')->getValue())->toBe(6)
         ->and($sheet->getStyle('A3')->getFill()->getStartColor()->getRGB())->toBe('A9D08E')
-        ->and($sheet->getCell('H5')->getHyperlink()->getUrl())->toContain('google.com/maps?q=');
+        ->and($sheet->getCell('I5')->getHyperlink()->getUrl())->toContain('google.com/maps?q=');
+});
+
+it('kategori toko dikosongkan di form dan ekspor kalau belum diisi', function () {
+    tokoFp('Toko Belum Berkategori');
+
+    $rekap = Livewire::actingAs($this->admin)
+        ->test(FormPembelianProduk::class, ['mode' => 'bulan', 'bulan' => '2026-09'])
+        ->instance()->rekap;
+
+    expect($rekap['baris'][0]['kategori'])->toBe('');
+
+    $test = Livewire::actingAs($this->admin)
+        ->test(FormPembelianProduk::class, ['mode' => 'bulan', 'bulan' => '2026-09'])
+        ->call('unduhExcel');
+
+    expect(sheetFp($test)->getCell('E5')->getValue())->toBeNull();
 });
