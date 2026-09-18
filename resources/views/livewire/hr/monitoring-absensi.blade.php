@@ -6,6 +6,10 @@
         'belum_absen' => 'bg-gray-100 text-gray-600',
         'alfa' => 'bg-red-100 text-red-800',
         'libur' => 'bg-gray-100 text-gray-500',
+        'izin' => 'bg-violet-100 text-violet-800',
+        'izin_paruh_pertama' => 'bg-violet-100 text-violet-800',
+        'izin_paruh_kedua' => 'bg-violet-100 text-violet-800',
+        'sakit' => 'bg-sky-100 text-sky-800',
     ];
     $inputKelas = 'mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20';
 @endphp
@@ -41,7 +45,7 @@
                 <label class="block text-xs font-medium text-gray-600">{{ __('umum.status') }}</label>
                 <select wire:model.live="filterStatus" class="{{ $inputKelas }}">
                     <option value="">{{ __('umum.semua') }}</option>
-                    @foreach (['hadir', 'terlambat', 'selesai', 'belum_absen', 'alfa', 'libur'] as $status)
+                    @foreach (['hadir', 'terlambat', 'selesai', 'izin', 'izin_paruh_pertama', 'izin_paruh_kedua', 'sakit', 'belum_absen', 'alfa', 'libur'] as $status)
                         <option value="{{ $status }}">{{ __('hr.status_harian_'.$status) }}</option>
                     @endforeach
                 </select>
@@ -53,7 +57,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-6">
+        <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8">
             @foreach ($this->ringkasan as $status => $jumlah)
                 <div class="rounded-xl border border-gray-200 bg-white p-3">
                     <p class="text-xs text-gray-500">{{ __('hr.status_harian_'.$status) }}</p>
@@ -73,6 +77,7 @@
                         <th class="px-4 py-2 font-medium">{{ __('hr.absen_istirahat') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('hr.absen_pulang') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('hr.durasi_kerja') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('lembur.kolom_lembur') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('hr.tempat_absen') }}</th>
                     </tr>
                 </thead>
@@ -91,9 +96,13 @@
                                 @endif
                             </td>
                             <td class="px-4 py-2">
-                                <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {{ $warnaStatus[$baris['status']] }}">
+                                <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {{ $warnaStatus[$baris['status']] }}"
+                                      @if ($baris['izin']) title="{{ $baris['izin']->alasan }}" @endif>
                                     {{ __('hr.status_harian_'.$baris['status']) }}
                                 </span>
+                                @if ($baris['izin'])
+                                    <span class="mt-0.5 block text-xs text-gray-500">{{ $baris['izin']->tanggalTeks() }}</span>
+                                @endif
                             </td>
                             @foreach (['masuk', 'istirahat', 'pulang'] as $jenis)
                                 <td class="whitespace-nowrap px-4 py-2">
@@ -122,6 +131,18 @@
                                     —
                                 @endif
                             </td>
+                            <td class="whitespace-nowrap px-4 py-2 text-xs text-gray-600">
+                                @forelse ($baris['lembur'] as $lb)
+                                    <span class="block tabular-nums">{{ $lb['lembur']->jamTeks() }}</span>
+                                    <span @class(['block', 'font-medium text-emerald-700' => $lb['hitung']['diakui'] !== null, 'text-gray-500' => $lb['hitung']['diakui'] === null])>
+                                        {{ $lb['hitung']['diakui'] === null
+                                            ? __('lembur.belum_terealisasi_singkat')
+                                            : __('lembur.diakui', ['durasi' => \App\Models\PengajuanLembur::formatMenit($lb['hitung']['diakui'])]) }}
+                                    </span>
+                                @empty
+                                    <span class="text-gray-300">—</span>
+                                @endforelse
+                            </td>
                             <td class="px-4 py-2 text-gray-600">
                                 {{ $baris['masuk']?->toko?->nama ?? $baris['masuk']?->depot?->nama ?? '—' }}
                                 @if ($baris['masuk']?->jarak_m !== null)
@@ -131,7 +152,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <x-kosong ikon="identification" :judul="__('hr.monitoring_kosong')" :keterangan="__('hr.ket_monitoring_kosong')" />
                             </td>
                         </tr>

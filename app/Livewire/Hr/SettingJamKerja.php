@@ -28,6 +28,8 @@ class SettingJamKerja extends Component
 
     public string $toleransiTelatMenit = '0';
 
+    public string $durasiIstirahatMenit = '60';
+
     /** @var array<int, string> hari ISO-8601 yang dicentang */
     public array $hariKerja = [];
 
@@ -69,6 +71,7 @@ class SettingJamKerja extends Component
         $this->jamMasuk = substr((string) $posisi->jam_masuk, 0, 5);
         $this->jamPulang = substr((string) $posisi->jam_pulang, 0, 5);
         $this->toleransiTelatMenit = (string) $posisi->toleransi_telat_menit;
+        $this->durasiIstirahatMenit = (string) $posisi->durasi_istirahat_menit;
         $this->hariKerja = array_map('strval', $posisi->hariKerja());
         $this->lokasiJenis = $posisi->lokasi_jenis->value;
         $this->radiusMeter = (string) $posisi->radius_meter;
@@ -95,6 +98,7 @@ class SettingJamKerja extends Component
             'jamMasuk' => 'required|date_format:H:i',
             'jamPulang' => 'required|date_format:H:i',
             'toleransiTelatMenit' => 'required|integer|min:0|max:240',
+            'durasiIstirahatMenit' => 'required|integer|min:0|max:480',
             'hariKerja' => 'array|min:1',
             'hariKerja.*' => 'integer|min:1|max:7',
             'lokasiJenis' => ['required', Rule::enum(LokasiAbsensi::class)],
@@ -107,6 +111,7 @@ class SettingJamKerja extends Component
             'jamMasuk' => __('hr.atr_jam_masuk'),
             'jamPulang' => __('hr.atr_jam_pulang'),
             'toleransiTelatMenit' => __('hr.atr_toleransi'),
+            'durasiIstirahatMenit' => __('hr.atr_durasi_istirahat'),
             'hariKerja' => __('hr.atr_hari_kerja'),
             'lokasiJenis' => __('hr.atr_kondisi_absen'),
             'radiusMeter' => __('hr.atr_radius'),
@@ -117,6 +122,7 @@ class SettingJamKerja extends Component
             'jam_masuk' => $data['jamMasuk'].':00',
             'jam_pulang' => $data['jamPulang'].':00',
             'toleransi_telat_menit' => (int) $data['toleransiTelatMenit'],
+            'durasi_istirahat_menit' => (int) $data['durasiIstirahatMenit'],
             'hari_kerja' => array_values(array_map('intval', $data['hariKerja'])),
             'lokasi_jenis' => $data['lokasiJenis'],
             'radius_meter' => (int) $data['radiusMeter'],

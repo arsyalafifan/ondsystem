@@ -72,6 +72,12 @@ const PARITAS_RUTE = [
     // Absensi dipakai semua peran — merekalah yang absen.
     'hr.absensi' => ['admin', 'hr', 'sales', 'driver', 'supervisor'],
     'hr.monitoring-absensi' => ['admin', 'hr'],
+    // Izin diajukan semua peran (seperti Absensi); keputusannya khusus HR.
+    'hr.izin' => ['admin', 'hr', 'sales', 'driver', 'supervisor'],
+    'hr.persetujuan-izin' => ['hr'],
+    'hr.lembur' => ['admin', 'hr', 'sales', 'driver', 'supervisor'],
+    'hr.persetujuan-lembur' => ['hr'],
+    'hr.setting-approval-izin' => ['hr'],
     'pengguna.daftar' => [],
     'depot.daftar' => [],
     'akun.kata-sandi' => ['admin', 'sales', 'driver', 'hr', 'supervisor'],
@@ -189,12 +195,20 @@ function paritasMenuAdmin(): array
     ];
 }
 
-function paritasMenuHr(): array
+/** Persetujuan Izin hanya untuk HR (dan superadmin), bukan admin. */
+function paritasMenuHr(bool $persetujuanIzin = true): array
 {
     return [
         paritasTautan('nav.dashboard', 'hr.dashboard'),
         paritasTautan('nav.hr_absensi', 'hr.absensi'),
+        paritasTautan('nav.hr_ajukan_izin', 'hr.izin'),
+        paritasTautan('nav.hr_ajukan_lembur', 'hr.lembur'),
         paritasTautan('nav.hr_monitoring_absensi', 'hr.monitoring-absensi'),
+        ...($persetujuanIzin ? [
+            paritasTautan('nav.hr_persetujuan_izin', 'hr.persetujuan-izin'),
+            paritasTautan('nav.hr_persetujuan_lembur', 'hr.persetujuan-lembur'),
+            paritasTautan('nav.hr_setting_approval_izin', 'hr.setting-approval-izin'),
+        ] : []),
         '# '.__('nav.master'),
         paritasTautan('nav.hr_karyawan', 'hr.karyawan'),
         paritasTautan('nav.hr_department', 'hr.department'),
@@ -205,10 +219,14 @@ function paritasMenuHr(): array
     ];
 }
 
-/** Peran lapangan hanya punya satu menu di HR System: Absensi. */
+/** Peran lapangan di HR System: Absensi dan Ajukan Izin. */
 function paritasMenuAbsensiSaja(): array
 {
-    return [paritasTautan('nav.hr_absensi', 'hr.absensi')];
+    return [
+        paritasTautan('nav.hr_absensi', 'hr.absensi'),
+        paritasTautan('nav.hr_ajukan_izin', 'hr.izin'),
+        paritasTautan('nav.hr_ajukan_lembur', 'hr.lembur'),
+    ];
 }
 
 function paritasMenuSales(): array
@@ -238,7 +256,7 @@ it('menu sidebar dan pemilih aplikasi tiap peran sesuai bawaannya', function () 
 
     $kasus = [
         ['admin', 'dashboard', paritasMenuAdmin(), $o],
-        ['admin', 'hr.dashboard', paritasMenuHr(), $o],
+        ['admin', 'hr.dashboard', paritasMenuHr(persetujuanIzin: false), $o],
         ['admin', 'akun.kata-sandi', paritasMenuAdmin(), $o],
         ['superadmin', 'dashboard', paritasMenuAdmin(), [...$o, __('nav.aplikasi_user_admin')]],
         ['superadmin', 'hr.dashboard', paritasMenuHr(), [...$o, __('nav.aplikasi_user_admin')]],

@@ -101,6 +101,13 @@
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_durasi_istirahat') }}</label>
+                    <input type="number" min="0" max="480" wire:model="durasiIstirahatMenit" placeholder="{{ __('hr.ikut_posisi') }}" class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 sm:w-40">
+                    <p class="mt-1 text-xs text-gray-500">{{ __('hr.ket_durasi_istirahat_shift') }}</p>
+                    @error('durasiIstirahatMenit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+
                 <label class="flex items-start gap-2 text-sm text-gray-700">
                     <input type="checkbox" wire:model="lintasHari" class="mt-0.5 size-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500">
                     <span>

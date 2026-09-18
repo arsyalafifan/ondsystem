@@ -7,8 +7,11 @@ use App\Enums\StatusAbsensi;
 use App\Models\Absensi;
 use App\Models\Depot;
 use App\Models\Karyawan;
+use App\Models\PengajuanIzin;
+use App\Models\PengajuanLembur;
 use App\Models\Posisi;
 use App\Services\Absensi\AturanAbsensi;
+use App\Services\Lembur\PengajuanLemburService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -88,18 +91,40 @@ class MonitoringAbsensi extends Component
             ->get()
             ->groupBy('karyawan_id');
 
+        // Hanya yang DISETUJUI HR — pengajuan yang masih menunggu belum
+        // mengubah apa pun di sini.
+        $izin = PengajuanIzin::query()
+            ->disetujui()
+            ->mencakup($tanggal)
+            ->whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->get()
+            ->keyBy('karyawan_id');
+
+        $lembur = PengajuanLembur::query()
+            ->disetujui()
+            ->whereDate('tanggal', $tanggal->toDateString())
+            ->whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->get()
+            ->groupBy('karyawan_id');
+        $layananLembur = app(PengajuanLemburService::class);
+
         return $karyawans
-            ->map(function (Karyawan $karyawan) use ($absensi, $tanggal): array {
+            ->map(function (Karyawan $karyawan) use ($absensi, $izin, $lembur, $layananLembur, $tanggal): array {
                 $milik = ($absensi->get($karyawan->id) ?? collect())->keyBy(fn (Absensi $a) => $a->jenis->value);
                 $masuk = $milik->get(JenisAbsensi::Masuk->value);
                 $pulang = $milik->get(JenisAbsensi::Pulang->value);
+                $izinnya = $izin->get($karyawan->id);
 
                 return [
                     'karyawan' => $karyawan,
                     'masuk' => $masuk,
                     'istirahat' => $milik->get(JenisAbsensi::Istirahat->value),
                     'pulang' => $pulang,
-                    'status' => $this->statusHarian($karyawan, $masuk, $pulang, $tanggal),
+                    'izin' => $izinnya,
+                    'lembur' => ($lembur->get($karyawan->id) ?? collect())
+                        ->map(fn (PengajuanLembur $l) => ['lembur' => $l, 'hitung' => $layananLembur->hitung($l)])
+                        ->values(),
+                    'status' => $izinnya?->statusHarian() ?? $this->statusHarian($karyawan, $masuk, $pulang, $tanggal),
                     'durasi_menit' => $masuk !== null && $pulang !== null
                         ? (int) $masuk->waktu->diffInMinutes($pulang->waktu)
                         : null,
@@ -114,8 +139,8 @@ class MonitoringAbsensi extends Component
      * hari kerja posisinya DAN jam pulangnya sudah lewat — sebelum itu
      * statusnya "belum absen", bukan tuduhan mangkir.
      *
-     * Izin/sakit belum punya modulnya; begitu ada, tinggal menambah status
-     * di sini tanpa mengubah tabel absensi.
+     * Hari yang dicakup izin/sakit yang disetujui tidak sampai ke sini —
+     * statusnya diambil langsung dari pengajuannya (lihat baris()).
      */
     private function statusHarian(Karyawan $karyawan, ?Absensi $masuk, ?Absensi $pulang, CarbonImmutable $tanggal): string
     {
@@ -144,7 +169,9 @@ class MonitoringAbsensi extends Component
     {
         $hitung = $this->baris->countBy('status');
 
-        return collect(['hadir', 'terlambat', 'selesai', 'belum_absen', 'alfa', 'libur'])
+        $hitung['izin'] = ($hitung['izin'] ?? 0) + ($hitung['izin_paruh_pertama'] ?? 0) + ($hitung['izin_paruh_kedua'] ?? 0);
+
+        return collect(['hadir', 'terlambat', 'selesai', 'izin', 'sakit', 'belum_absen', 'alfa', 'libur'])
             ->mapWithKeys(fn (string $status) => [$status => (int) ($hitung[$status] ?? 0)])
             ->all();
     }

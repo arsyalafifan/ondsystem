@@ -5,6 +5,8 @@ namespace App\Livewire\Hr;
 use App\Enums\JenisAbsensi;
 use App\Models\Absensi as ModelAbsensi;
 use App\Models\Karyawan;
+use App\Models\PengajuanIzin;
+use App\Models\PengajuanLembur;
 use App\Services\Absensi\AturanAbsensi;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -44,6 +46,27 @@ class Absensi extends Component
             : app(AturanAbsensi::class)->hariIni($karyawan);
     }
 
+    /** Lembur disetujui hari ini — pengingat absen pulang SESUDAH lembur selesai. */
+    #[Computed]
+    public function lemburHariIni()
+    {
+        $karyawan = $this->karyawan;
+
+        return $karyawan === null
+            ? collect()
+            : PengajuanLembur::query()->where('karyawan_id', $karyawan->id)->disetujui()
+                ->whereDate('tanggal', CarbonImmutable::today()->toDateString())->orderBy('jam_mulai')->get();
+    }
+
+    /** Izin/sakit yang disetujui HR untuk hari ini, bila ada. */
+    #[Computed]
+    public function izinHariIni(): ?PengajuanIzin
+    {
+        $karyawan = $this->karyawan;
+
+        return $karyawan === null ? null : app(AturanAbsensi::class)->izinPada($karyawan, CarbonImmutable::today());
+    }
+
     /**
      * Jenis absen yang boleh ditekan sekarang, berikut alasannya bila
      * terkunci — supaya karyawan tahu kenapa tombolnya mati, bukan sekadar
@@ -60,18 +83,26 @@ class Absensi extends Component
             return [];
         }
 
+        $izin = $this->izinHariIni;
+
+        // Izin/sakit sehari penuh: tidak ada yang perlu diabsen hari ini.
+        if ($izin !== null && ! $izin->porsi->setengahHari()) {
+            return [];
+        }
+
         $aturan = app(AturanAbsensi::class);
         $hariIni = $this->hariIni;
         $tanggal = CarbonImmutable::today();
         $hasil = [];
 
         foreach (JenisAbsensi::cases() as $jenis) {
-            if ($jenis === JenisAbsensi::Istirahat && ! $karyawan->posisi->pakai_absen_istirahat) {
+            // Setengah hari tidak melewati jam istirahat — lihat AturanAbsensi::catat().
+            if ($jenis === JenisAbsensi::Istirahat && (! $karyawan->posisi->pakai_absen_istirahat || $izin !== null)) {
                 continue;
             }
 
             $sudah = $hariIni->get($jenis->value);
-            $acuan = $aturan->jamAcuan($karyawan, $jenis, $tanggal);
+            $acuan = $aturan->jamAcuan($karyawan, $jenis, $tanggal, $izin);
 
             $hasil[] = [
                 'jenis' => $jenis,

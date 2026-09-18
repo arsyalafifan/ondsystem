@@ -28,6 +28,9 @@ class DaftarShift extends Component
 
     public bool $lintasHari = false;
 
+    /** '' = ikut lama istirahat posisi karyawan. */
+    public string $durasiIstirahatMenit = '';
+
     public bool $aktif = true;
 
     public ?int $konfirmasiHapus = null;
@@ -57,6 +60,7 @@ class DaftarShift extends Component
         $this->jamMasuk = substr((string) $shift->jam_masuk, 0, 5);
         $this->jamPulang = substr((string) $shift->jam_pulang, 0, 5);
         $this->lintasHari = $shift->lintas_hari;
+        $this->durasiIstirahatMenit = $shift->durasi_istirahat_menit === null ? '' : (string) $shift->durasi_istirahat_menit;
         $this->aktif = $shift->aktif;
 
         $this->formTerbuka = true;
@@ -70,7 +74,7 @@ class DaftarShift extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['shiftId', 'kode', 'nama', 'lintasHari']);
+        $this->reset(['shiftId', 'kode', 'nama', 'lintasHari', 'durasiIstirahatMenit']);
         $this->jamMasuk = '08:00';
         $this->jamPulang = '17:00';
         $this->aktif = true;
@@ -90,12 +94,14 @@ class DaftarShift extends Component
             'jamMasuk' => 'required|date_format:H:i',
             'jamPulang' => 'required|date_format:H:i',
             'lintasHari' => 'boolean',
+            'durasiIstirahatMenit' => 'nullable|integer|min:0|max:480',
             'aktif' => 'boolean',
         ], [], [
             'kode' => __('hr.atr_kode_shift'),
             'nama' => __('hr.atr_nama_shift'),
             'jamMasuk' => __('hr.atr_jam_masuk'),
             'jamPulang' => __('hr.atr_jam_pulang'),
+            'durasiIstirahatMenit' => __('hr.atr_durasi_istirahat'),
         ]);
 
         Shift::updateOrCreate(['id' => $this->shiftId], [
@@ -104,6 +110,7 @@ class DaftarShift extends Component
             'jam_masuk' => $data['jamMasuk'].':00',
             'jam_pulang' => $data['jamPulang'].':00',
             'lintas_hari' => $this->lintasHari,
+            'durasi_istirahat_menit' => $this->durasiIstirahatMenit === '' ? null : (int) $this->durasiIstirahatMenit,
             'aktif' => $this->aktif,
         ]);
 

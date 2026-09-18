@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * lainnya.
  */
 #[Fillable([
-    'id', 'kode', 'nama', 'jam_masuk', 'jam_pulang', 'toleransi_telat_menit',
+    'id', 'kode', 'nama', 'jam_masuk', 'jam_pulang', 'durasi_istirahat_menit', 'toleransi_telat_menit',
     'hari_kerja', 'lokasi_jenis', 'radius_meter', 'pakai_absen_istirahat',
     'istirahat_paling_lambat', 'aktif',
 ])]
@@ -31,6 +31,7 @@ class Posisi extends Model
         'lokasi_jenis' => 'depot',
         'radius_meter' => 100,
         'toleransi_telat_menit' => 0,
+        'durasi_istirahat_menit' => 60,
         'pakai_absen_istirahat' => false,
     ];
 
@@ -40,6 +41,7 @@ class Posisi extends Model
             'hari_kerja' => 'array',
             'lokasi_jenis' => LokasiAbsensi::class,
             'toleransi_telat_menit' => 'integer',
+            'durasi_istirahat_menit' => 'integer',
             'radius_meter' => 'integer',
             'pakai_absen_istirahat' => 'boolean',
             'aktif' => 'boolean',
