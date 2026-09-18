@@ -16,7 +16,7 @@
                        class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-600">{{ __('depot.judul') }}</label>
+                <label class="block text-xs font-medium text-gray-600">{{ __('pengguna.atr_akses_gudang') }}</label>
                 <select wire:model.live="filterDepot"
                         class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     <option value="">{{ __('pengguna.semua_depot_filter') }}</option>
@@ -45,7 +45,7 @@
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_email') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_peran') }}</th>
-                        <th class="px-4 py-2 font-medium">{{ __('depot.judul') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_akses_gudang') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('pengguna.atr_no_hp') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.status') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('umum.aksi') }}</th>
@@ -67,8 +67,27 @@
                                     {{ $u->role->label() }}
                                 </span>
                             </td>
-                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
-                                {{ $u->depot?->nama ?? __('pengguna.tanpa_depot') }}
+                            <td class="px-4 py-2 text-gray-600">
+                                @if ($u->isSuperadmin())
+                                    <span class="text-xs text-violet-700">{{ __('umum.semua_depot') }}</span>
+                                @else
+                                    <div class="flex flex-wrap gap-1">
+                                        @forelse ($u->depots as $d)
+                                            <span @class([
+                                                'inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs ring-1 ring-inset',
+                                                'bg-blue-50 font-medium text-blue-700 ring-blue-600/20' => $d->id === $u->depot_id,
+                                                'bg-gray-50 text-gray-600 ring-gray-500/20' => $d->id !== $u->depot_id,
+                                            ])>
+                                                {{ $d->nama }}
+                                                @if ($d->id === $u->depot_id)
+                                                    <span class="text-[10px] uppercase">· {{ __('pengguna.label_default') }}</span>
+                                                @endif
+                                            </span>
+                                        @empty
+                                            <span class="text-xs text-gray-400">{{ __('pengguna.tanpa_depot') }}</span>
+                                        @endforelse
+                                    </div>
+                                @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $u->no_hp ?? '—' }}</td>
                             <td class="px-4 py-2">
@@ -135,23 +154,34 @@
 
                 @if ($role !== \App\Enums\PeranPengguna::Superadmin->value)
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_depot') }}</label>
-                        @if ($penggunaId)
-                            <p class="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
-                                {{ $this->depotUntukFilter->firstWhere('id', (int) $depotIdForm)?->nama ?? '—' }}
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500">{{ __('pengguna.ket_depot_tidak_bisa_diubah') }}</p>
-                        @else
-                            <select wire:model="depotIdForm"
-                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                                <option value="">{{ __('auth.pilih_depot') }}</option>
-                                @foreach ($this->depotAktif as $d)
-                                    <option value="{{ $d->id }}">{{ $d->nama }}</option>
-                                @endforeach
-                            </select>
-                            @error('depotIdForm') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        @endif
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_akses_gudang') }}</label>
+                        <div class="mt-1 grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-gray-300 bg-gray-50 p-2 sm:grid-cols-2">
+                            @foreach ($this->depotAktif as $d)
+                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 hover:bg-white">
+                                    <input type="checkbox" value="{{ $d->id }}" wire:model.live="depotAkses"
+                                           class="rounded border-gray-400 text-blue-600 focus:ring-blue-500/20">
+                                    <span class="truncate">{{ $d->nama }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">{{ __('pengguna.ket_akses_gudang') }}</p>
+                        @error('depotAkses') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        @error('depotAkses.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('pengguna.atr_gudang_default') }}</label>
+                        <select wire:model="depotDefault"
+                                class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">{{ __('pengguna.default_otomatis') }}</option>
+                            @foreach ($this->depotAktif->whereIn('id', array_map('intval', $depotAkses)) as $d)
+                                <option value="{{ $d->id }}">{{ $d->nama }}</option>
+                            @endforeach
+                        </select>
+                        @error('depotDefault') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @else
+                    <p class="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-violet-800">{{ __('pengguna.ket_akses_superadmin') }}</p>
                 @endif
 
                 <div>

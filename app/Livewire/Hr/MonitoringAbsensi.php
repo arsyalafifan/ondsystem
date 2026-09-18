@@ -50,7 +50,7 @@ class MonitoringAbsensi extends Component
     #[Computed]
     public function depots()
     {
-        return Depot::aktif()->orderBy('nama')->get(['id', 'nama']);
+        return Depot::aktif()->berurutan()->get(['id', 'nama']);
     }
 
     #[Computed]

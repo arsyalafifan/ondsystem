@@ -1,7 +1,12 @@
 @props(['gaya' => 'gelap'])
 
 @php
-    $daftar = \App\Models\Depot::query()->aktif()->orderBy('nama')->get();
+    // Superadmin: semua gudang + "Semua". Pengguna lain: hanya gudang yang
+    // diizinkan untuknya (layout hanya memasang komponen ini kalau jumlahnya
+    // lebih dari satu).
+    $pengguna = auth()->user();
+    $bisaSemua = $pengguna->isSuperadmin();
+    $daftar = $pengguna->depotYangBisaDiakses();
     $modeAktif = \App\Support\DepotContext::mode();
     $depotAktif = \App\Support\DepotContext::current();
     $namaAktif = $modeAktif === \App\Support\ModeDepot::SemuaDepot ? __('umum.semua_depot') : ($depotAktif->nama ?? '—');
@@ -53,6 +58,7 @@
             </li>
         @endforeach
 
+        @if ($bisaSemua)
         <li class="my-1 border-t border-gray-100"></li>
 
         @php $semuaTerpilih = $modeAktif === \App\Support\ModeDepot::SemuaDepot; @endphp
@@ -73,5 +79,6 @@
                 </button>
             </form>
         </li>
+        @endif
     </ul>
 </div>

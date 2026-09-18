@@ -164,7 +164,7 @@ class DaftarKaryawan extends Component
     #[Computed]
     public function depots()
     {
-        return Depot::aktif()->orderBy('nama')->get();
+        return Depot::aktif()->berurutan()->get();
     }
 
     /**

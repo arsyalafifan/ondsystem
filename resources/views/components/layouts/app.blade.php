@@ -117,7 +117,7 @@
             </div>
 
             <div class="mt-8 space-y-2 border-t border-slate-100 pt-6">
-                @if ($peran === \App\Enums\PeranPengguna::Superadmin)
+                @if ($peran === \App\Enums\PeranPengguna::Superadmin || auth()->user()->depotYangBisaDiakses()->count() > 1)
                     <x-pemilih-depot />
                 @endif
 

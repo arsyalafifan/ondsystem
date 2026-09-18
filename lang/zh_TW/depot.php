@@ -25,4 +25,8 @@ return [
     'depot_diperbarui' => '倉庫的變更已儲存。',
     'depot_kosong' => '尚無倉庫',
     'depot_kosong_ket' => '請使用上方按鈕新增第一個倉庫。',
+    'atr_urutan' => '序號',
+    'urutan_otomatis' => '自動',
+    'label_default' => '預設',
+    'ket_urutan' => '序號最小的倉庫將作為未設定倉庫的用戶的預設倉庫。',
 ];

@@ -7,6 +7,7 @@ use App\Models\Depot;
 use App\Models\Scopes\DepotScope;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -47,7 +48,11 @@ class DaftarPengguna extends Component
 
     public string $no_hp = '';
 
-    public string $depotIdForm = '';
+    /** Id gudang (string) yang boleh dimasuki akun ini — tabel depot_user. */
+    public array $depotAkses = [];
+
+    /** Gudang tujuan setelah login; '' = otomatis gudang pertama menurut nomor urut. */
+    public string $depotDefault = '';
 
     public bool $aktif = true;
 
@@ -60,18 +65,26 @@ class DaftarPengguna extends Component
         }
     }
 
+    /** Default yang tidak lagi dicentang kembali ke "otomatis". */
+    public function updatedDepotAkses(): void
+    {
+        if (! in_array($this->depotDefault, $this->depotAkses, true)) {
+            $this->depotDefault = '';
+        }
+    }
+
     #[Computed]
     public function penggunas()
     {
         return User::withoutGlobalScope(DepotScope::class)
-            ->with('depot:id,nama')
+            ->with(['depots' => fn ($q) => $q->berurutan()->select('depots.id', 'depots.nama')])
             ->when($this->cari !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$this->cari}%")
                 ->orWhere('email', 'like', "%{$this->cari}%")))
-            ->when($this->filterDepot === 'tanpa_depot', fn ($q) => $q->whereNull('depot_id'))
+            ->when($this->filterDepot === 'tanpa_depot', fn ($q) => $q->whereDoesntHave('depots'))
             ->when(
                 $this->filterDepot !== '' && $this->filterDepot !== 'tanpa_depot',
-                fn ($q) => $q->where('depot_id', $this->filterDepot),
+                fn ($q) => $q->whereHas('depots', fn ($d) => $d->whereKey((int) $this->filterDepot)),
             )
             ->when($this->filterPeran !== '', fn ($q) => $q->where('role', $this->filterPeran))
             ->orderBy('name')
@@ -82,14 +95,14 @@ class DaftarPengguna extends Component
     #[Computed]
     public function depotAktif()
     {
-        return Depot::aktif()->orderBy('nama')->get(['id', 'nama']);
+        return Depot::aktif()->berurutan()->get(['id', 'nama']);
     }
 
     /** Daftar depot untuk filter — termasuk yang nonaktif, supaya akun lama tetap tertelusur. */
     #[Computed]
     public function depotUntukFilter()
     {
-        return Depot::query()->orderBy('nama')->get(['id', 'nama']);
+        return Depot::query()->berurutan()->get(['id', 'nama']);
     }
 
     #[Computed]
@@ -113,7 +126,10 @@ class DaftarPengguna extends Component
         $this->email = $u->email;
         $this->role = $u->role->value;
         $this->no_hp = $u->no_hp ?? '';
-        $this->depotIdForm = $u->depot_id === null ? '' : (string) $u->depot_id;
+        $this->depotAkses = $u->depots()->pluck('depots.id')->map(fn ($id) => (string) $id)->all();
+        $this->depotDefault = $u->depot_id !== null && in_array((string) $u->depot_id, $this->depotAkses, true)
+            ? (string) $u->depot_id
+            : '';
         $this->aktif = $u->aktif;
 
         $this->formTerbuka = true;
@@ -127,7 +143,7 @@ class DaftarPengguna extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['penggunaId', 'name', 'email', 'no_hp', 'depotIdForm']);
+        $this->reset(['penggunaId', 'name', 'email', 'no_hp', 'depotAkses', 'depotDefault']);
         $this->role = 'sales';
         $this->aktif = true;
         $this->resetValidation();
@@ -142,31 +158,44 @@ class DaftarPengguna extends Component
         $peranDipilih = PeranPengguna::from($this->role);
         $butuhDepot = $peranDipilih !== PeranPengguna::Superadmin;
 
-        // Email unik per-depot sejak Stage 4 (kolom generated
-        // depot_kunci_unik), BUKAN unik global — Rule::unique polos di
-        // kolom email saja akan salah menolak email yang kebetulan sudah
-        // dipakai di DEPOT LAIN, padahal itu sah. Cakupan pengecekannya
-        // harus persis meniru constraint database: sesama superadmin
-        // (depot_id NULL) untuk peran superadmin, atau sesama depot yang
-        // dipilih untuk peran lain.
-        $emailRule = Rule::unique('users', 'email')
-            ->ignore($this->penggunaId)
-            ->where(fn ($query) => $butuhDepot
-                ? $query->where('depot_id', $this->depotIdForm !== '' ? (int) $this->depotIdForm : 0)
-                : $query->whereNull('depot_id'));
-
+        // Email unik global: satu orang = satu akun, akses ke banyak gudang
+        // diatur lewat daftar gudang di bawah (bukan akun ganda per gudang).
         $data = $this->validate([
             'name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', $emailRule],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->penggunaId)],
             'role' => ['required', Rule::enum(PeranPengguna::class)],
             'no_hp' => 'nullable|string|max:20',
-            'depotIdForm' => [$butuhDepot ? 'required' : 'nullable', 'nullable', 'exists:depots,id'],
-        ], [], [
+            'depotAkses' => 'array',
+            'depotAkses.*' => ['integer', Rule::exists('depots', 'id')],
+            'depotDefault' => ['nullable', Rule::in($this->depotAkses)],
+        ], [
+            'depotDefault.in' => __('pengguna.default_harus_diakses'),
+        ], [
             'name' => __('pengguna.atr_nama'),
             'email' => __('pengguna.atr_email'),
             'role' => __('pengguna.atr_peran'),
-            'depotIdForm' => __('pengguna.atr_depot'),
+            'depotAkses' => __('pengguna.atr_akses_gudang'),
+            'depotDefault' => __('pengguna.atr_gudang_default'),
         ]);
+
+        $akses = [];
+
+        if ($butuhDepot) {
+            $akses = array_values(array_unique(array_map('intval', $data['depotAkses'] ?? [])));
+
+            // Tidak dicentang satu pun → gudang nomor urut pertama.
+            if ($akses === []) {
+                $pertama = Depot::query()->aktif()->berurutan()->value('id');
+
+                if ($pertama === null) {
+                    $this->addError('depotAkses', __('pengguna.belum_ada_gudang'));
+
+                    return;
+                }
+
+                $akses = [$pertama];
+            }
+        }
 
         $isBaru = $this->penggunaId === null;
 
@@ -176,27 +205,20 @@ class DaftarPengguna extends Component
             'role' => $data['role'],
             'no_hp' => $this->no_hp ?: null,
             'aktif' => $this->aktif,
+            // Disebut eksplisit (termasuk null) supaya BerDepot tidak mengisi
+            // depot_id dari gudang yang sedang aktif di sesi superadmin.
+            // null = otomatis gudang pertama yang diizinkan.
+            'depot_id' => $butuhDepot && $this->depotDefault !== '' ? (int) $this->depotDefault : null,
         ];
 
-        if ($isBaru) {
-            // depot_id SELALU disebut eksplisit di sini — dipilih dari
-            // formulir, bukan mengandalkan konteks depot yang sedang aktif
-            // di sesi superadmin (yang sekarang bisa dalam mode apapun,
-            // sejak layar ini menampilkan semua depot sekaligus).
-            $atribut['depot_id'] = $butuhDepot ? (int) $data['depotIdForm'] : null;
+        DB::transaction(function () use ($isBaru, $atribut, $akses) {
+            $pengguna = $isBaru
+                ? User::withoutGlobalScope(DepotScope::class)->create([...$atribut, 'password' => Hash::make('password')])
+                : tap(User::withoutGlobalScope(DepotScope::class)->findOrFail($this->penggunaId))->update($atribut);
 
-            User::withoutGlobalScope(DepotScope::class)
-                ->create([...$atribut, 'password' => Hash::make('password')]);
-        } else {
-            // depot_id akun yang sudah ada SENGAJA tidak diubah lewat form
-            // ini — cuma dipilih saat pembuatan. Memindahkan akun ke depot
-            // lain berarti riwayat lama (pesanan, kunjungan) tetap tercatat
-            // di depot asalnya, jadi bisa membingungkan kalau dilakukan
-            // diam-diam lewat form biasa.
-            User::withoutGlobalScope(DepotScope::class)
-                ->whereKey($this->penggunaId)
-                ->update($atribut);
-        }
+            // Superadmin selalu bisa ke semua gudang — tidak butuh baris akses.
+            $pengguna->depots()->sync($akses);
+        });
 
         $this->tutupForm();
         unset($this->penggunas);

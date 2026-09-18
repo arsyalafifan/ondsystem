@@ -3,6 +3,7 @@
 namespace App\Models\Scopes;
 
 use App\Exceptions\DepotTidakDiketahui;
+use App\Models\Concerns\DisaringDepotSendiri;
 use App\Support\DepotContext;
 use App\Support\ModeDepot;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,10 +25,9 @@ final class DepotScope implements Scope
     public function apply(Builder $builder, Model $model): void
     {
         match (DepotContext::mode()) {
-            ModeDepot::Terkunci => $builder->where(
-                $model->qualifyColumn('depot_id'),
-                DepotContext::currentOrFail()->id,
-            ),
+            ModeDepot::Terkunci => $model instanceof DisaringDepotSendiri
+                ? $model->saringDepot($builder, DepotContext::currentOrFail()->id)
+                : $builder->where($model->qualifyColumn('depot_id'), DepotContext::currentOrFail()->id),
             // Satu-satunya cara melihat data lintas-depot, dan hanya bisa
             // dicapai lewat aksi eksplisit superadmin (login pilih "Semua
             // Depot", atau switcher) — bukan default diam-diam.

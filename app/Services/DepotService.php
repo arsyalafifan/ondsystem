@@ -18,6 +18,10 @@ class DepotService
     public function buat(array $data): Depot
     {
         return DB::transaction(function () use ($data): Depot {
+            // Tanpa nomor urut → ditaruh paling akhir, supaya gudang default
+            // (urutan pertama) pengguna lama tidak berubah diam-diam.
+            $data['urutan'] ??= ((int) Depot::query()->max('urutan')) + 1;
+
             $depot = Depot::create($data);
 
             // creating() BerDepot tidak berlaku di sini: PengaturanKunjungan

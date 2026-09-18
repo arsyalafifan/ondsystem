@@ -18,6 +18,9 @@ class DaftarDepot extends Component
 
     public string $nama = '';
 
+    /** Nomor urut; '' pada depot baru = otomatis paling akhir. */
+    public string $urutan = '';
+
     public string $lat = '';
 
     public string $lng = '';
@@ -37,7 +40,7 @@ class DaftarDepot extends Component
     #[Computed]
     public function depots()
     {
-        return Depot::query()->orderBy('nama')->get();
+        return Depot::query()->berurutan()->get();
     }
 
     public function buatBaru(): void
@@ -53,6 +56,7 @@ class DaftarDepot extends Component
         $this->depotId = $depot->id;
         $this->kode = $depot->kode;
         $this->nama = $depot->nama;
+        $this->urutan = (string) $depot->urutan;
         $this->lat = $depot->lat === null ? '' : (string) $depot->lat;
         $this->lng = $depot->lng === null ? '' : (string) $depot->lng;
         $this->serviceMinutes = (string) $depot->service_minutes;
@@ -73,7 +77,7 @@ class DaftarDepot extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['depotId', 'kode', 'nama', 'lat', 'lng']);
+        $this->reset(['depotId', 'kode', 'nama', 'urutan', 'lat', 'lng']);
         $this->serviceMinutes = '10';
         $this->jamBerangkat = '08:00';
         $this->maxToko = '25';
@@ -92,6 +96,7 @@ class DaftarDepot extends Component
         $data = $this->validate([
             'kode' => ['required', 'string', 'max:20', Rule::unique('depots', 'kode')->ignore($this->depotId)],
             'nama' => 'required|string|max:255',
+            'urutan' => [$this->depotId === null ? 'nullable' : 'required', 'integer', 'min:0', 'max:9999'],
             'lat' => 'nullable|numeric|between:-90,90',
             'lng' => 'nullable|numeric|between:-180,180',
             'serviceMinutes' => 'required|integer|min:1',
@@ -102,6 +107,7 @@ class DaftarDepot extends Component
         ], [], [
             'kode' => __('depot.atr_kode'),
             'nama' => __('depot.atr_nama'),
+            'urutan' => __('depot.atr_urutan'),
             'lat' => __('depot.atr_lat'),
             'lng' => __('depot.atr_lng'),
             'serviceMinutes' => __('depot.atr_service_minutes'),
@@ -123,6 +129,10 @@ class DaftarDepot extends Component
             'min_dus_per_toko' => (int) $data['minDusPerToko'],
             'aktif' => $this->aktif,
         ];
+
+        if ($data['urutan'] !== null && $data['urutan'] !== '') {
+            $atribut['urutan'] = (int) $data['urutan'];
+        }
 
         $isBaru = $this->depotId === null;
 

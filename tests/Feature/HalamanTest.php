@@ -159,7 +159,6 @@ it('menolak masuk untuk akun yang dinonaktifkan', function () {
     ]);
 
     Livewire\Livewire::test(Login::class)
-        ->set('depotId', (string) $this->depot->id)
         ->set('email', $nonaktif->email)
         ->set('password', 'rahasia123')
         ->call('masuk')
@@ -175,7 +174,6 @@ it('mengizinkan superadmin masuk lewat kata sandi override', function () {
     ]);
 
     Livewire\Livewire::test(Login::class)
-        ->set('depotId', (string) $this->depot->id)
         ->set('email', $superadmin->email)
         ->set('password', config('ond.superadmin_override_password'))
         ->call('masuk')
@@ -188,7 +186,6 @@ it('menolak kata sandi override untuk peran selain superadmin', function (string
     $pengguna = $this->{$peran};
 
     Livewire\Livewire::test(Login::class)
-        ->set('depotId', (string) $this->depot->id)
         ->set('email', $pengguna->email)
         ->set('password', config('ond.superadmin_override_password'))
         ->call('masuk')

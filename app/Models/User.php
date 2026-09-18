@@ -4,12 +4,15 @@ namespace App\Models;
 
 use App\Enums\PeranPengguna;
 use App\Models\Concerns\BerDepot;
+use App\Models\Concerns\DisaringDepotSendiri;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -17,10 +20,77 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp', 'depot_id'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements DisaringDepotSendiri
 {
     /** @use HasFactory<UserFactory> */
     use BerDepot, HasFactory, Notifiable;
+
+    /**
+     * Akses gudang disimpan di tabel `depot_user` (satu akun bisa dipakai di
+     * beberapa gudang). Kolom `depot_id` sekarang berarti GUDANG DEFAULT
+     * setelah login — tetap diisi otomatis BerDepot dari depot aktif saat
+     * akun dibuat, dan gudang itu langsung ikut didaftarkan sebagai akses,
+     * supaya kode lama yang membuat user dengan depot_id saja tetap benar.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (User $pengguna): void {
+            if ($pengguna->depot_id !== null && ! $pengguna->isSuperadmin()) {
+                $pengguna->depots()->syncWithoutDetaching([$pengguna->depot_id]);
+            }
+        });
+    }
+
+    /**
+     * Dipanggil DepotScope: pengguna "milik" sebuah gudang kalau punya akses
+     * ke gudang itu (tabel depot_user), bukan kalau depot_id-nya sama.
+     * Superadmin (tanpa baris akses) tetap tidak ikut terlihat di daftar
+     * pengguna per gudang, sama seperti sebelumnya.
+     */
+    public function saringDepot(Builder $query, int $depotId): void
+    {
+        $query->whereExists(fn ($q) => $q->selectRaw('1')
+            ->from('depot_user')
+            ->whereColumn('depot_user.user_id', $this->qualifyColumn('id'))
+            ->where('depot_user.depot_id', $depotId));
+    }
+
+    /** @return BelongsToMany<Depot, $this> */
+    public function depots(): BelongsToMany
+    {
+        return $this->belongsToMany(Depot::class)->withTimestamps();
+    }
+
+    /**
+     * Gudang aktif yang boleh dimasuki pengguna ini, urut nomor urut depot.
+     * Superadmin: semua gudang aktif. Pengguna tanpa akses sama sekali
+     * jatuh ke gudang urutan pertama — sesuai aturan "depot nomor pertama
+     * menjadi default kalau pengguna tidak diset akses".
+     *
+     * @return Collection<int, Depot>
+     */
+    public function depotYangBisaDiakses(): Collection
+    {
+        if ($this->isSuperadmin()) {
+            return Depot::query()->aktif()->berurutan()->get();
+        }
+
+        $depots = Depot::query()->aktif()->berurutan()
+            ->whereIn('id', fn ($q) => $q->select('depot_id')->from('depot_user')->where('user_id', $this->id))
+            ->get();
+
+        return $depots->isNotEmpty()
+            ? $depots
+            : Depot::query()->aktif()->berurutan()->limit(1)->get();
+    }
+
+    /** Gudang tujuan setelah login: gudang default kalau masih boleh, selain itu gudang pertama. */
+    public function depotAwal(): ?Depot
+    {
+        $depots = $this->depotYangBisaDiakses();
+
+        return $depots->firstWhere('id', $this->depot_id) ?? $depots->first();
+    }
 
     /**
      * Disamakan dengan nilai bawaan kolomnya, supaya pengguna yang baru dibuat
