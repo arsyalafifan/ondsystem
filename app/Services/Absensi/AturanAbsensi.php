@@ -4,9 +4,11 @@ namespace App\Services\Absensi;
 
 use App\Enums\JenisAbsensi;
 use App\Enums\LokasiAbsensi;
+use App\Enums\PorsiIzin;
 use App\Enums\StatusAbsensi;
 use App\Models\Absensi;
 use App\Models\Karyawan;
+use App\Models\PengajuanIzin;
 use App\Models\Posisi;
 use App\Models\Toko;
 use App\Services\Kunjungan\GambarDataUrl;
@@ -42,9 +44,27 @@ class AturanAbsensi
      * Shift karyawan MENIMPA jam posisi bila ada (itulah arti "shift
      * menempel ke karyawan"); istirahat tidak punya padanan di shift, jadi
      * selalu memakai batas dari posisinya.
+     *
+     * Dengan izin setengah hari yang disetujui ($izin), acuannya bergeser:
+     * izin paruh pertama → jam masuk = jam pulang − ½ hari kerja bersih;
+     * izin paruh kedua → jam pulang = jam masuk + ½ hari kerja bersih.
+     * Dihitung dari ujung jam kerja, jadi posisi istirahat di tengah hari
+     * tidak perlu diketahui.
      */
-    public function jamAcuan(Karyawan $karyawan, JenisAbsensi $jenis, CarbonImmutable $tanggal): ?CarbonImmutable
+    public function jamAcuan(Karyawan $karyawan, JenisAbsensi $jenis, CarbonImmutable $tanggal, ?PengajuanIzin $izin = null): ?CarbonImmutable
     {
+        if ($izin !== null && $izin->porsi->setengahHari()) {
+            $setengah = $this->menitSetengahHari($karyawan);
+
+            if ($setengah !== null && $jenis === JenisAbsensi::Masuk && $izin->porsi === PorsiIzin::ParuhPertama) {
+                return $this->jamAcuan($karyawan, JenisAbsensi::Pulang, $tanggal)?->subMinutes($setengah);
+            }
+
+            if ($setengah !== null && $jenis === JenisAbsensi::Pulang && $izin->porsi === PorsiIzin::ParuhKedua) {
+                return $this->jamAcuan($karyawan, JenisAbsensi::Masuk, $tanggal)?->addMinutes($setengah);
+            }
+        }
+
         $posisi = $karyawan->posisi;
 
         if ($posisi === null) {
@@ -71,6 +91,49 @@ class AturanAbsensi
         return $jenis === JenisAbsensi::Pulang && ($shift?->lintas_hari ?? false)
             ? $acuan->addDay()
             : $acuan;
+    }
+
+    /**
+     * Separuh jam kerja BERSIH (jam masuk s.d. pulang, dikurangi istirahat)
+     * dalam menit — dasar izin setengah hari. Istirahat shift menimpa
+     * istirahat posisi bila diisi, sama seperti jamnya.
+     */
+    public function menitSetengahHari(Karyawan $karyawan): ?int
+    {
+        $posisi = $karyawan->posisi;
+
+        if ($posisi === null) {
+            return null;
+        }
+
+        $hari = CarbonImmutable::today();
+        $masuk = $this->jamAcuan($karyawan, JenisAbsensi::Masuk, $hari);
+        $pulang = $this->jamAcuan($karyawan, JenisAbsensi::Pulang, $hari);
+
+        if ($masuk === null || $pulang === null) {
+            return null;
+        }
+
+        // Shift yang pulangnya melewati tengah malam tapi belum ditandai
+        // lintas hari tetap dihitung wajar, bukan durasi negatif.
+        if ($pulang->lessThanOrEqualTo($masuk)) {
+            $pulang = $pulang->addDay();
+        }
+
+        $istirahat = $karyawan->shift?->durasi_istirahat_menit ?? $posisi->durasi_istirahat_menit;
+        $bersih = (int) $masuk->diffInMinutes($pulang) - (int) $istirahat;
+
+        return max(0, intdiv($bersih, 2));
+    }
+
+    /** Izin/sakit yang DISETUJUI dan mencakup tanggal kerja ini, bila ada. */
+    public function izinPada(Karyawan $karyawan, CarbonImmutable $tanggal): ?PengajuanIzin
+    {
+        return PengajuanIzin::query()
+            ->where('karyawan_id', $karyawan->id)
+            ->disetujui()
+            ->mencakup($tanggal)
+            ->first();
     }
 
     /**
@@ -185,6 +248,21 @@ class AturanAbsensi
             throw new RuntimeException(__('hr.galat_sudah_absen', ['jenis' => $jenis->label()]));
         }
 
+        $izin = $this->izinPada($karyawan, $tanggal);
+
+        // Izin/sakit sehari penuh yang sudah disetujui: tidak ada yang perlu
+        // diabsen — kalau karyawannya ternyata masuk, HR membatalkan izinnya
+        // dulu, bukan dua catatan yang saling bertentangan.
+        if ($izin !== null && ! $izin->porsi->setengahHari()) {
+            throw new RuntimeException(__('izin.galat_absen_saat_izin', ['jenis' => $izin->jenis->label()]));
+        }
+
+        // Setengah hari tidak melewati jam istirahat (datang sesudahnya atau
+        // pulang sebelumnya), jadi absen kembali istirahat tidak berlaku.
+        if ($izin !== null && $jenis === JenisAbsensi::Istirahat) {
+            throw new RuntimeException(__('izin.galat_istirahat_saat_setengah_hari'));
+        }
+
         $isi = GambarDataUrl::dekode($gambarDataUrl);
 
         if ($isi === null) {
@@ -195,7 +273,7 @@ class AturanAbsensi
         // tidak meninggalkan foto yatim di disk.
         $lokasi = $this->periksaLokasi($karyawan, $posisi, $lat, $lng);
 
-        $acuan = $this->jamAcuan($karyawan, $jenis, $tanggal);
+        $acuan = $this->jamAcuan($karyawan, $jenis, $tanggal, $izin);
         [$status, $selisih] = $this->nilai($jenis, $acuan, $waktu, $posisi->toleransi_telat_menit);
 
         $foto = $this->penanda->simpan($isi, $karyawan, $jenis, $waktu, $lat, $lng, $akurasi, $lokasi->jarakM, $lokasi->nama);

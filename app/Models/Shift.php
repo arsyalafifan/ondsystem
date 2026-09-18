@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Shift kerja khusus milik seorang karyawan — lihat catatan di migrasi
  * `create_shifts_table`. Karyawan tanpa shift mengikuti jam kerja posisinya.
  */
-#[Fillable(['id', 'kode', 'nama', 'jam_masuk', 'jam_pulang', 'lintas_hari', 'aktif'])]
+#[Fillable(['id', 'kode', 'nama', 'jam_masuk', 'jam_pulang', 'durasi_istirahat_menit', 'lintas_hari', 'aktif'])]
 class Shift extends Model
 {
     use HasFactory, SoftDeletes;
@@ -29,6 +29,7 @@ class Shift extends Model
     {
         return [
             'lintas_hari' => 'boolean',
+            'durasi_istirahat_menit' => 'integer',
             'aktif' => 'boolean',
         ];
     }

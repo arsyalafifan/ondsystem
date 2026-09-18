@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\JenisKelamin;
 use App\Enums\StatusKaryawan;
+use App\Models\Scopes\DepotScope;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,7 +34,7 @@ use Illuminate\Support\Facades\Storage;
     'id', 'kode_karyawan', 'nama_lengkap', 'nik', 'jenis_kelamin', 'tanggal_lahir',
     'no_hp', 'alamat_domisili', 'department_id', 'jabatan_id', 'tanggal_masuk',
     'status_karyawan', 'tanggal_berakhir_kontrak', 'gaji_pokok', 'no_rekening',
-    'npwp', 'catatan', 'depot_id', 'posisi_id', 'shift_id', 'foto_karyawan',
+    'npwp', 'catatan', 'depot_id', 'posisi_id', 'shift_id', 'atasan_id', 'foto_karyawan',
     'foto_ktp', 'user_id', 'aktif',
 ])]
 class Karyawan extends Model
@@ -99,6 +100,31 @@ class Karyawan extends Model
         return $this->hasMany(Absensi::class);
     }
 
+    /** Atasan langsung — penyetuju izin di mode "atasan langsung". */
+    /** @return BelongsTo<Karyawan, $this> */
+    public function atasan(): BelongsTo
+    {
+        return $this->belongsTo(Karyawan::class, 'atasan_id');
+    }
+
+    /** @return HasMany<Karyawan, $this> */
+    public function bawahan(): HasMany
+    {
+        return $this->hasMany(Karyawan::class, 'atasan_id');
+    }
+
+    /** @return HasMany<PengajuanLembur, $this> */
+    public function pengajuanLemburs(): HasMany
+    {
+        return $this->hasMany(PengajuanLembur::class);
+    }
+
+    /** @return HasMany<PengajuanIzin, $this> */
+    public function pengajuanIzins(): HasMany
+    {
+        return $this->hasMany(PengajuanIzin::class);
+    }
+
     /** @return BelongsTo<Depot, $this> */
     public function depot(): BelongsTo
     {
@@ -108,7 +134,10 @@ class Karyawan extends Model
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Lintas gudang, sama seperti karyawannya sendiri: akun karyawan
+        // gudang lain (atau superadmin, yang tidak punya baris akses gudang)
+        // tetap harus ketemu, apa pun gudang yang sedang aktif.
+        return $this->belongsTo(User::class)->withoutGlobalScope(DepotScope::class);
     }
 
     protected function urlFotoKaryawan(): Attribute

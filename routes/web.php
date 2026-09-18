@@ -14,6 +14,8 @@ use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
 use App\Livewire\HakAkses\KelolaHakAkses;
 use App\Livewire\Hr\Absensi as HrAbsensi;
+use App\Livewire\Hr\AjukanIzin;
+use App\Livewire\Hr\AjukanLembur;
 use App\Livewire\Hr\DaftarDepartment;
 use App\Livewire\Hr\DaftarJabatan;
 use App\Livewire\Hr\DaftarKaryawan;
@@ -21,6 +23,9 @@ use App\Livewire\Hr\DaftarPosisi;
 use App\Livewire\Hr\DaftarShift;
 use App\Livewire\Hr\Dashboard as HrDashboard;
 use App\Livewire\Hr\MonitoringAbsensi;
+use App\Livewire\Hr\PersetujuanIzin;
+use App\Livewire\Hr\PersetujuanLembur;
+use App\Livewire\Hr\SettingApprovalIzin;
 use App\Livewire\Hr\SettingJamKerja;
 use App\Livewire\Insentif\InsentifSales;
 use App\Livewire\Kunjungan\DaftarPeriode;
@@ -49,10 +54,13 @@ use App\Livewire\Statistik\FormPembelianProduk;
 use App\Livewire\Statistik\RepeatOrderSales;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
+use App\Models\PengajuanIzin;
+use App\Services\Izin\PengajuanIzinService;
 use App\Support\Bahasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     return Auth::check()
@@ -216,6 +224,30 @@ Route::middleware('auth')->group(function () {
         // yang absen. Monitoring-nya tetap khusus admin/HR.
         Route::get('/absensi', HrAbsensi::class)->name('absensi')->middleware('akses:hr.absensi');
         Route::get('/monitoring-absensi', MonitoringAbsensi::class)->name('monitoring-absensi')->middleware('akses:hr.monitoring_absensi');
+
+        // Izin & sakit: diajukan semua peran yang punya data karyawan,
+        // diputuskan HR.
+        Route::get('/izin', AjukanIzin::class)->name('izin')->middleware('akses:hr.ajukan_izin');
+        Route::get('/persetujuan-izin', PersetujuanIzin::class)->name('persetujuan-izin')->middleware('akses:hr.persetujuan_izin');
+        // Lembur: diajukan sebelum mulai, diputuskan dengan aturan approver
+        // yang sama seperti izin.
+        Route::get('/lembur', AjukanLembur::class)->name('lembur')->middleware('akses:hr.ajukan_lembur');
+        Route::get('/persetujuan-lembur', PersetujuanLembur::class)->name('persetujuan-lembur')->middleware('akses:hr.persetujuan_lembur');
+        Route::get('/setting-approval-izin', SettingApprovalIzin::class)->name('setting-approval-izin')->middleware('akses:hr.setting_approval_izin');
+
+        // Lampiran (mis. surat dokter) disimpan di disk PRIVAT — hanya
+        // pemilik pengajuan dan yang berhak memutuskan (HR) yang boleh
+        // membukanya; data kesehatan tidak dibuka ke semua yang bisa
+        // melihat Monitoring.
+        Route::get('/izin/{pengajuan}/lampiran', function (Request $request, PengajuanIzin $pengajuan) {
+            $pengguna = $request->user();
+            $pemilik = $pengajuan->karyawan()->where('user_id', $pengguna->id)->exists();
+
+            abort_unless($pemilik || app(HakAkses::class)->boleh($pengguna, 'hr.persetujuan_izin'), 403);
+            abort_unless($pengajuan->lampiran && Storage::disk(PengajuanIzinService::DISK)->exists($pengajuan->lampiran), 404);
+
+            return Storage::disk(PengajuanIzinService::DISK)->response($pengajuan->lampiran, $pengajuan->lampiran_nama);
+        })->name('izin.lampiran');
     });
 
     // --- User Admin ---

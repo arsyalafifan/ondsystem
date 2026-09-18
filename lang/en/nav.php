@@ -49,4 +49,9 @@ return [
     'hr_jam_kerja' => 'Work Hours',
     'hr_absensi' => 'Attendance',
     'hr_monitoring_absensi' => 'Attendance Monitoring',
+    'hr_ajukan_izin' => 'Request Leave',
+    'hr_persetujuan_izin' => 'Leave Approval',
+    'hr_setting_approval_izin' => 'Leave & Overtime Settings',
+    'hr_ajukan_lembur' => 'Request Overtime',
+    'hr_persetujuan_lembur' => 'Overtime Approval',
 ];

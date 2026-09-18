@@ -92,6 +92,33 @@
             </div>
         @endif
 
+        {{-- Izin/sakit yang sudah disetujui HR untuk hari ini --}}
+        @if ($izin = $this->izinHariIni)
+            @php
+                $aturanIzin = app(\App\Services\Absensi\AturanAbsensi::class);
+                $hariIzin = \Carbon\CarbonImmutable::today();
+            @endphp
+            <div class="mt-4 flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
+                <x-heroicon-o-document-check class="size-5 shrink-0" />
+                <p>
+                    @if ($izin->porsi === \App\Enums\PorsiIzin::ParuhPertama)
+                        {{ __('izin.absen_info_paruh_pertama', ['jam' => $aturanIzin->jamAcuan($karyawan, \App\Enums\JenisAbsensi::Masuk, $hariIzin, $izin)?->format('H:i')]) }}
+                    @elseif ($izin->porsi === \App\Enums\PorsiIzin::ParuhKedua)
+                        {{ __('izin.absen_info_paruh_kedua', ['jam' => $aturanIzin->jamAcuan($karyawan, \App\Enums\JenisAbsensi::Pulang, $hariIzin, $izin)?->format('H:i')]) }}
+                    @else
+                        {{ __('izin.absen_info_penuh', ['jenis' => mb_strtolower($izin->jenis->label())]) }}
+                    @endif
+                </p>
+            </div>
+        @endif
+
+        @foreach ($this->lemburHariIni as $lb)
+            <div class="mt-4 flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+                <x-heroicon-o-clock class="size-5 shrink-0" />
+                <p>{{ __('lembur.info_absen', ['jam' => $lb->jamTeks()]) }}</p>
+            </div>
+        @endforeach
+
         {{-- Tombol absen per tahap --}}
         <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             @foreach ($this->langkah as $langkah)

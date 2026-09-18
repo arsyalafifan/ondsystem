@@ -194,6 +194,20 @@
                             @error('shiftId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_atasan') }}</label>
+                            @php
+                                $opsiAtasan = $this->calonAtasan
+                                    ->map(fn ($k) => ['value' => $k->id, 'label' => "{$k->nama_lengkap} ({$k->kode_karyawan})".($k->posisi ? " · {$k->posisi->nama}" : '')])
+                                    ->all();
+                            @endphp
+                            <div class="mt-1">
+                                <x-pilih-cari :opsi="$opsiAtasan" :nilai="$atasanId" set="atasanId" bisa-kosong
+                                              placeholder="{{ __('hr.cari_atasan') }}" />
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">{{ __('hr.ket_atasan') }}</p>
+                            @error('atasanId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_penempatan') }}</label>
                             <select wire:model="depotId"
                                     class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">

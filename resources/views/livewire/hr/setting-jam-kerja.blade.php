@@ -24,6 +24,7 @@
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 tabular-nums">
                                 {{ substr($p->jam_masuk, 0, 5) }} – {{ substr($p->jam_pulang, 0, 5) }}
+                                <span class="block text-xs text-gray-500">{{ __('hr.atr_durasi_istirahat') }}: {{ $p->durasi_istirahat_menit }}</span>
                             </td>
                             <td class="px-4 py-2 tabular-nums text-gray-600">
                                 {{ $p->toleransi_telat_menit > 0 ? $p->toleransi_telat_menit.' '.__('umum.menit') : '—' }}
@@ -85,6 +86,13 @@
                                class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('toleransiTelatMenit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('hr.atr_durasi_istirahat') }}</label>
+                    <input type="number" min="0" max="480" wire:model="durasiIstirahatMenit" class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 sm:w-40">
+                    <p class="mt-1 text-xs text-gray-500">{{ __('hr.ket_durasi_istirahat') }}</p>
+                    @error('durasiIstirahatMenit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>

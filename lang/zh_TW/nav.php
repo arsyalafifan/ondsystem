@@ -49,4 +49,9 @@ return [
     'hr_jam_kerja' => '工作時間設定',
     'hr_absensi' => '考勤打卡',
     'hr_monitoring_absensi' => '考勤監控',
+    'hr_ajukan_izin' => '申請請假',
+    'hr_persetujuan_izin' => '請假審批',
+    'hr_setting_approval_izin' => '請假與加班設定',
+    'hr_ajukan_lembur' => '申請加班',
+    'hr_persetujuan_lembur' => '加班審批',
 ];

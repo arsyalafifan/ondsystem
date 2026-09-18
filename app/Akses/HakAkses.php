@@ -82,9 +82,20 @@ final class HakAkses
         return CakupanData::tryFrom($this->pengecualian()[$peran->value][$menu]['cakupan'] ?? '') ?? CakupanData::Semua;
     }
 
+    /**
+     * Akses menurut peran, DITAMBAH akses berbasis data bila menunya punya
+     * `akses_tambahan` (lihat App\Akses\AksesTambahan) — mis. approver izin
+     * yang ditunjuk walau perannya bukan HR.
+     */
     public function boleh(User $pengguna, string $menu): bool
     {
-        return $this->bolehPeran($pengguna->role, $menu);
+        if ($this->bolehPeran($pengguna->role, $menu)) {
+            return true;
+        }
+
+        $tambahan = DaftarAkses::menu($menu)['akses_tambahan'] ?? null;
+
+        return $tambahan !== null && app($tambahan)->bolehBukaMenu($pengguna);
     }
 
     /** @param list<string> $menu */

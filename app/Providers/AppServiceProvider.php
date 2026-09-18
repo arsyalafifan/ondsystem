@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Akses\HakAkses;
 use App\Auth\DepotAwareUserProvider;
 use App\Http\Middleware\PastikanAkses;
+use App\Services\Izin\ApproverIzin;
 use App\Services\Peta\NominatimGeocoder;
 use App\Services\Peta\OsrmClient;
 use App\Support\DepotContext;
@@ -35,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
         // scoped() dengan alasan yang sama: pengecualian hak akses dimuat
         // sekali per permintaan/job, tidak terbawa basi ke job berikutnya.
         $this->app->scoped(HakAkses::class);
+
+        // Setting approval izin & status approver per pengguna cukup dihitung
+        // sekali per permintaan (sidebar menanyakannya berkali-kali).
+        $this->app->scoped(ApproverIzin::class);
     }
 
     public function boot(): void

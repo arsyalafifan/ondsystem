@@ -2,6 +2,8 @@
 
 namespace App\Akses;
 
+use App\Services\Izin\ApproverIzin;
+
 /**
  * SATU-SATUNYA daftar aplikasi, grup, dan menu aplikasi ini.
  *
@@ -22,6 +24,8 @@ namespace App\Akses;
  *     - `cakupan_data` true bila menu ini mendukung "hanya data milik
  *                      sendiri" (komponennya wajib membaca HakAkses::cakupan()).
  *     - `label_peran`  label khusus untuk peran tertentu (opsional).
+ *     - `akses_tambahan` kelas App\Akses\AksesTambahan yang MENAMBAH akses
+ *                      berdasarkan data (mis. approver izin yang ditunjuk).
  * - Tambah PERAN: tambah `case` di App\Enums\PeranPengguna (+ label di
  *   lang/.../status.php), lalu sebut perannya di `peran` menu yang relevan.
  * - Urutan menu khusus satu peran: URUTAN_PERAN.
@@ -91,7 +95,22 @@ final class DaftarAkses
         // Absensi dipakai SEMUA peran (merekalah yang absen), jadi peran
         // lapangan pun punya satu menu di HR System.
         'hr.absensi' => ['aplikasi' => 'hr', 'rute' => 'hr.absensi', 'label' => 'nav.hr_absensi', 'ikon' => 'camera', 'peran' => ['admin', 'hr', 'sales', 'driver', 'supervisor']],
+        'hr.ajukan_izin' => ['aplikasi' => 'hr', 'rute' => 'hr.izin', 'label' => 'nav.hr_ajukan_izin', 'ikon' => 'document-plus', 'peran' => ['admin', 'hr', 'sales', 'driver', 'supervisor']],
+        'hr.ajukan_lembur' => ['aplikasi' => 'hr', 'rute' => 'hr.lembur', 'label' => 'nav.hr_ajukan_lembur', 'ikon' => 'clock', 'peran' => ['admin', 'hr', 'sales', 'driver', 'supervisor']],
         'hr.monitoring_absensi' => ['aplikasi' => 'hr', 'rute' => 'hr.monitoring-absensi', 'label' => 'nav.hr_monitoring_absensi', 'ikon' => 'clipboard-document-check', 'peran' => ['admin', 'hr'], 'cakupan_data' => true],
+        // Bawaan menurut peran: HR. Selain itu terbuka untuk siapa pun yang
+        // ditunjuk di Setting Approval Izin (orang tertentu / atasan
+        // langsung) lewat `akses_tambahan` — siapa yang BOLEH MEMUTUSKAN
+        // tetap dijaga App\Services\Izin\ApproverIzin per pengajuan.
+        'hr.persetujuan_izin' => [
+            'aplikasi' => 'hr', 'rute' => 'hr.persetujuan-izin', 'label' => 'nav.hr_persetujuan_izin', 'ikon' => 'check-badge',
+            'peran' => ['hr'], 'akses_tambahan' => ApproverIzin::class,
+        ],
+        'hr.persetujuan_lembur' => [
+            'aplikasi' => 'hr', 'rute' => 'hr.persetujuan-lembur', 'label' => 'nav.hr_persetujuan_lembur', 'ikon' => 'clipboard-document-check',
+            'peran' => ['hr'], 'akses_tambahan' => ApproverIzin::class,
+        ],
+        'hr.setting_approval_izin' => ['aplikasi' => 'hr', 'rute' => 'hr.setting-approval-izin', 'label' => 'nav.hr_setting_approval_izin', 'ikon' => 'adjustments-vertical', 'peran' => ['hr']],
         'hr.karyawan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.karyawan', 'label' => 'nav.hr_karyawan', 'ikon' => 'identification', 'peran' => ['admin', 'hr'], 'cakupan_data' => true],
         'hr.department' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.department', 'label' => 'nav.hr_department', 'ikon' => 'building-office', 'peran' => ['admin', 'hr']],
         'hr.jabatan' => ['aplikasi' => 'hr', 'grup' => 'hr.master', 'rute' => 'hr.jabatan', 'label' => 'nav.hr_jabatan', 'ikon' => 'briefcase', 'peran' => ['admin', 'hr']],

@@ -49,4 +49,9 @@ return [
     'hr_jam_kerja' => 'Setting Jam Kerja',
     'hr_absensi' => 'Absensi',
     'hr_monitoring_absensi' => 'Attendance Monitoring',
+    'hr_ajukan_izin' => 'Ajukan Izin',
+    'hr_persetujuan_izin' => 'Persetujuan Izin',
+    'hr_setting_approval_izin' => 'Setting Izin & Lembur',
+    'hr_ajukan_lembur' => 'Ajukan Lembur',
+    'hr_persetujuan_lembur' => 'Persetujuan Lembur',
 ];

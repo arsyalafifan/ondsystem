@@ -65,6 +65,9 @@ class DaftarKaryawan extends Component
     /** Kosong = "Normal", yaitu mengikuti jam kerja posisinya. */
     public string $shiftId = '';
 
+    /** Atasan langsung — penyetuju izin di mode "atasan langsung". */
+    public string $atasanId = '';
+
     public string $tanggalMasuk = '';
 
     public string $statusKaryawan = 'tetap';
@@ -189,6 +192,18 @@ class DaftarKaryawan extends Component
             ->get(['id', 'name', 'email']);
     }
 
+    /** Karyawan aktif yang bisa jadi atasan — selain dirinya sendiri. */
+    #[Computed]
+    public function calonAtasan()
+    {
+        return Karyawan::query()
+            ->where('aktif', true)
+            ->when($this->karyawanId, fn ($q) => $q->whereKeyNot($this->karyawanId))
+            ->with('posisi:id,nama')
+            ->orderBy('nama_lengkap')
+            ->get(['id', 'kode_karyawan', 'nama_lengkap', 'posisi_id']);
+    }
+
     #[Computed]
     public function jenisKelaminCases(): array
     {
@@ -223,6 +238,7 @@ class DaftarKaryawan extends Component
         $this->jabatanId = (string) $karyawan->jabatan_id;
         $this->posisiId = $karyawan->posisi_id === null ? '' : (string) $karyawan->posisi_id;
         $this->shiftId = $karyawan->shift_id === null ? '' : (string) $karyawan->shift_id;
+        $this->atasanId = $karyawan->atasan_id === null ? '' : (string) $karyawan->atasan_id;
         $this->tanggalMasuk = $karyawan->tanggal_masuk->toDateString();
         $this->statusKaryawan = $karyawan->status_karyawan->value;
         $this->tanggalBerakhirKontrak = $karyawan->tanggal_berakhir_kontrak?->toDateString() ?? '';
@@ -249,7 +265,7 @@ class DaftarKaryawan extends Component
     {
         $this->reset([
             'karyawanId', 'kodeKaryawan', 'namaLengkap', 'nik', 'tanggalLahir',
-            'noHp', 'alamatDomisili', 'departmentId', 'jabatanId', 'posisiId', 'shiftId', 'tanggalMasuk',
+            'noHp', 'alamatDomisili', 'departmentId', 'jabatanId', 'posisiId', 'shiftId', 'atasanId', 'tanggalMasuk',
             'tanggalBerakhirKontrak', 'noRekening', 'npwp', 'catatan', 'depotId',
             'userId', 'fotoKaryawan', 'fotoKtp', 'fotoKaryawanLama', 'fotoKtpLama',
         ]);
@@ -275,6 +291,7 @@ class DaftarKaryawan extends Component
             // Posisi menentukan jam kerja & kondisi absen karyawan ini.
             'posisiId' => 'required|exists:posisis,id',
             'shiftId' => 'nullable|exists:shifts,id',
+            'atasanId' => ['nullable', 'exists:karyawans,id', Rule::notIn(array_filter([$this->karyawanId]))],
             'tanggalMasuk' => 'required|date',
             'statusKaryawan' => ['required', Rule::enum(StatusKaryawan::class)],
             'tanggalBerakhirKontrak' => ['nullable', 'date', Rule::requiredIf($this->statusKaryawan === StatusKaryawan::Kontrak->value)],
@@ -298,6 +315,7 @@ class DaftarKaryawan extends Component
             'jabatanId' => __('hr.atr_jabatan'),
             'posisiId' => __('hr.atr_posisi'),
             'shiftId' => __('hr.atr_shift'),
+            'atasanId' => __('hr.atr_atasan'),
             'tanggalMasuk' => __('hr.atr_tanggal_masuk'),
             'statusKaryawan' => __('hr.atr_status_karyawan'),
             'tanggalBerakhirKontrak' => __('hr.atr_tanggal_berakhir_kontrak'),
@@ -322,6 +340,7 @@ class DaftarKaryawan extends Component
                     'jabatan_id' => $data['jabatanId'],
                     'posisi_id' => $data['posisiId'],
                     'shift_id' => $data['shiftId'] ?: null,
+                    'atasan_id' => $data['atasanId'] ?: null,
                     'tanggal_masuk' => $data['tanggalMasuk'],
                     'status_karyawan' => $data['statusKaryawan'],
                     'tanggal_berakhir_kontrak' => $data['tanggalBerakhirKontrak'] ?: null,
