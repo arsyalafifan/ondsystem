@@ -20,10 +20,13 @@ use RuntimeException;
  * selalu mengarahkan ke sini dulu, dan lanjutKePengiriman() menolak selama
  * catatan keberangkatan belum ada.
  *
- * Catatan kembali TIDAK memblokir apa pun secara teknis (status kendaraan
- * tetap berubah 'selesai' otomatis begitu semua kunjungan tuntas, lihat
+ * Catatan kembali TIDAK memblokir layar pengiriman (status kendaraan tetap
+ * berubah 'selesai' otomatis begitu semua kunjungan tuntas, lihat
  * PengirimanService::segarkanKendaraan()) — cukup diingatkan lewat badge di
- * sini dan banner di layar pengiriman, sesuai permintaan pengguna.
+ * sini dan banner di layar pengiriman. Tapi arah sebaliknya TERKUNCI: baru
+ * bisa dicatat SETELAH kendaraan berstatus 'selesai', supaya foto "kembali"
+ * tidak pernah dijepret padahal pengantarannya belum sungguh tuntas — lihat
+ * CatatanBbmService::kembali().
  */
 class CekKendaraan extends Component
 {
@@ -94,6 +97,16 @@ class CekKendaraan extends Component
         }
 
         if ($jenis === 'kembali' && $this->kendaraan->catatanKembali !== null) {
+            return;
+        }
+
+        // Baru masuk akal begitu seluruh kunjungan tuntas — lihat alasannya
+        // di CatatanBbmService::kembali(), yang menjaga aturan yang sama
+        // sebagai lapisan terakhir kalau tombol ini entah bagaimana tetap
+        // terpicu (mis. state lama di browser).
+        if ($jenis === 'kembali' && $this->kendaraan->status !== 'selesai') {
+            $this->dispatch('notifikasi', pesan: __('kendaraan.galat_kembali_sebelum_selesai'), jenis: 'error');
+
             return;
         }
 

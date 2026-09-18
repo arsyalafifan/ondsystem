@@ -62,11 +62,18 @@
                             <p class="text-xs text-gray-500">{{ $c->created_at->format('d/m/Y H:i') }} · {{ $c->dicatatOleh?->name }}</p>
                         </div>
                     </div>
-                @elseif (! $this->melihatSebagaiAdmin)
+                @elseif (! $this->melihatSebagaiAdmin && ($kartu['jenis'] !== 'kembali' || $kendaraan->status === 'selesai'))
                     <button type="button" wire:click="bukaModal('{{ $kartu['jenis'] }}')"
                             class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
                         <x-heroicon-o-camera class="size-4" /> {{ __('kendaraan.tombol_ambil_foto') }}
                     </button>
+                @elseif (! $this->melihatSebagaiAdmin)
+                    {{-- Kembali, tapi kunjungan belum seluruhnya tuntas — lihat CatatanBbmService::kembali(). --}}
+                    <button type="button" disabled
+                            class="mt-3 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-gray-100 px-3 py-2.5 text-sm font-semibold text-gray-400">
+                        <x-heroicon-o-camera class="size-4" /> {{ __('kendaraan.tombol_ambil_foto') }}
+                    </button>
+                    <p class="mt-1.5 text-center text-xs text-gray-500">{{ __('kendaraan.ket_kembali_belum_bisa') }}</p>
                 @else
                     <p class="mt-3 text-sm text-gray-500">{{ __('kendaraan.belum_tercatat') }}</p>
                 @endif

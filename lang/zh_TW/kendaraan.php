@@ -39,6 +39,8 @@ return [
     'wm_bbm' => '油量：:level',
 
     'galat_sudah_dicatat' => '此車輛的:jenis已經記錄過了。',
+    'galat_kembali_sebelum_selesai' => '只有在本次配送的所有站點都完成後，才能填寫返回照片。',
+    'ket_kembali_belum_bisa' => '所有站點配送完成後即可使用。',
     'km_wajib' => '車輛公里數為必填項。',
     'level_bbm_wajib' => '油量為必選項。',
     'struk_wajib' => '必須拍攝加油收據/憑證照片。',
