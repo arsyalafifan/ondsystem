@@ -13,6 +13,7 @@
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
+                        <th class="px-4 py-2 font-medium">{{ __('depot.atr_urutan') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.kode') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.nama') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.koordinat') }}</th>
@@ -25,6 +26,12 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($this->depots as $d)
                         <tr class="hover:bg-gray-50">
+                            <td class="whitespace-nowrap px-4 py-2 tabular-nums text-gray-600">
+                                {{ $d->urutan }}
+                                @if ($loop->first)
+                                    <span class="ml-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium uppercase text-blue-700 ring-1 ring-inset ring-blue-600/20">{{ __('depot.label_default') }}</span>
+                                @endif
+                            </td>
                             <td class="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-600">{{ $d->kode }}</td>
                             <td class="px-4 py-2 font-medium text-gray-900">{{ $d->nama }}</td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">
@@ -54,7 +61,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <x-kosong ikon="building-storefront" :judul="__('depot.depot_kosong')" :keterangan="__('depot.depot_kosong_ket')" />
                             </td>
                         </tr>
@@ -80,6 +87,14 @@
                                class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         @error('nama') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('depot.atr_urutan') }}</label>
+                    <input type="number" min="0" wire:model="urutan" placeholder="{{ __('depot.urutan_otomatis') }}"
+                           class="mt-1 block w-32 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-xs text-gray-500">{{ __('depot.ket_urutan') }}</p>
+                    @error('urutan') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">

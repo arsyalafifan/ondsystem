@@ -84,23 +84,18 @@ it('mengizinkan dua depot punya toko dengan kode yang SAMA persis', function () 
 });
 
 /**
- * Kasus khusus dari §3 rencana Stage 4: kolom generated `depot_kunci_unik`
- * (COALESCE(depot_id, 0)) membuat email unik PER DEPOT untuk user biasa,
- * tapi tetap unik GLOBAL khusus di antara sesama superadmin (yang
- * depot_id-nya sama-sama NULL, jadi "berkumpul" di satu kunci yang sama).
+ * Sejak akses multi-gudang (tabel depot_user), satu orang = satu akun:
+ * email unik untuk seluruh aplikasi, akses ke gudang lain diberikan lewat
+ * User Admin, bukan dengan membuat akun kembar per gudang.
  */
-it('dua depot boleh punya user dengan email yang SAMA persis', function () {
+it('email pengguna unik lintas gudang', function () {
     $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
 
     User::factory()->create(['role' => PeranPengguna::Admin, 'email' => 'admin@sama.com']);
 
-    DepotContext::jalankanSebagai($depotB, function () {
+    expect(fn () => DepotContext::jalankanSebagai($depotB, function () {
         User::factory()->create(['role' => PeranPengguna::Admin, 'email' => 'admin@sama.com']);
-    });
-
-    DepotContext::jalankanUntukSemuaDepot(function () {
-        expect(User::where('email', 'admin@sama.com')->count())->toBe(2);
-    });
+    }))->toThrow(QueryException::class);
 });
 
 it('dua superadmin tidak boleh punya email yang sama, walau depot_id sama-sama NULL', function () {
@@ -125,17 +120,17 @@ it('user depot A tidak pernah melihat toko depot B lewat halaman master toko', f
         ->assertDontSee('Toko Beta');
 });
 
-it('superadmin login terkunci ke satu depot cuma melihat depot itu', function () {
+it('superadmin langsung masuk ke gudang nomor urut pertama dan cuma melihat gudang itu', function () {
+    $this->depot->update(['urutan' => 1]);
     $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
 
     Toko::create(['kode' => 'TK-A1', 'nama' => 'Toko Alpha', 'alamat' => 'Jl. A']);
-    $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B', 'urutan' => 2]);
     DepotContext::jalankanSebagai($depotB, function () {
         Toko::create(['kode' => 'TK-B1', 'nama' => 'Toko Beta', 'alamat' => 'Jl. B']);
     });
 
     Livewire::test(Login::class)
-        ->set('depotId', (string) $this->depot->id)
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
@@ -146,7 +141,7 @@ it('superadmin login terkunci ke satu depot cuma melihat depot itu', function ()
         ->assertDontSee('Toko Beta');
 });
 
-it('superadmin login pilih semua depot melihat toko dari kedua depot', function () {
+it('superadmin yang memilih semua gudang melihat toko dari kedua gudang', function () {
     $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
 
     Toko::create(['kode' => 'TK-A1', 'nama' => 'Toko Alpha', 'alamat' => 'Jl. A']);
@@ -156,10 +151,11 @@ it('superadmin login pilih semua depot melihat toko dari kedua depot', function 
     });
 
     Livewire::test(Login::class)
-        ->set('depotId', 'semua')
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
+
+    $this->post(route('depot.ganti'), ['depot_id' => 'semua']);
 
     $this->get(route('master.toko'))
         ->assertOk()
@@ -168,16 +164,16 @@ it('superadmin login pilih semua depot melihat toko dari kedua depot', function 
 });
 
 it('superadmin bisa berpindah depot lewat switcher dan halaman sepenuhnya ganti isi', function () {
+    $this->depot->update(['urutan' => 1]);
     $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
 
     Toko::create(['kode' => 'TK-A1', 'nama' => 'Toko Alpha', 'alamat' => 'Jl. A']);
-    $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
+    $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B', 'urutan' => 2]);
     DepotContext::jalankanSebagai($depotB, function () {
         Toko::create(['kode' => 'TK-B1', 'nama' => 'Toko Beta', 'alamat' => 'Jl. B']);
     });
 
     Livewire::test(Login::class)
-        ->set('depotId', (string) $this->depot->id)
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
@@ -189,7 +185,7 @@ it('superadmin bisa berpindah depot lewat switcher dan halaman sepenuhnya ganti 
     $this->get(route('master.toko'))->assertSee('Toko Beta')->assertDontSee('Toko Alpha');
 });
 
-it('user biasa tidak bisa mengganti depot aktif lewat switcher', function () {
+it('user tidak bisa pindah ke gudang yang tidak diizinkan untuknya', function () {
     $adminA = User::factory()->create(['role' => PeranPengguna::Admin]);
     $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'nama' => 'Depot B']);
 
@@ -255,10 +251,11 @@ it('superadmin di mode semua depot melihat pesan ramah, bukan galat, di menu bua
     $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
 
     Livewire::test(Login::class)
-        ->set('depotId', 'semua')
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
+
+    $this->post(route('depot.ganti'), ['depot_id' => 'semua']);
 
     $this->get(route('pesanan.buat'))
         ->assertOk()
@@ -269,10 +266,11 @@ it('superadmin di mode semua depot melihat pesan ramah, bukan galat, di menu gen
     $superadmin = User::factory()->superadmin()->create(['password' => bcrypt('rahasia123')]);
 
     Livewire::test(Login::class)
-        ->set('depotId', 'semua')
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
+
+    $this->post(route('depot.ganti'), ['depot_id' => 'semua']);
 
     $this->get(route('routing.generate'))
         ->assertOk()
@@ -285,10 +283,15 @@ it('superadmin di mode semua depot mendapat notifikasi ramah saat menyimpan penu
     $toko = Toko::create(['kode' => 'TK-A1', 'nama' => 'Toko Alpha', 'alamat' => 'Jl. A']);
 
     Livewire::test(Login::class)
-        ->set('depotId', 'semua')
         ->set('email', $superadmin->email)
         ->set('password', 'rahasia123')
         ->call('masuk');
+
+    $this->post(route('depot.ganti'), ['depot_id' => 'semua']);
+
+    // Livewire::test() tidak melewati middleware TentukanDepot, jadi
+    // konteksnya disegarkan dari sesi seperti permintaan berikutnya.
+    DepotContext::pakaiUntukPermintaan($superadmin, session()->driver());
 
     Livewire::test(Penugasan::class)
         ->set('salesDipilih', $sales->id)

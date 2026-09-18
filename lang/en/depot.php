@@ -25,4 +25,8 @@ return [
     'depot_diperbarui' => 'Depot changes saved.',
     'depot_kosong' => 'No depots yet',
     'depot_kosong_ket' => 'Add the first depot using the button above.',
+    'atr_urutan' => 'Seq. no.',
+    'urutan_otomatis' => 'Automatic',
+    'label_default' => 'default',
+    'ket_urutan' => 'The warehouse with the lowest sequence number becomes the default for users with no warehouse set.',
 ];

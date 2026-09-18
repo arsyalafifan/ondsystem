@@ -93,17 +93,21 @@ Route::get('/routing/{kendaraan}/packing-list/escp/signed', [PackingListControll
 
 Route::middleware('auth')->group(function () {
 
-    // Ganti depot aktif — khusus superadmin, satu-satunya peran yang bisa
-    // berpindah-pindah. Form POST biasa (bukan Livewire) supaya halaman
-    // dimuat ulang seluruhnya — sama seperti alasan /bahasa di atas: tanpa
-    // muat ulang, data depot lama yang sudah tergambar di layar tertinggal.
+    // Ganti gudang aktif — superadmin ke gudang mana pun (atau "semua"),
+    // pengguna lain hanya ke gudang yang diizinkan untuknya di User Admin.
+    // Form POST biasa (bukan Livewire) supaya halaman dimuat ulang
+    // seluruhnya — sama seperti alasan /bahasa di atas: tanpa muat ulang,
+    // data gudang lama yang sudah tergambar di layar tertinggal.
     Route::post('/depot/ganti', function (Request $request) {
-        abort_unless($request->user()->isSuperadmin(), 403);
-
+        $pengguna = $request->user();
         $pilihan = $request->input('depot_id');
-        $valid = $pilihan === 'semua' || Depot::query()->aktif()->whereKey($pilihan)->exists();
 
-        abort_unless($valid, 422);
+        if ($pilihan === 'semua') {
+            abort_unless($pengguna->isSuperadmin(), 403);
+        } else {
+            abort_unless(is_numeric($pilihan), 422);
+            abort_unless($pengguna->depotYangBisaDiakses()->contains('id', (int) $pilihan), 403);
+        }
 
         $request->session()->put('depot_aktif', $pilihan === 'semua' ? 'semua' : (int) $pilihan);
 

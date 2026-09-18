@@ -25,4 +25,8 @@ return [
     'depot_diperbarui' => '仓库的更改已保存。',
     'depot_kosong' => '尚无仓库',
     'depot_kosong_ket' => '请使用上方按钮添加第一个仓库。',
+    'atr_urutan' => '序号',
+    'urutan_otomatis' => '自动',
+    'label_default' => '默认',
+    'ket_urutan' => '序号最小的仓库将作为未设置仓库的用户的默认仓库。',
 ];

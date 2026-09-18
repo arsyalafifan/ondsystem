@@ -25,4 +25,8 @@ return [
     'depot_diperbarui' => 'Perubahan depot tersimpan.',
     'depot_kosong' => 'Belum ada depot',
     'depot_kosong_ket' => 'Tambahkan depot pertama lewat tombol di atas.',
+    'atr_urutan' => 'No. urut',
+    'urutan_otomatis' => 'Otomatis',
+    'label_default' => 'default',
+    'ket_urutan' => 'Gudang nomor urut terkecil menjadi gudang default bagi pengguna yang belum disetel gudangnya.',
 ];

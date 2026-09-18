@@ -66,48 +66,38 @@ final class DepotContext
      * dipanggil App\Http\Middleware\TentukanDepot di setiap permintaan
      * yang sudah login.
      *
-     * Sengaja memakai $pengguna->depot_id + query manual, BUKAN relasi
-     * $pengguna->depot() — model di aplikasi ini mengaktifkan
-     * Model::shouldBeStrict() di luar produksi, dan memanggil relasi yang
-     * belum di-eager-load akan meledak LazyLoadingViolationException.
-     * DepotContext bisa dipanggil dari banyak tempat yang tidak menjamin
-     * eager-loading, jadi query langsung lebih aman.
+     * Pilihan gudang di sesi (`depot_aktif`, diisi saat login dan lewat
+     * pemilih gudang di sidebar) hanya dipakai kalau pengguna memang punya
+     * akses ke gudang itu — dicek ulang di SETIAP permintaan, jadi akses yang
+     * dicabut admin langsung berlaku tanpa menunggu logout. Kalau tidak
+     * cocok, jatuh ke gudang default lalu gudang pertama (User::depotAwal()).
+     * "Semua gudang" hanya untuk superadmin.
      */
     public static function pakaiUntukPermintaan(User $pengguna, Session $session): void
     {
-        if (! $pengguna->isSuperadmin()) {
-            // User biasa SELALU terkunci ke depot miliknya sendiri — sesi
-            // tidak pernah dikonsultasi untuk peran ini sama sekali, supaya
-            // "terkunci ketat" bersifat struktural, bukan sekadar konvensi
-            // yang bisa lupa diterapkan di satu tempat.
-            $depot = $pengguna->depot_id !== null ? Depot::query()->find($pengguna->depot_id) : null;
-
-            if ($depot === null) {
-                throw DepotTidakDiketahui::saatQuery(User::class);
-            }
-
-            self::pakai($depot);
-
-            return;
-        }
-
         $pilihan = $session->get('depot_aktif');
 
-        if ($pilihan === 'semua') {
+        if ($pilihan === 'semua' && $pengguna->isSuperadmin()) {
             self::pakaiSemuaDepot();
 
             return;
         }
 
-        $depot = is_numeric($pilihan) ? Depot::query()->aktif()->find((int) $pilihan) : null;
+        $depots = $pengguna->depotYangBisaDiakses();
+        $depot = (is_numeric($pilihan) ? $depots->firstWhere('id', (int) $pilihan) : null)
+            ?? $depots->firstWhere('id', $pengguna->depot_id)
+            ?? $depots->first();
 
         if ($depot === null) {
-            // Kosong, rusak, atau depot yang dulu dipilih sudah dinonaktifkan
-            // — gagal aman ke "semua depot", tidak pernah diam-diam terkunci
-            // ke depot yang salah.
-            self::pakaiSemuaDepot();
+            if ($pengguna->isSuperadmin()) {
+                // Belum ada gudang aktif sama sekali — superadmin tetap bisa
+                // masuk untuk membuatnya.
+                self::pakaiSemuaDepot();
 
-            return;
+                return;
+            }
+
+            throw DepotTidakDiketahui::saatQuery(User::class);
         }
 
         self::pakai($depot);
