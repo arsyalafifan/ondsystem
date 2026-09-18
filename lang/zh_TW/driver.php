@@ -16,6 +16,7 @@ return [
     'mobil_dibawa_lain' => '該車輛正由其他司機使用。',
     'judul_kunjungan' => '站點列表',
     'ganti_mobil' => '← 更換車輛',
+    'cek_kendaraan' => '車輛檢查',
     'semua_wilayah' => '所有區域',
     'progres' => '已完成 :selesai / :total 家商店 · 已送 :dus 箱',
     'semua_selesai' => '所有商店均已配送完成。',

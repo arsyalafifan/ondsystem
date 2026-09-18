@@ -1,0 +1,68 @@
+<?php
+
+return [
+
+    // --- 車輛檢查（司機） ---
+    'judul_cek' => '車輛檢查',
+    'ke_pengiriman' => '前往配送 →',
+    'jenis_berangkat' => '出發前',
+    'jenis_kembali' => '返回時',
+    'jenis_pengisian' => '加油',
+    'wajib_berangkat_dulu' => '請先拍攝公里數與油量照片，才能打開配送頁面。',
+    'ket_bebas_cek_bbm' => '此車輛在此功能啟用前就已經上路，因此不強制要求出發前照片——如果您願意，仍可以補錄。',
+    'tercatat' => '已記錄',
+    'belum_tercatat' => '尚未記錄',
+    'ket_km' => '公里數 :km',
+    'ket_bbm' => '油量：:level',
+    'ket_pengisian' => '可選 — 每次在路上實際加油時都記錄一次。',
+    'ket_pengisian_modal' => '必須上傳收據/憑證照片，加油前後照片為可選項。',
+    'ket_wajib_foto' => '拍攝能同時看清公里數與油量的儀表板照片。',
+    'pengisian_kosong' => '尚無加油記錄。',
+    'tombol_ambil_foto' => '拍照',
+    'tombol_catat_pengisian' => '記錄加油',
+    'ingat_foto_kembali' => '所有配送已完成 — 別忘了回到倉庫時拍攝公里數與油量照片。',
+
+    'atr_km' => '車輛公里數',
+    'km_contoh' => '例如 123456',
+    'atr_level_bbm' => '油量',
+    'atr_foto_speedometer' => '儀表板照片（公里數 + 油量）',
+    'atr_liter' => '升數',
+    'atr_biaya' => '費用（Rp）',
+    'label_struk' => '收據/憑證',
+    'label_sebelum_isi' => '加油前',
+    'label_sesudah_isi' => '加油後',
+
+    'bbm_kosong' => '空',
+    'bbm_penuh' => '滿',
+
+    'wm_km' => '公里數：:km',
+    'wm_bbm' => '油量：:level',
+
+    'galat_sudah_dicatat' => '此車輛的:jenis已經記錄過了。',
+    'km_wajib' => '車輛公里數為必填項。',
+    'level_bbm_wajib' => '油量為必選項。',
+    'struk_wajib' => '必須拍攝加油收據/憑證照片。',
+    'notif_tersimpan' => ':jenis已儲存。',
+    'notif_pengisian_tersimpan' => '加油記錄已儲存。',
+    'galat_belum_berangkat' => '請先拍攝出發前的公里數與油量照片。',
+
+    // --- 燃油使用監控（管理員） ---
+    'judul_monitoring' => '燃油使用情況',
+    'ket_monitoring' => '每輛車的公里數、油量與加油活動及其憑證照片。',
+    'kolom_kendaraan' => '車輛',
+    'kolom_driver' => '司機',
+    'kolom_jenis' => '類型',
+    'kolom_km' => '公里數',
+    'kolom_bbm' => '油量',
+    'kolom_liter' => '升數',
+    'kolom_biaya' => '費用',
+    'kolom_waktu' => '時間',
+    'kolom_foto' => '照片',
+    'ringkasan_total_pengisian' => '加油次數',
+    'ringkasan_total_liter' => '總升數',
+    'ringkasan_total_biaya' => '總費用',
+    'monitoring_kosong' => '此範圍內尚無燃油記錄。',
+    'semua_kendaraan' => '所有車輛',
+    'semua_driver' => '所有司機',
+    'semua_jenis' => '所有類型',
+];

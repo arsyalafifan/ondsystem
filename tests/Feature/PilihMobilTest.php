@@ -80,7 +80,7 @@ it('mengunci driver_id ke akun driver sungguhan yang mengambilnya', function () 
     Livewire::actingAs($this->driver)
         ->test(PilihMobil::class)
         ->call('ambil', $kendaraan->id)
-        ->assertRedirect(route('driver.kunjungan', $kendaraan));
+        ->assertRedirect(route('driver.cek-kendaraan', $kendaraan));
 
     $segar = $kendaraan->fresh();
     expect($segar->driver_id)->toBe($this->driver->id)
@@ -117,7 +117,7 @@ it('driver sungguhan tetap bisa mengambil mobil setelah superadmin membukanya le
     Livewire::actingAs($this->driver)
         ->test(PilihMobil::class)
         ->call('ambil', $kendaraan->id)
-        ->assertRedirect(route('driver.kunjungan', $kendaraan));
+        ->assertRedirect(route('driver.cek-kendaraan', $kendaraan));
 
     expect($kendaraan->fresh()->driver_id)->toBe($this->driver->id);
 });
@@ -164,7 +164,7 @@ it('mencatat diambil_at saat driver membuka mobil yang sudah ditetapkan admin le
     Livewire::actingAs($this->driver)
         ->test(PilihMobil::class)
         ->call('ambil', $kendaraan->id)
-        ->assertRedirect(route('driver.kunjungan', $kendaraan));
+        ->assertRedirect(route('driver.cek-kendaraan', $kendaraan));
 
     $segar = $kendaraan->fresh();
     expect($segar->driver_id)->toBe($this->driver->id)

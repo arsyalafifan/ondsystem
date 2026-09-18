@@ -65,6 +65,7 @@ function siapkanKendaraanPeta(array $namaToko): Kendaraan
 
     $kendaraan = $batch->fresh()->kendaraans->first();
     $kendaraan->update(['driver_id' => test()->driver->id]);
+    catatBerangkatKendaraan($kendaraan, test()->driver);
 
     return $kendaraan->fresh(['stops.toko']);
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\JenisCatatanBbm;
 use App\Enums\StatusStop;
 use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -10,13 +11,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
 #[Fillable([
     'routing_batch_id', 'wilayah_id', 'nomor', 'nama', 'warna', 'total_toko',
     'total_dus', 'target_dus', 'total_jarak_m', 'total_durasi_s', 'jam_berangkat',
-    'estimasi_selesai', 'geometry', 'driver_id', 'diambil_at', 'status', 'tanggal',
+    'estimasi_selesai', 'geometry', 'driver_id', 'diambil_at', 'status', 'tanggal', 'bebas_cek_bbm',
 ])]
 class Kendaraan extends Model
 {
@@ -32,6 +34,7 @@ class Kendaraan extends Model
             'total_durasi_s' => 'integer',
             'diambil_at' => 'datetime',
             'tanggal' => 'date',
+            'bebas_cek_bbm' => 'boolean',
         ];
     }
 
@@ -57,6 +60,32 @@ class Kendaraan extends Model
     public function stops(): HasMany
     {
         return $this->hasMany(KendaraanStop::class)->orderBy('urutan');
+    }
+
+    /** Seluruh catatan BBM kendaraan ini (berangkat, pengisian, kembali), urut waktu. */
+    /** @return HasMany<CatatanBbm, $this> */
+    public function catatanBbms(): HasMany
+    {
+        return $this->hasMany(CatatanBbm::class)->orderBy('created_at');
+    }
+
+    /** Wajib sekali per kendaraan — lihat App\Enums\JenisCatatanBbm. */
+    /** @return HasOne<CatatanBbm, $this> */
+    public function catatanBerangkat(): HasOne
+    {
+        return $this->hasOne(CatatanBbm::class)->where('jenis', JenisCatatanBbm::Berangkat);
+    }
+
+    /** @return HasOne<CatatanBbm, $this> */
+    public function catatanKembali(): HasOne
+    {
+        return $this->hasOne(CatatanBbm::class)->where('jenis', JenisCatatanBbm::Kembali);
+    }
+
+    /** @return HasMany<CatatanBbm, $this> */
+    public function pengisianBbms(): HasMany
+    {
+        return $this->hasMany(CatatanBbm::class)->where('jenis', JenisCatatanBbm::Pengisian)->orderBy('created_at');
     }
 
     /**

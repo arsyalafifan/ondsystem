@@ -9,6 +9,7 @@ use App\Livewire\Akun\GantiKataSandi;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
 use App\Livewire\Depot\DaftarDepot;
+use App\Livewire\Driver\CekKendaraan;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
 use App\Livewire\HakAkses\KelolaHakAkses;
@@ -31,6 +32,7 @@ use App\Livewire\Master\DaftarProduk;
 use App\Livewire\Master\DaftarPromo;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Master\DaftarWilayah;
+use App\Livewire\Monitoring\PenggunaanBahanBakar;
 use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
@@ -149,6 +151,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/statistik/dus-terjual-driver', DusTerjualDriver::class)->name('statistik.dus-terjual-driver')->middleware('akses:ond.dus_terjual_driver');
     Route::get('/statistik/form-pembelian-produk', FormPembelianProduk::class)->name('statistik.form-pembelian-produk')->middleware('akses:ond.form_pembelian_produk');
 
+    Route::get('/monitoring/bahan-bakar', PenggunaanBahanBakar::class)->name('monitoring.bahan-bakar')->middleware('akses:ond.monitoring_bbm');
+
     Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
     Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
     Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');
@@ -194,6 +198,7 @@ Route::middleware('auth')->group(function () {
     // peran admin juga, bukan cuma driver.
     Route::middleware('akses:ond.pengiriman_driver')->group(function () {
         Route::get('/driver', PilihMobil::class)->name('driver.pilih-mobil');
+        Route::get('/driver/mobil/{kendaraan}/cek', CekKendaraan::class)->name('driver.cek-kendaraan');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
 

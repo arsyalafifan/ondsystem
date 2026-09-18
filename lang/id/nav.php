@@ -37,6 +37,8 @@ return [
     'aplikasi_user_admin' => 'User Admin',
     'segera_hadir' => 'Segera Hadir',
     'pengiriman' => 'Pengiriman',
+    'monitoring' => 'Monitoring',
+    'monitoring_bbm' => 'Penggunaan Bahan Bakar',
     'pengiriman_driver' => 'Pengiriman Driver',
     'visit_sales' => 'Visit Sales',
     'penugasan' => 'Penugasan Toko',

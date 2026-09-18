@@ -1,0 +1,68 @@
+<?php
+
+return [
+
+    // --- Cek Kendaraan (driver) ---
+    'judul_cek' => 'Cek Kendaraan',
+    'ke_pengiriman' => 'Ke Pengiriman →',
+    'jenis_berangkat' => 'Sebelum Berangkat',
+    'jenis_kembali' => 'Saat Kembali',
+    'jenis_pengisian' => 'Pengisian Bahan Bakar',
+    'wajib_berangkat_dulu' => 'Ambil foto KM & bahan bakar dulu sebelum bisa membuka layar pengiriman.',
+    'ket_bebas_cek_bbm' => 'Kendaraan ini sudah berjalan sebelum fitur ini diaktifkan, jadi tidak wajib mengisi foto sebelum berangkat — tapi boleh diisi kalau mau.',
+    'tercatat' => 'Tercatat',
+    'belum_tercatat' => 'Belum dicatat',
+    'ket_km' => 'KM :km',
+    'ket_bbm' => 'BBM: :level',
+    'ket_pengisian' => 'Opsional — catat setiap kali benar-benar mengisi bahan bakar di jalan.',
+    'ket_pengisian_modal' => 'Struk/bukti wajib diunggah. Foto sebelum dan sesudah opsional.',
+    'ket_wajib_foto' => 'Foto speedometer yang menampakkan KM dan status bahan bakar.',
+    'pengisian_kosong' => 'Belum ada pengisian bahan bakar dicatat.',
+    'tombol_ambil_foto' => 'Ambil Foto',
+    'tombol_catat_pengisian' => 'Catat Pengisian',
+    'ingat_foto_kembali' => 'Semua kunjungan sudah tuntas — jangan lupa ambil foto KM & bahan bakar saat kembali ke gudang.',
+
+    'atr_km' => 'KM Kendaraan',
+    'km_contoh' => 'mis. 123456',
+    'atr_level_bbm' => 'Level Bahan Bakar',
+    'atr_foto_speedometer' => 'Foto Speedometer (KM + BBM)',
+    'atr_liter' => 'Liter',
+    'atr_biaya' => 'Biaya (Rp)',
+    'label_struk' => 'Struk / Bukti',
+    'label_sebelum_isi' => 'Sebelum Isi',
+    'label_sesudah_isi' => 'Sesudah Isi',
+
+    'bbm_kosong' => 'Kosong',
+    'bbm_penuh' => 'Penuh',
+
+    'wm_km' => 'KM: :km',
+    'wm_bbm' => 'BBM: :level',
+
+    'galat_sudah_dicatat' => ':jenis sudah pernah dicatat untuk kendaraan ini.',
+    'km_wajib' => 'KM kendaraan wajib diisi.',
+    'level_bbm_wajib' => 'Level bahan bakar wajib dipilih.',
+    'struk_wajib' => 'Foto struk/bukti pengisian wajib diambil.',
+    'notif_tersimpan' => ':jenis tersimpan.',
+    'notif_pengisian_tersimpan' => 'Pengisian bahan bakar tersimpan.',
+    'galat_belum_berangkat' => 'Ambil foto KM & bahan bakar sebelum berangkat dulu.',
+
+    // --- Monitoring Penggunaan Bahan Bakar (admin) ---
+    'judul_monitoring' => 'Penggunaan Bahan Bakar',
+    'ket_monitoring' => 'Aktivitas KM, bahan bakar, dan pengisian setiap kendaraan beserta buktinya.',
+    'kolom_kendaraan' => 'Kendaraan',
+    'kolom_driver' => 'Driver',
+    'kolom_jenis' => 'Jenis',
+    'kolom_km' => 'KM',
+    'kolom_bbm' => 'BBM',
+    'kolom_liter' => 'Liter',
+    'kolom_biaya' => 'Biaya',
+    'kolom_waktu' => 'Waktu',
+    'kolom_foto' => 'Foto',
+    'ringkasan_total_pengisian' => 'Jumlah Pengisian',
+    'ringkasan_total_liter' => 'Total Liter',
+    'ringkasan_total_biaya' => 'Total Biaya',
+    'monitoring_kosong' => 'Belum ada catatan bahan bakar pada rentang ini.',
+    'semua_kendaraan' => 'Semua kendaraan',
+    'semua_driver' => 'Semua driver',
+    'semua_jenis' => 'Semua jenis',
+];

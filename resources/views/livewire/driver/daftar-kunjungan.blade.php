@@ -5,6 +5,16 @@
                      :keterangan="($kendaraan->wilayah?->nama ?? __('driver.semua_wilayah')).' · '.\App\Support\Bahasa::angka($p['target_dus']).' '.__('umum.satuan_dus').' · '.\App\Support\Bahasa::angka($kendaraan->jarak_km, 1).' km'">
         @unless ($this->melihatSebagaiAdmin)
             <x-slot:aksi>
+                <a href="{{ route('driver.cek-kendaraan', $kendaraan) }}" wire:navigate
+                   class="relative rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    <x-heroicon-o-beaker class="size-4 inline" /> {{ __('driver.cek_kendaraan') }}
+                    @if ($this->butuhFotoKembali)
+                        <span class="absolute -right-1 -top-1 flex size-3">
+                            <span class="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+                            <span class="relative inline-flex size-3 rounded-full bg-amber-500"></span>
+                        </span>
+                    @endif
+                </a>
                 <a href="{{ route('driver.pilih-mobil') }}" wire:navigate
                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                     {{ __('driver.ganti_mobil') }}
@@ -12,6 +22,17 @@
             </x-slot:aksi>
         @endunless
     </x-judul-halaman>
+
+    @unless ($this->melihatSebagaiAdmin)
+        @if ($this->butuhFotoKembali)
+            <a href="{{ route('driver.cek-kendaraan', $kendaraan) }}" wire:navigate
+               class="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 hover:bg-amber-100">
+                <x-heroicon-o-exclamation-triangle class="size-5 shrink-0" />
+                <p class="flex-1">{{ __('kendaraan.ingat_foto_kembali') }}</p>
+                <x-heroicon-o-chevron-right class="size-4 shrink-0" />
+            </a>
+        @endif
+    @endunless
 
     @if ($this->melihatSebagaiAdmin)
         <div class="mb-4 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">

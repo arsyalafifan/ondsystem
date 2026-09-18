@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\JenisCatatanBbm;
+use App\Enums\LevelBahanBakar;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Livewire\Auth\Login;
+use App\Models\CatatanBbm;
 use App\Models\Kendaraan;
 use App\Models\Produk;
 use App\Models\Toko;
@@ -270,6 +273,17 @@ describe('halaman dalam semua bahasa', function () {
         $kendaraan = $this->batch->fresh()->kendaraans->first();
 
         $this->actingAs($this->driver)->get(route('driver.pilih-mobil'))->assertOk();
+        $this->actingAs($this->driver)->get(route('driver.cek-kendaraan', $kendaraan))->assertOk();
+
+        CatatanBbm::create([
+            'kendaraan_id' => $kendaraan->id,
+            'jenis' => JenisCatatanBbm::Berangkat,
+            'foto' => 'test.jpg',
+            'km' => 1000,
+            'level_bbm' => LevelBahanBakar::Penuh,
+            'dicatat_oleh' => $this->driver->id,
+        ]);
+
         $this->actingAs($this->driver)->get(route('driver.kunjungan', $kendaraan))->assertOk();
     })->with(['id', 'en', 'zh_CN', 'zh_TW']);
 

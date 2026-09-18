@@ -16,6 +16,7 @@ return [
     'mobil_dibawa_lain' => 'Mobil ini sedang dibawa driver lain.',
     'judul_kunjungan' => 'Daftar Kunjungan',
     'ganti_mobil' => '← Ganti mobil',
+    'cek_kendaraan' => 'Cek Kendaraan',
     'semua_wilayah' => 'Semua wilayah',
     'progres' => ':selesai dari :total toko selesai · :dus dus terkirim',
     'semua_selesai' => 'Semua toko sudah selesai dikirim.',

@@ -16,6 +16,7 @@ return [
     'mobil_dibawa_lain' => 'Another driver is currently using this vehicle.',
     'judul_kunjungan' => 'Stop List',
     'ganti_mobil' => '← Change vehicle',
+    'cek_kendaraan' => 'Vehicle Check',
     'semua_wilayah' => 'All regions',
     'progres' => ':selesai of :total stores done · :dus boxes delivered',
     'semua_selesai' => 'Every store has been delivered to.',
