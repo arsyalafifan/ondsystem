@@ -1,0 +1,68 @@
+<?php
+
+return [
+
+    // --- 车辆检查（司机） ---
+    'judul_cek' => '车辆检查',
+    'ke_pengiriman' => '前往配送 →',
+    'jenis_berangkat' => '出发前',
+    'jenis_kembali' => '返回时',
+    'jenis_pengisian' => '加油',
+    'wajib_berangkat_dulu' => '请先拍摄公里数与油量照片，才能打开配送页面。',
+    'ket_bebas_cek_bbm' => '此车辆在此功能启用前就已经上路，因此不强制要求出发前照片——如果您愿意，仍可以补录。',
+    'tercatat' => '已记录',
+    'belum_tercatat' => '尚未记录',
+    'ket_km' => '公里数 :km',
+    'ket_bbm' => '油量：:level',
+    'ket_pengisian' => '可选 — 每次在路上实际加油时都记录一次。',
+    'ket_pengisian_modal' => '必须上传收据/凭证照片，加油前后照片为可选项。',
+    'ket_wajib_foto' => '拍摄能同时看清公里数与油量的仪表盘照片。',
+    'pengisian_kosong' => '尚无加油记录。',
+    'tombol_ambil_foto' => '拍照',
+    'tombol_catat_pengisian' => '记录加油',
+    'ingat_foto_kembali' => '所有配送已完成 — 别忘了回到仓库时拍摄公里数与油量照片。',
+
+    'atr_km' => '车辆公里数',
+    'km_contoh' => '例如 123456',
+    'atr_level_bbm' => '油量',
+    'atr_foto_speedometer' => '仪表盘照片（公里数 + 油量）',
+    'atr_liter' => '升数',
+    'atr_biaya' => '费用（Rp）',
+    'label_struk' => '收据/凭证',
+    'label_sebelum_isi' => '加油前',
+    'label_sesudah_isi' => '加油后',
+
+    'bbm_kosong' => '空',
+    'bbm_penuh' => '满',
+
+    'wm_km' => '公里数：:km',
+    'wm_bbm' => '油量：:level',
+
+    'galat_sudah_dicatat' => '此车辆的:jenis已经记录过了。',
+    'km_wajib' => '车辆公里数为必填项。',
+    'level_bbm_wajib' => '油量为必选项。',
+    'struk_wajib' => '必须拍摄加油收据/凭证照片。',
+    'notif_tersimpan' => ':jenis已保存。',
+    'notif_pengisian_tersimpan' => '加油记录已保存。',
+    'galat_belum_berangkat' => '请先拍摄出发前的公里数与油量照片。',
+
+    // --- 燃油使用监控（管理员） ---
+    'judul_monitoring' => '燃油使用情况',
+    'ket_monitoring' => '每辆车的公里数、油量与加油活动及其凭证照片。',
+    'kolom_kendaraan' => '车辆',
+    'kolom_driver' => '司机',
+    'kolom_jenis' => '类型',
+    'kolom_km' => '公里数',
+    'kolom_bbm' => '油量',
+    'kolom_liter' => '升数',
+    'kolom_biaya' => '费用',
+    'kolom_waktu' => '时间',
+    'kolom_foto' => '照片',
+    'ringkasan_total_pengisian' => '加油次数',
+    'ringkasan_total_liter' => '总升数',
+    'ringkasan_total_biaya' => '总费用',
+    'monitoring_kosong' => '此范围内尚无燃油记录。',
+    'semua_kendaraan' => '所有车辆',
+    'semua_driver' => '所有司机',
+    'semua_jenis' => '所有类型',
+];

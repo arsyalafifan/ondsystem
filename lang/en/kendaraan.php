@@ -1,0 +1,68 @@
+<?php
+
+return [
+
+    // --- Vehicle Check (driver) ---
+    'judul_cek' => 'Vehicle Check',
+    'ke_pengiriman' => 'To Delivery →',
+    'jenis_berangkat' => 'Before Departure',
+    'jenis_kembali' => 'On Return',
+    'jenis_pengisian' => 'Refueling',
+    'wajib_berangkat_dulu' => 'Take a KM & fuel photo first before you can open the delivery screen.',
+    'ket_bebas_cek_bbm' => 'This vehicle was already on the road before this feature was enabled, so the before-departure photo is not required — you may still add it if you want.',
+    'tercatat' => 'Recorded',
+    'belum_tercatat' => 'Not recorded yet',
+    'ket_km' => 'KM :km',
+    'ket_bbm' => 'Fuel: :level',
+    'ket_pengisian' => 'Optional — log every time you actually refuel on the road.',
+    'ket_pengisian_modal' => 'A receipt/proof photo is required. Before/after photos are optional.',
+    'ket_wajib_foto' => 'A photo of the speedometer showing the KM and fuel level.',
+    'pengisian_kosong' => 'No refueling logged yet.',
+    'tombol_ambil_foto' => 'Take Photo',
+    'tombol_catat_pengisian' => 'Log Refueling',
+    'ingat_foto_kembali' => 'All deliveries are done — don\'t forget to take a KM & fuel photo when you get back to the warehouse.',
+
+    'atr_km' => 'Vehicle KM',
+    'km_contoh' => 'e.g. 123456',
+    'atr_level_bbm' => 'Fuel Level',
+    'atr_foto_speedometer' => 'Speedometer Photo (KM + Fuel)',
+    'atr_liter' => 'Liters',
+    'atr_biaya' => 'Cost (Rp)',
+    'label_struk' => 'Receipt / Proof',
+    'label_sebelum_isi' => 'Before Refueling',
+    'label_sesudah_isi' => 'After Refueling',
+
+    'bbm_kosong' => 'Empty',
+    'bbm_penuh' => 'Full',
+
+    'wm_km' => 'KM: :km',
+    'wm_bbm' => 'Fuel: :level',
+
+    'galat_sudah_dicatat' => ':jenis has already been recorded for this vehicle.',
+    'km_wajib' => 'Vehicle KM is required.',
+    'level_bbm_wajib' => 'Fuel level is required.',
+    'struk_wajib' => 'A receipt/proof photo of the refueling is required.',
+    'notif_tersimpan' => ':jenis saved.',
+    'notif_pengisian_tersimpan' => 'Refueling saved.',
+    'galat_belum_berangkat' => 'Take the departure KM & fuel photo first.',
+
+    // --- Fuel Usage Monitoring (admin) ---
+    'judul_monitoring' => 'Fuel Usage',
+    'ket_monitoring' => 'Every vehicle\'s KM, fuel, and refueling activity along with its evidence photos.',
+    'kolom_kendaraan' => 'Vehicle',
+    'kolom_driver' => 'Driver',
+    'kolom_jenis' => 'Type',
+    'kolom_km' => 'KM',
+    'kolom_bbm' => 'Fuel',
+    'kolom_liter' => 'Liters',
+    'kolom_biaya' => 'Cost',
+    'kolom_waktu' => 'Time',
+    'kolom_foto' => 'Photo',
+    'ringkasan_total_pengisian' => 'Refueling Count',
+    'ringkasan_total_liter' => 'Total Liters',
+    'ringkasan_total_biaya' => 'Total Cost',
+    'monitoring_kosong' => 'No fuel records in this range yet.',
+    'semua_kendaraan' => 'All vehicles',
+    'semua_driver' => 'All drivers',
+    'semua_jenis' => 'All types',
+];

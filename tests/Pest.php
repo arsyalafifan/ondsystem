@@ -1,5 +1,10 @@
 <?php
 
+use App\Enums\JenisCatatanBbm;
+use App\Enums\LevelBahanBakar;
+use App\Models\CatatanBbm;
+use App\Models\Kendaraan;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -51,4 +56,22 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Melewati gerbang wajib foto KM+BBM sebelum berangkat (App\Livewire\Driver\CekKendaraan)
+ * dengan mencatat baris berangkat langsung -- dipakai tes-tes layar
+ * pengiriman driver yang bukan tentang gerbang itu sendiri (lihat
+ * tests/Feature/CekKendaraanTest.php untuk tes gerbangnya).
+ */
+function catatBerangkatKendaraan(Kendaraan $kendaraan, User $driver): CatatanBbm
+{
+    return CatatanBbm::create([
+        'kendaraan_id' => $kendaraan->id,
+        'jenis' => JenisCatatanBbm::Berangkat,
+        'foto' => 'test-berangkat.jpg',
+        'km' => 1000,
+        'level_bbm' => LevelBahanBakar::Penuh,
+        'dicatat_oleh' => $driver->id,
+    ]);
 }

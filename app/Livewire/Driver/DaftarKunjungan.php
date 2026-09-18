@@ -100,6 +100,19 @@ class DaftarKunjungan extends Component
         }
 
         $this->kendaraan = $kendaraan;
+
+        // Jaring pengaman kalau driver membuka tautan ini langsung (bookmark,
+        // riwayat peramban) sambil melompati PilihMobil::ambil(), yang
+        // normalnya sudah mengarahkan ke sana lebih dulu — lihat
+        // App\Livewire\Driver\CekKendaraan. bebas_cek_bbm mengecualikan
+        // kendaraan yang sudah di jalan sebelum fitur ini ada.
+        if (auth()->user()->isDriver() && $kendaraan->catatanBerangkat === null && ! $kendaraan->bebas_cek_bbm) {
+            $this->redirectRoute('driver.cek-kendaraan', $kendaraan);
+
+            return;
+        }
+
+        $this->kendaraan->loadMissing('catatanKembali');
     }
 
     /** Layar ini bisa dilihat admin/superadmin, tapi tindakan driver bukan urusan mereka. */
@@ -107,6 +120,16 @@ class DaftarKunjungan extends Component
     public function melihatSebagaiAdmin(): bool
     {
         return ! auth()->user()->isDriver();
+    }
+
+    /**
+     * Pengingat (bukan gerbang keras, lihat App\Livewire\Driver\CekKendaraan)
+     * begitu seluruh kunjungan tuntas tapi foto KM+BBM kembali belum diambil.
+     */
+    #[Computed]
+    public function butuhFotoKembali(): bool
+    {
+        return $this->kendaraan->status === 'selesai' && $this->kendaraan->catatanKembali === null;
     }
 
     /**

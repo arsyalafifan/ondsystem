@@ -126,6 +126,7 @@ it('menampilkan daftar kunjungan driver setelah routing disetujui', function () 
     app(RoutingService::class)->setujui($this->batch, $this->admin);
 
     $kendaraan = $this->batch->fresh()->kendaraans->first();
+    catatBerangkatKendaraan($kendaraan, $this->driver);
 
     $this->actingAs($this->driver)
         ->get(route('driver.kunjungan', $kendaraan))

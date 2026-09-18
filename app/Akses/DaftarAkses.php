@@ -43,6 +43,7 @@ final class DaftarAkses
         'ond.statistik' => ['label' => 'nav.statistik', 'ikon' => 'chart-bar-square'],
         'ond.master' => ['label' => 'nav.master', 'ikon' => 'archive-box'],
         'ond.pengiriman' => ['label' => 'nav.pengiriman', 'ikon' => 'truck'],
+        'ond.monitoring' => ['label' => 'nav.monitoring', 'ikon' => 'chart-bar-square'],
         'hr.master' => ['label' => 'nav.master', 'ikon' => 'archive-box'],
     ];
 
@@ -82,6 +83,8 @@ final class DaftarAkses
         'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],
 
         'ond.pengiriman_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'driver.pilih-mobil', 'label' => 'nav.pengiriman_driver', 'ikon' => 'truck', 'peran' => ['driver', 'admin']],
+
+        'ond.monitoring_bbm' => ['aplikasi' => 'ond', 'grup' => 'ond.monitoring', 'rute' => 'monitoring.bahan-bakar', 'label' => 'nav.monitoring_bbm', 'ikon' => 'fire', 'peran' => ['admin']],
 
         // --- HR System ---
         'hr.dashboard' => ['aplikasi' => 'hr', 'rute' => 'hr.dashboard', 'label' => 'nav.dashboard', 'ikon' => 'chart-pie', 'peran' => ['admin', 'hr']],

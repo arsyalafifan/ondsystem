@@ -43,6 +43,7 @@ const PARITAS_RUTE = [
     'statistik.dus-pulang-driver' => ['admin'],
     'statistik.dus-terjual-driver' => ['admin'],
     'statistik.form-pembelian-produk' => ['admin'],
+    'monitoring.bahan-bakar' => ['admin'],
     'master.toko' => ['admin'],
     'master.produk' => ['admin'],
     'master.wilayah' => ['admin'],
@@ -60,6 +61,7 @@ const PARITAS_RUTE = [
     'kunjungan.tanggungan' => ['sales'],
     'driver.pilih-mobil' => ['driver', 'admin'],
     'driver.kunjungan' => ['driver', 'admin'],
+    'driver.cek-kendaraan' => ['driver', 'admin'],
     'hr.dashboard' => ['admin', 'hr'],
     'hr.karyawan' => ['admin', 'hr'],
     'hr.department' => ['admin', 'hr'],
@@ -182,6 +184,8 @@ function paritasMenuAdmin(): array
         paritasTautan('nav.master_promo', 'master.promo'),
         '# '.__('nav.pengiriman'),
         paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil'),
+        '# '.__('nav.monitoring'),
+        paritasTautan('nav.monitoring_bbm', 'monitoring.bahan-bakar'),
     ];
 }
 
@@ -245,6 +249,7 @@ it('menu sidebar dan pemilih aplikasi tiap peran sesuai bawaannya', function () 
         ['sales', 'akun.kata-sandi', paritasMenuSales(), $o],
         ['sales', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
         ['driver', 'driver.pilih-mobil', ['# '.__('nav.pengiriman'), paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil')], $o],
+        ['admin', 'monitoring.bahan-bakar', paritasMenuAdmin(), $o],
         ['driver', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
         ['hr', 'hr.dashboard', paritasMenuHr(), null],
         ['hr', 'akun.kata-sandi', paritasMenuHr(), null],

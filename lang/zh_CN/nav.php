@@ -37,6 +37,8 @@ return [
     'aplikasi_user_admin' => 'User Admin',
     'segera_hadir' => '即将推出',
     'pengiriman' => '配送',
+    'monitoring' => '监控',
+    'monitoring_bbm' => '燃油使用情况',
     'pengiriman_driver' => '司机配送',
     'visit_sales' => '销售拜访',
     'penugasan' => '门店分配',

@@ -37,6 +37,8 @@ return [
     'aplikasi_user_admin' => 'User Admin',
     'segera_hadir' => 'Coming Soon',
     'pengiriman' => 'Deliveries',
+    'monitoring' => 'Monitoring',
+    'monitoring_bbm' => 'Fuel Usage',
     'pengiriman_driver' => 'Driver Deliveries',
     'visit_sales' => 'Sales Visits',
     'penugasan' => 'Store Assignment',

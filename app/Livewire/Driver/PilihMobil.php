@@ -105,6 +105,16 @@ class PilihMobil extends Component
             ]);
         }
 
+        // Foto KM + bahan bakar sebelum berangkat wajib — lihat
+        // App\Livewire\Driver\CekKendaraan. Sekali sudah tercatat, tidak
+        // perlu mampir ke sana lagi setiap kali membuka mobil yang sama.
+        // bebas_cek_bbm mengecualikan kendaraan yang sudah di jalan SEBELUM
+        // fitur ini ada (lihat migrasi bebaskan_kendaraan_berjalan_dari_cek_bbm)
+        // — "sebelum berangkat" tidak lagi berarti apa-apa untuk mereka.
+        if ($kendaraan->catatanBerangkat === null && ! $kendaraan->bebas_cek_bbm) {
+            return redirect()->route('driver.cek-kendaraan', $kendaraan);
+        }
+
         return redirect()->route('driver.kunjungan', $kendaraan);
     }
 
