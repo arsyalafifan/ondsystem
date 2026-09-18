@@ -39,6 +39,8 @@ return [
     'wm_bbm' => 'BBM: :level',
 
     'galat_sudah_dicatat' => ':jenis sudah pernah dicatat untuk kendaraan ini.',
+    'galat_kembali_sebelum_selesai' => 'Foto saat kembali baru bisa diisi setelah seluruh kunjungan selesai dikirim.',
+    'ket_kembali_belum_bisa' => 'Tersedia setelah seluruh kunjungan selesai dikirim.',
     'km_wajib' => 'KM kendaraan wajib diisi.',
     'level_bbm_wajib' => 'Level bahan bakar wajib dipilih.',
     'struk_wajib' => 'Foto struk/bukti pengisian wajib diambil.',

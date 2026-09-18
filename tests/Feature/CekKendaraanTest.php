@@ -249,9 +249,43 @@ it('tidak bisa mencatat berangkat dua kali untuk kendaraan yang sama', function 
     expect(CatatanBbm::where('kendaraan_id', $kendaraan->id)->where('jenis', JenisCatatanBbm::Berangkat)->count())->toBe(1);
 });
 
+it('menolak mencatat kembali sebelum berangkat sama sekali', function () {
+    $kendaraan = kendaraanCekBbm();
+
+    expect(fn () => app(CatatanBbmService::class)
+        ->kembali($kendaraan, $this->driver, gambarBbm(), 100, LevelBahanBakar::Penuh))
+        ->toThrow(RuntimeException::class);
+
+    expect(CatatanBbm::where('jenis', JenisCatatanBbm::Kembali)->count())->toBe(0);
+});
+
+it('menolak mencatat kembali selama kendaraan masih berstatus jalan (belum seluruhnya terkirim)', function () {
+    $kendaraan = kendaraanCekBbm();
+    catatBerangkatKendaraan($kendaraan, $this->driver);
+    $kendaraan->update(['status' => 'jalan']);
+
+    expect(fn () => app(CatatanBbmService::class)
+        ->kembali($kendaraan, $this->driver, gambarBbm(), 100, LevelBahanBakar::Penuh))
+        ->toThrow(RuntimeException::class);
+});
+
+it('modal kembali tidak bisa dibuka lewat UI sebelum kendaraan berstatus selesai', function () {
+    $kendaraan = kendaraanCekBbm();
+    catatBerangkatKendaraan($kendaraan, $this->driver);
+
+    Livewire::actingAs($this->driver)
+        ->test(CekKendaraan::class, ['kendaraan' => $kendaraan])
+        ->call('bukaModal', 'kembali')
+        ->assertSet('modal', '')
+        ->assertDispatched('notifikasi');
+
+    expect(CatatanBbm::where('jenis', JenisCatatanBbm::Kembali)->count())->toBe(0);
+});
+
 it('mencatat kembali tidak mengarahkan ke mana pun, tetap di layar Cek Kendaraan', function () {
     $kendaraan = kendaraanCekBbm();
     catatBerangkatKendaraan($kendaraan, $this->driver);
+    $kendaraan->update(['status' => 'selesai']);
 
     Livewire::actingAs($this->driver)
         ->test(CekKendaraan::class, ['kendaraan' => $kendaraan])
@@ -390,6 +424,7 @@ it('relasi Kendaraan::catatanBerangkat dan catatanKembali hanya mengembalikan je
 
     $service->berangkat($kendaraan, $this->driver, gambarBbm(), 100, LevelBahanBakar::Penuh);
     $service->pengisian($kendaraan, $this->driver, gambarBbm());
+    $kendaraan->update(['status' => 'selesai']);
     $service->kembali($kendaraan, $this->driver, gambarBbm(), 200, LevelBahanBakar::Kosong);
 
     $segar = $kendaraan->fresh(['catatanBerangkat', 'catatanKembali', 'pengisianBbms']);

@@ -78,6 +78,7 @@ it('menampilkan seluruh catatan bbm kendaraan pada tanggal keberangkatannya', fu
 
     $service->berangkat($kendaraan, $this->driver, gambarMonitoringBbm(), 1000, LevelBahanBakar::Penuh);
     $service->pengisian($kendaraan, $this->driver, gambarMonitoringBbm(), liter: 10.0, biaya: 100_000);
+    $kendaraan->update(['status' => 'selesai']);
     $service->kembali($kendaraan, $this->driver, gambarMonitoringBbm(), 1100, LevelBahanBakar::Setengah);
 
     $komponen = Livewire::actingAs($this->admin)

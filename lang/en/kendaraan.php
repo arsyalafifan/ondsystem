@@ -39,6 +39,8 @@ return [
     'wm_bbm' => 'Fuel: :level',
 
     'galat_sudah_dicatat' => ':jenis has already been recorded for this vehicle.',
+    'galat_kembali_sebelum_selesai' => 'The on-return photo can only be filled in once every delivery on this route is done.',
+    'ket_kembali_belum_bisa' => 'Available once every delivery on this route is done.',
     'km_wajib' => 'Vehicle KM is required.',
     'level_bbm_wajib' => 'Fuel level is required.',
     'struk_wajib' => 'A receipt/proof photo of the refueling is required.',

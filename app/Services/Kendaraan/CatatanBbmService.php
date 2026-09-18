@@ -40,6 +40,18 @@ class CatatanBbmService
             throw new RuntimeException(__('kendaraan.galat_sudah_dicatat', ['jenis' => JenisCatatanBbm::Kembali->label()]));
         }
 
+        // Baru masuk akal dicatat setelah seluruh kunjungan tuntas — kalau
+        // ini boleh diisi lebih dulu, foto "kembali" bisa dijepret padahal
+        // mobilnya belum benar-benar selesai mengantar. Status 'selesai'
+        // sendiri hanya bisa tercapai lewat aksi driver di layar pengiriman
+        // (PengirimanService::segarkanKendaraan()), yang untuk kendaraan
+        // BARU sudah mensyaratkan catatan berangkat lebih dulu — jadi
+        // pengecekan status di sini otomatis mengunci urutan berangkat
+        // sebelum kembali juga, tanpa perlu dicek terpisah.
+        if ($kendaraan->status !== 'selesai') {
+            throw new RuntimeException(__('kendaraan.galat_kembali_sebelum_selesai'));
+        }
+
         return $this->simpanSatu($kendaraan, $driver, JenisCatatanBbm::Kembali, $gambarDataUrl, $km, $levelBbm);
     }
 
