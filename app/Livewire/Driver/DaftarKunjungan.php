@@ -40,9 +40,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * toko (App\Enums\JenisBuktiPengiriman::wajibFoto()), plus SATU dari: foto
  * es krim sudah disusun di freezer, ATAU — kalau tokonya memilih menyusun
  * sendiri — tanda tangan digital toko langsung di layar ini sebagai
- * pengganti foto itu (lihat semuaBuktiLengkap()). Semuanya diperiksa lewat
- * kamera langsung (kamera.js), bukan unggahan berkas, dan dicetak watermark
- * waktu server + nama toko + driver sebelum disimpan.
+ * pengganti foto itu (lihat semuaBuktiLengkap()). Fotonya bisa dari kamera
+ * langsung (kamera.js) atau unggahan galeri sebagai jalan keluar kalau
+ * kameranya bermasalah — tanda tangan toko TETAP hanya lewat kanvas
+ * langsung di layar ini, tidak ada jalan unggah untuknya. Semua bukti
+ * dicetak watermark waktu server + nama toko + driver sebelum disimpan.
  */
 class DaftarKunjungan extends Component
 {
