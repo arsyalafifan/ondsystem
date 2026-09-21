@@ -57,7 +57,7 @@ return [
     'notif_selesai_kendaraan' => '已将 :dus 箱归还仓库库存。',
     'mode_lihat_admin' => '您正以管理员身份查看。司机操作（上传单据、取消、处理剩余库存）在此不可用——只有司机才能执行这些操作。',
     'judul_bukti_tambahan' => '额外配送凭证',
-    'ket_bukti_tambahan' => '除收据外，以下照片必须直接用相机拍摄（不可从相册上传），作为完整的交接凭证。',
+    'ket_bukti_tambahan' => '除收据外，以下照片是完整交接凭证的必要部分——可直接用相机拍摄，若相机有问题也可从相册上传。',
     'bukti_barcode' => '冰柜二维码',
     'bukti_suhu_freezer' => '冰柜温度',
     'bukti_dus_pesanan' => '订购的箱数',

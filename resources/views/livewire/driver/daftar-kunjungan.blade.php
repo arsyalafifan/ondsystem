@@ -310,7 +310,7 @@
         @php $sk = $this->stopKonfirmasiModel; @endphp
         <x-modal :judul="__('driver.judul_konfirmasi', ['toko' => $sk->toko->nama])" lebar="max-w-2xl" tutup="tutupKonfirmasi">
             <div class="space-y-4 p-5">
-                <p class="text-sm text-gray-600">{{ __('driver.ket_konfirmasi') }}</p>
+                {{-- <p class="text-sm text-gray-600">{{ __('driver.ket_konfirmasi') }}</p> --}}
 
                 <div class="overflow-hidden rounded-lg border border-gray-200">
                     <table class="min-w-full text-sm">
@@ -380,7 +380,7 @@
                 {{-- ============ Bukti pengiriman tambahan ============ --}}
                 <div>
                     <p class="text-sm font-medium text-gray-700">{{ __('pengiriman.judul_bukti_tambahan') }}</p>
-                    <p class="mt-0.5 text-xs text-gray-500">{{ __('pengiriman.ket_bukti_tambahan') }}</p>
+                    {{-- <p class="mt-0.5 text-xs text-gray-500">{{ __('pengiriman.ket_bukti_tambahan') }}</p> --}}
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -401,6 +401,11 @@
                                     <x-heroicon-o-camera class="size-5" />
                                     <span class="text-xs">{{ __('pengiriman.ambil_foto') }}</span>
                                 </button>
+                                <label class="mt-1 block cursor-pointer text-center text-xs font-medium text-blue-600 hover:underline">
+                                    <x-heroicon-o-arrow-up-tray class="size-3 inline" /> {{ __('kunjungan.unggah_foto') }}
+                                    <input type="file" accept="image/*" class="hidden"
+                                           onchange="window.unggahBuktiPengiriman('{{ $jenisBukti->value }}', this)">
+                                </label>
                             @endif
                             @error('buktiFoto.'.$jenisBukti->value) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
@@ -414,7 +419,7 @@
                                class="mt-0.5 size-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500">
                         <span>
                             {{ __('pengiriman.atr_toko_susun_sendiri') }}
-                            <span class="block text-xs text-gray-500">{{ __('pengiriman.ket_toko_susun_sendiri') }}</span>
+                            {{-- <span class="block text-xs text-gray-500">{{ __('pengiriman.ket_toko_susun_sendiri') }}</span> --}}
                         </span>
                     </label>
 
@@ -430,11 +435,18 @@
                                     {{ __('pengiriman.ambil_ulang') }}
                                 </button>
                             @else
-                                <button type="button"
-                                        @click="kameraSlot = '{{ $jenisFreezer->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
-                                        class="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                                    <x-heroicon-o-camera class="size-4" /> {{ __('pengiriman.ambil_foto') }}
-                                </button>
+                                <div class="mt-1.5 flex gap-2">
+                                    <button type="button"
+                                            @click="kameraSlot = '{{ $jenisFreezer->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
+                                            class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                                        <x-heroicon-o-camera class="size-4" /> {{ __('pengiriman.ambil_foto') }}
+                                    </button>
+                                    <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                                        <x-heroicon-o-arrow-up-tray class="size-4" /> {{ __('kunjungan.unggah_foto') }}
+                                        <input type="file" accept="image/*" class="hidden"
+                                               onchange="window.unggahBuktiPengiriman('{{ $jenisFreezer->value }}', this)">
+                                    </label>
+                                </div>
                             @endif
                             @error('buktiFoto.'.$jenisFreezer->value) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
@@ -841,6 +853,41 @@
                 pesan.classList.toggle('hidden', !e.detail);
             }
         });
+
+        const pesanUnggahan = @js([
+            'bukanGambar' => __('kunjungan.galat_unggahan_bukan_gambar'),
+            'kebesaran' => __('kunjungan.galat_unggahan_kebesaran'),
+        ]);
+        const ukuranMaksBukti = @js((int) config('visit.foto.ukuran_maks_kb')) * 1024;
+
+        // Jalan pintas untuk toko/driver yang kameranya bermasalah — sama
+        // seperti unggahan foto kunjungan (lihat kunjungi.blade.php). Dibaca
+        // sebagai data URL lalu lewat terimaBuktiFoto() yang SAMA seperti
+        // hasil jepretan kamera, supaya tidak ada jalur simpan terpisah.
+        window.unggahBuktiPengiriman = (jenis, inputEl) => {
+            const berkas = inputEl.files?.[0];
+            inputEl.value = '';
+
+            if (!berkas) {
+                return;
+            }
+
+            if (!berkas.type.startsWith('image/')) {
+                window.dispatchEvent(new CustomEvent('notifikasi', { detail: { pesan: pesanUnggahan.bukanGambar, jenis: 'error' } }));
+
+                return;
+            }
+
+            if (berkas.size > ukuranMaksBukti) {
+                window.dispatchEvent(new CustomEvent('notifikasi', { detail: { pesan: pesanUnggahan.kebesaran, jenis: 'error' } }));
+
+                return;
+            }
+
+            const pembaca = new FileReader();
+            pembaca.onload = () => $wire.terimaBuktiFoto(jenis, pembaca.result);
+            pembaca.readAsDataURL(berkas);
+        };
     </script>
     @endscript
 

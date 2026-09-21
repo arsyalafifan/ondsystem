@@ -57,7 +57,7 @@ return [
     'notif_selesai_kendaraan' => ':dus boxes returned to warehouse stock.',
     'mode_lihat_admin' => 'You are viewing this as an admin. Driver actions (upload note, cancel, resell leftover) are not available here — only the driver can perform them.',
     'judul_bukti_tambahan' => 'Additional Delivery Evidence',
-    'ket_bukti_tambahan' => 'Besides the receipt, these photos must be taken directly with the camera (not a gallery upload) as complete proof of handover.',
+    'ket_bukti_tambahan' => 'Besides the receipt, these photos are required as complete proof of handover — take them directly with the camera, or upload from the gallery if the camera has issues.',
     'bukti_barcode' => 'Freezer QR Code',
     'bukti_suhu_freezer' => 'Freezer Temperature',
     'bukti_dus_pesanan' => 'Ordered Boxes',

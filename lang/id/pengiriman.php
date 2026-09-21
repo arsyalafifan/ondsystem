@@ -57,7 +57,7 @@ return [
     'notif_selesai_kendaraan' => ':dus dus dikembalikan ke stok gudang.',
     'mode_lihat_admin' => 'Anda melihat sebagai admin. Tindakan driver (unggah nota, batalkan, kampas) tidak tersedia di sini — hanya driver yang bisa melakukannya.',
     'judul_bukti_tambahan' => 'Bukti Pengiriman Tambahan',
-    'ket_bukti_tambahan' => 'Selain nota, foto ini wajib diambil langsung dari kamera (bukan unggahan galeri) sebagai bukti serah terima yang lengkap.',
+    'ket_bukti_tambahan' => 'Selain nota, foto-foto ini wajib dilengkapi sebagai bukti serah terima — ambil langsung dari kamera, atau unggah dari galeri kalau kameranya bermasalah.',
     'bukti_barcode' => 'QR Code Freezer',
     'bukti_suhu_freezer' => 'Suhu Freezer',
     'bukti_dus_pesanan' => 'Dus Pesanan',
