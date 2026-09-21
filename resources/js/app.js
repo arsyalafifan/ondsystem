@@ -8,6 +8,7 @@ import { bersihkanCacheHalaman, siapkanServiceWorker } from './outbox';
 import { pasangChartPendapatan } from './pendapatan-chart';
 import { pasangChartInsentif } from './insentif-chart';
 import { pasangChartBarangTerjual } from './barang-terjual-chart';
+import { pasangChartDusBonus } from './dus-bonus-chart';
 import { formatRibuan } from './format-rupiah';
 
 // Leaflet mencari berkas gambar penanda bawaan lewat jalur relatif yang tidak
@@ -36,4 +37,5 @@ if (window.ondOffline) {
 window.pasangChartPendapatan = pasangChartPendapatan;
 window.pasangChartInsentif = pasangChartInsentif;
 window.pasangChartBarangTerjual = pasangChartBarangTerjual;
+window.pasangChartDusBonus = pasangChartDusBonus;
 window.formatRibuan = formatRibuan;

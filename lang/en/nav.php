@@ -19,6 +19,7 @@ return [
     'repeat_order_sales' => 'Repeat Order Sales',
     'dus_terjual_driver' => 'Driver Delivered Boxes',
     'dus_pulang_driver' => 'Driver Returned Boxes',
+    'dus_bonus_terkirim' => 'Delivered Bonus Boxes',
     'form_pembelian_produk' => 'Product Purchase Form',
     'hak_akses' => 'Access Management',
     'master' => 'Master Data',

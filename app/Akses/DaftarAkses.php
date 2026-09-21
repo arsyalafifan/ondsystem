@@ -79,6 +79,7 @@ final class DaftarAkses
         'ond.repeat_order_sales' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.repeat-order-sales', 'label' => 'nav.repeat_order_sales', 'ikon' => 'arrow-path', 'peran' => ['admin']],
         'ond.dus_terjual_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.dus-terjual-driver', 'label' => 'nav.dus_terjual_driver', 'ikon' => 'user-group', 'peran' => ['admin']],
         'ond.dus_pulang_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.dus-pulang-driver', 'label' => 'nav.dus_pulang_driver', 'ikon' => 'archive-box-arrow-down', 'peran' => ['admin']],
+        'ond.dus_bonus_terkirim' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.dus-bonus-terkirim', 'label' => 'nav.dus_bonus_terkirim', 'ikon' => 'gift', 'peran' => ['admin']],
         'ond.form_pembelian_produk' => ['aplikasi' => 'ond', 'grup' => 'ond.statistik', 'rute' => 'statistik.form-pembelian-produk', 'label' => 'nav.form_pembelian_produk', 'ikon' => 'table-cells', 'peran' => ['admin']],
 
         'ond.master_toko' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.toko', 'label' => 'nav.master_toko', 'ikon' => 'building-storefront', 'peran' => ['admin']],

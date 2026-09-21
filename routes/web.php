@@ -48,6 +48,7 @@ use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Pos\Kasir;
 use App\Livewire\Routing\GenerateRouting;
 use App\Livewire\Routing\RiwayatRouting;
+use App\Livewire\Statistik\DusBonusTerkirim;
 use App\Livewire\Statistik\DusPulangDriver;
 use App\Livewire\Statistik\DusTerjualDriver;
 use App\Livewire\Statistik\FormPembelianProduk;
@@ -157,6 +158,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/statistik/repeat-order-sales', RepeatOrderSales::class)->name('statistik.repeat-order-sales')->middleware('akses:ond.repeat_order_sales');
     Route::get('/statistik/dus-pulang-driver', DusPulangDriver::class)->name('statistik.dus-pulang-driver')->middleware('akses:ond.dus_pulang_driver');
     Route::get('/statistik/dus-terjual-driver', DusTerjualDriver::class)->name('statistik.dus-terjual-driver')->middleware('akses:ond.dus_terjual_driver');
+    Route::get('/statistik/dus-bonus-terkirim', DusBonusTerkirim::class)->name('statistik.dus-bonus-terkirim')->middleware('akses:ond.dus_bonus_terkirim');
     Route::get('/statistik/form-pembelian-produk', FormPembelianProduk::class)->name('statistik.form-pembelian-produk')->middleware('akses:ond.form_pembelian_produk');
 
     Route::get('/monitoring/bahan-bakar', PenggunaanBahanBakar::class)->name('monitoring.bahan-bakar')->middleware('akses:ond.monitoring_bbm');
