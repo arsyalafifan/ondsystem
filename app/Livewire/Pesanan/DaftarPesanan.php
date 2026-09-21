@@ -220,8 +220,10 @@ class DaftarPesanan extends Component
     {
         return $this->pesananDilihat === null
             ? null
-            : $this->kueriPesanan()->with(['items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name', 'stop.kendaraan:id,nomor,nama'])
-                ->find($this->pesananDilihat);
+            : $this->kueriPesanan()->with([
+                'items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name',
+                'stop.kendaraan:id,nomor,nama', 'stop.fotos',
+            ])->find($this->pesananDilihat);
     }
 
     /** Id pesanan berstatus ORDER pada halaman ini — hanya itu yang bisa disetujui. */

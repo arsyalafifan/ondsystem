@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Driver;
 
+use App\Enums\JenisBuktiPengiriman;
 use App\Enums\StatusStop;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Toko;
 use App\Services\Kunjungan\PenguraiQr;
+use App\Services\Pengiriman\BuktiPengirimanService;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
 use App\Support\Bahasa;
@@ -32,6 +34,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Ini yang mencegah kasus "toko cuma ambil sebagian tapi driver lupa
  * mengoreksi, jadi seluruhnya tercatat terjual" — sisa yang tidak diambil
  * otomatis jadi jatah kampas, bukan hilang begitu saja dari catatan.
+ *
+ * Nota saja bukan bukti yang cukup untuk serah terima yang benar — driver
+ * juga wajib memfoto QR code freezer, suhu freezer, dus pesanan, dan depan
+ * toko (App\Enums\JenisBuktiPengiriman::wajibFoto()), plus SATU dari: foto
+ * es krim sudah disusun di freezer, ATAU — kalau tokonya memilih menyusun
+ * sendiri — tanda tangan digital toko langsung di layar ini sebagai
+ * pengganti foto itu (lihat semuaBuktiLengkap()). Semuanya diperiksa lewat
+ * kamera langsung (kamera.js), bukan unggahan berkas, dan dicetak watermark
+ * waktu server + nama toko + driver sebelum disimpan.
  */
 class DaftarKunjungan extends Component
 {
@@ -66,6 +77,28 @@ class DaftarKunjungan extends Component
      * @var array<int, bool>
      */
     public array $dicekKonfirmasi = [];
+
+    /**
+     * Bukti pengiriman tambahan (data URL dari kamera), dikunci pada
+     * App\Enums\JenisBuktiPengiriman->value. Belum diunggah ke disk sampai
+     * simpanKonfirmasi() dipanggil — lihat catatan yang sama di $fotoNota.
+     *
+     * @var array<string, ?string>
+     */
+    public array $buktiFoto = [];
+
+    /**
+     * Toko memilih menyusun es krimnya sendiri ke freezer, bukan
+     * didampingi/difoto driver — kalau begini, foto "freezer disusun"
+     * diganti tanda tangan digital toko ($tandaTanganToko) di bawah.
+     */
+    public bool $tokoSusunSendiri = false;
+
+    /** Tanda tangan toko (data URL dari kanvas) saat $tokoSusunSendiri true. */
+    public ?string $tandaTanganToko = null;
+
+    /** Nama penanggung jawab toko yang menandatangani — wajib diisi bersama tanda tangan. */
+    public string $namaPenandatanganToko = '';
 
     // --- Kampas ---
     public bool $kampasTerbuka = false;
@@ -390,6 +423,10 @@ class DaftarKunjungan extends Component
         $this->stopKonfirmasi = $stopId;
         $this->fotoNota = null;
         $this->catatanDriver = '';
+        $this->buktiFoto = [];
+        $this->tokoSusunSendiri = false;
+        $this->tandaTanganToko = null;
+        $this->namaPenandatanganToko = '';
 
         // Diisi jumlah pesanan semula, jadi driver tinggal mengurangi baris
         // yang memang tidak jadi diambil toko. Kalau semuanya dibiarkan apa
@@ -411,7 +448,67 @@ class DaftarKunjungan extends Component
 
     public function tutupKonfirmasi(): void
     {
-        $this->reset(['stopKonfirmasi', 'jumlahKonfirmasi', 'dicekKonfirmasi', 'fotoNota', 'catatanDriver']);
+        $this->reset([
+            'stopKonfirmasi', 'jumlahKonfirmasi', 'dicekKonfirmasi', 'fotoNota', 'catatanDriver',
+            'buktiFoto', 'tokoSusunSendiri', 'tandaTanganToko', 'namaPenandatanganToko',
+        ]);
+    }
+
+    /** Dipanggil JS begitu satu bidikan bukti pengiriman dijepret. */
+    public function terimaBuktiFoto(string $jenis, string $gambar): void
+    {
+        if (JenisBuktiPengiriman::tryFrom($jenis) !== null) {
+            $this->buktiFoto[$jenis] = $gambar;
+        }
+    }
+
+    /** Menghapus satu bidikan supaya driver bisa mengambil ulang. */
+    public function hapusBuktiFoto(string $jenis): void
+    {
+        $this->buktiFoto[$jenis] = null;
+    }
+
+    /** Kanvas tanda tangan toko dikirim lewat sini — beda jalur dari kamera, sumbernya gambar hasil gambar tangan. */
+    public function terimaTandaTangan(string $gambar): void
+    {
+        $this->tandaTanganToko = $gambar;
+    }
+
+    public function hapusTandaTangan(): void
+    {
+        $this->tandaTanganToko = null;
+    }
+
+    /** Beralih mode menghapus bidikan yang sudah tidak relevan, supaya tidak tersangkut ikut tervalidasi/tersimpan. */
+    public function updatedTokoSusunSendiri(): void
+    {
+        $this->buktiFoto[JenisBuktiPengiriman::FreezerDisusun->value] = null;
+        $this->tandaTanganToko = null;
+        $this->namaPenandatanganToko = '';
+    }
+
+    /**
+     * Benar hanya kalau seluruh bukti wajib (App\Enums\JenisBuktiPengiriman::wajibFoto())
+     * sudah difoto, DAN salah satu dari foto "freezer disusun" atau tanda
+     * tangan toko sudah terisi.
+     *
+     * Nama penanggung jawab toko SENGAJA tidak ikut diperiksa di sini —
+     * itu tetap wajib, tapi lewat validate() di simpanKonfirmasi() supaya
+     * driver melihat galatnya tepat di kolom nama, bukan cuma notifikasi
+     * umum "bukti belum lengkap" padahal fotonya sendiri sudah semua ada.
+     */
+    #[Computed]
+    public function semuaBuktiLengkap(): bool
+    {
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            if (empty($this->buktiFoto[$jenis->value])) {
+                return false;
+            }
+        }
+
+        return $this->tokoSusunSendiri
+            ? $this->tandaTanganToko !== null
+            : ! empty($this->buktiFoto[JenisBuktiPengiriman::FreezerDisusun->value]);
     }
 
     #[Computed]
@@ -437,7 +534,7 @@ class DaftarKunjungan extends Component
      * sisanya jadi jatah kampas — pesanan tidak pernah dianggap terjual penuh
      * hanya karena notanya terunggah.
      */
-    public function simpanKonfirmasi(PesananService $pesananService, PengirimanService $pengirimanService): void
+    public function simpanKonfirmasi(PesananService $pesananService, PengirimanService $pengirimanService, BuktiPengirimanService $buktiService): void
     {
         $this->pastikanBisaBertindak();
 
@@ -447,21 +544,50 @@ class DaftarKunjungan extends Component
             return;
         }
 
+        if (! $this->semuaBuktiLengkap) {
+            $this->dispatch('notifikasi', pesan: __('pengiriman.galat_bukti_belum_lengkap'), jenis: 'error');
+
+            return;
+        }
+
         $this->validate([
             'fotoNota' => 'required|image|max:5120',
+            'namaPenandatanganToko' => $this->tokoSusunSendiri ? 'required|string|max:255' : 'nullable',
         ], [
             'fotoNota.required' => __('driver.foto_wajib'),
             'fotoNota.image' => __('driver.foto_harus_gambar'),
             'fotoNota.max' => __('driver.foto_maks'),
+            'namaPenandatanganToko.required' => __('pengiriman.galat_nama_penandatangan_wajib'),
         ]);
 
         $stop = $this->stopMilikMobil($this->stopKonfirmasi);
         $jumlah = array_map('intval', $this->jumlahKonfirmasi);
         $path = $this->fotoNota->store($this->folderNota(), 'public');
 
+        // Setiap bukti didekode & disimpan (lengkap dengan watermark) LEBIH
+        // DULU, persis pola foto nota di atas — supaya kalau salah satu
+        // rusak, tidak ada baris apa pun yang sudah terlanjur berubah status.
+        $buktiTersimpan = [];
+
+        try {
+            foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+                $buktiTersimpan[] = $buktiService->simpanFoto($stop, $jenis, $this->buktiFoto[$jenis->value], auth()->user());
+            }
+
+            $buktiTersimpan[] = $this->tokoSusunSendiri
+                ? $buktiService->simpanTandaTangan($stop, $this->tandaTanganToko, auth()->user(), trim($this->namaPenandatanganToko))
+                : $buktiService->simpanFoto($stop, JenisBuktiPengiriman::FreezerDisusun, $this->buktiFoto[JenisBuktiPengiriman::FreezerDisusun->value], auth()->user());
+        } catch (RuntimeException $e) {
+            Storage::disk('public')->delete($path);
+            Storage::disk(config('visit.foto.disk'))->delete(array_column($buktiTersimpan, 'path'));
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
         try {
             if (array_sum($jumlah) === $stop->total_dus) {
-                $pesananService->selesaikanPengiriman($stop, $path, auth()->user(), $this->catatanDriver ?: null);
+                $pesananService->selesaikanPengiriman($stop, $path, auth()->user(), $this->catatanDriver ?: null, $buktiTersimpan);
             } else {
                 $pengirimanService->coretNota(
                     stop: $stop,
@@ -469,10 +595,12 @@ class DaftarKunjungan extends Component
                     pathFotoNota: $path,
                     driver: auth()->user(),
                     catatan: $this->catatanDriver ?: null,
+                    buktiFoto: $buktiTersimpan,
                 );
             }
         } catch (RuntimeException $e) {
             Storage::disk('public')->delete($path);
+            Storage::disk(config('visit.foto.disk'))->delete(array_column($buktiTersimpan, 'path'));
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
 
             return;

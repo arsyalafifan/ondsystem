@@ -324,6 +324,26 @@
                              class="max-h-72 rounded-lg border border-gray-200">
                     </div>
                 @endif
+
+                @if ($d->stop?->fotos->isNotEmpty())
+                    <div>
+                        <p class="mb-2 text-xs text-gray-500">{{ __('pengiriman.judul_bukti_tambahan') }}</p>
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            @foreach ($d->stop->fotos as $bukti)
+                                <div>
+                                    <a href="{{ $bukti->url }}" target="_blank" rel="noopener">
+                                        <img src="{{ $bukti->url }}" alt="{{ $bukti->jenis->label() }}"
+                                             class="h-28 w-full rounded-lg border border-gray-200 object-cover transition hover:opacity-90">
+                                    </a>
+                                    <p class="mt-1 text-xs font-medium text-gray-700">{{ $bukti->jenis->label() }}</p>
+                                    @if ($bukti->catatan)
+                                        <p class="text-xs text-gray-500">{{ __('pengiriman.wm_penandatangan', ['nama' => $bukti->catatan]) }}</p>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
             @if ($d->bisa_dicetak)
