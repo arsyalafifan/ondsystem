@@ -19,6 +19,7 @@ return [
     'repeat_order_sales' => 'Repeat Order Sales',
     'dus_terjual_driver' => 'Dus Terjual Driver',
     'dus_pulang_driver' => 'Dus Pulang Driver',
+    'dus_bonus_terkirim' => 'Dus Bonus Terkirim',
     'form_pembelian_produk' => 'Form Pembelian Produk',
     'hak_akses' => 'Hak Akses Management',
     'master' => 'Master',
