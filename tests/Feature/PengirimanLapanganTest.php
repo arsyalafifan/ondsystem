@@ -1,10 +1,12 @@
 <?php
 
+use App\Enums\JenisBuktiPengiriman;
 use App\Enums\JenisPesanan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
 use App\Livewire\Driver\DaftarKunjungan;
+use App\Livewire\Pesanan\DaftarPesanan;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Pesanan;
@@ -42,6 +44,32 @@ beforeEach(function () {
     $this->pesananService = app(PesananService::class);
     $this->service = app(PengirimanService::class);
 });
+
+/** Data URL kecil untuk mengisi bukti pengiriman/tanda tangan di tes. */
+function gambarBuktiUji(): string
+{
+    $gambar = imagecreatetruecolor(60, 60);
+    ob_start();
+    imagejpeg($gambar);
+    $isi = (string) ob_get_clean();
+    imagedestroy($gambar);
+
+    return 'data:image/jpeg;base64,'.base64_encode($isi);
+}
+
+/**
+ * Mengisi seluruh bukti wajib (App\Enums\JenisBuktiPengiriman::wajibFoto())
+ * plus foto "freezer disusun" — dipakai tes yang BUKAN tentang bukti itu
+ * sendiri, supaya simpanKonfirmasi() tidak tertolak gara-gara ini.
+ */
+function lengkapiBuktiPengiriman($komponen)
+{
+    foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+        $komponen = $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji());
+    }
+
+    return $komponen->call('terimaBuktiFoto', JenisBuktiPengiriman::FreezerDisusun->value, gambarBuktiUji());
+}
 
 function buatTokoKirim(string $nama, ?string $asset = null): Toko
 {
@@ -949,11 +977,13 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
         $item = $stop->pesanan->items->first();
         $stokAwal = $this->air->fresh()->stok;
 
-        Livewire::actingAs($this->driver)
+        $komponen = Livewire::actingAs($this->driver)
             ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
             ->call('bukaKonfirmasi', $stop->id)
             ->set("dicekKonfirmasi.{$item->id}", true)
-            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+        lengkapiBuktiPengiriman($komponen)
             ->call('simpanKonfirmasi')
             ->assertHasNoErrors()
             ->assertDispatched('notifikasi');
@@ -974,12 +1004,14 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
         $item = $stop->pesanan->items->first();
         $stokAwal = $this->air->fresh()->stok;
 
-        Livewire::actingAs($this->driver)
+        $komponen = Livewire::actingAs($this->driver)
             ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
             ->call('bukaKonfirmasi', $stop->id)
             ->set("jumlahKonfirmasi.{$item->id}", 7)
             ->set("dicekKonfirmasi.{$item->id}", true)
-            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+        lengkapiBuktiPengiriman($komponen)
             ->call('simpanKonfirmasi')
             ->assertHasNoErrors();
 
@@ -1036,14 +1068,33 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
         $stop = stopUntuk($kendaraan, 'Toko 1');
         $item = $stop->pesanan->items->first();
 
-        Livewire::actingAs($this->driver)
+        $komponen = Livewire::actingAs($this->driver)
             ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
             ->call('bukaKonfirmasi', $stop->id)
-            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set("dicekKonfirmasi.{$item->id}", true);
+
+        lengkapiBuktiPengiriman($komponen)
             ->call('simpanKonfirmasi')
             ->assertHasErrors(['fotoNota']);
 
         expect($stop->fresh()->status)->toBe(StatusStop::Pending);
+    });
+
+    it('menolak menyimpan sebelum seluruh bukti pengiriman wajib difoto', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('simpanKonfirmasi')
+            ->assertDispatched('notifikasi');
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
     });
 
     /**
@@ -1099,7 +1150,9 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
             }
 
             $component->assertSet('semuaTercekKonfirmasi', true)
-                ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+                ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+            lengkapiBuktiPengiriman($component)
                 ->call('simpanKonfirmasi')
                 ->assertHasNoErrors();
 
@@ -1124,6 +1177,259 @@ describe('konfirmasi penerimaan lewat layar driver (upload nota terpadu)', funct
                 ->call('bukaKonfirmasi', $stop2->id)
                 ->assertSet("dicekKonfirmasi.{$item2->id}", false);
         });
+    });
+});
+
+// =====================================================================
+/**
+ * Bug nyata yang dilaporkan pengguna: dulu ceklis + foto nota SAJA sudah
+ * cukup menuntaskan pesanan, padahal itu bukan bukti serah terima yang
+ * lengkap. Sekarang driver juga wajib memfoto QR code freezer, suhu
+ * freezer, dus pesanan, dan depan toko, plus SATU dari: foto freezer
+ * disusun ATAU tanda tangan digital toko (kalau tokonya memilih menyusun
+ * sendiri) — lihat App\Enums\JenisBuktiPengiriman dan
+ * DaftarKunjungan::semuaBuktiLengkap().
+ */
+describe('bukti pengiriman tambahan (foto QR/suhu/dus/depan toko, freezer disusun atau tanda tangan)', function () {
+    it('semuaBuktiLengkap salah sampai keempat foto wajib dan foto freezer disusun terisi', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->assertSet('semuaBuktiLengkap', false);
+
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji())
+                ->assertSet('semuaBuktiLengkap', false);
+        }
+
+        $komponen->call('terimaBuktiFoto', JenisBuktiPengiriman::FreezerDisusun->value, gambarBuktiUji())
+            ->assertSet('semuaBuktiLengkap', true);
+    });
+
+    it('menyimpan konfirmasi menyimpan seluruh bukti sebagai baris StopFoto dengan jenis dan watermark yang benar', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+        lengkapiBuktiPengiriman($komponen)
+            ->call('simpanKonfirmasi')
+            ->assertHasNoErrors();
+
+        $fotos = $stop->fresh()->fotos;
+
+        expect($fotos)->toHaveCount(5)
+            ->and($fotos->pluck('jenis.value')->all())->toBe([
+                'barcode', 'suhu_freezer', 'dus_pesanan', 'depan_toko', 'freezer_disusun',
+            ])
+            ->and($fotos->every(fn ($f) => $f->catatan === null))->toBeTrue();
+
+        foreach ($fotos as $foto) {
+            Storage::disk('public')->assertExists($foto->path);
+        }
+    });
+
+    it('menolak menyimpan kalau salah satu bukti wajib belum difoto', function (string $jenisTertinggal) {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            if ($jenis->value !== $jenisTertinggal) {
+                $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji());
+            }
+        }
+
+        if ($jenisTertinggal !== 'freezer_disusun') {
+            $komponen->call('terimaBuktiFoto', 'freezer_disusun', gambarBuktiUji());
+        }
+
+        $komponen->call('simpanKonfirmasi')->assertDispatched('notifikasi');
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and($stop->fresh()->fotos)->toHaveCount(0)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+    })->with(['barcode', 'suhu_freezer', 'dus_pesanan', 'depan_toko', 'freezer_disusun']);
+
+    it('toko menyusun sendiri: tanda tangan menggantikan foto freezer disusun, dan nama penanggung jawab wajib', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->set('tokoSusunSendiri', true);
+
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji());
+        }
+
+        // Belum ada tanda tangan sama sekali.
+        $komponen->assertSet('semuaBuktiLengkap', false)
+            ->call('terimaTandaTangan', gambarBuktiUji())
+            // Tanda tangan sudah cukup untuk semuaBuktiLengkap() — nama
+            // penanggung jawab tetap wajib, tapi lewat validate() sendiri
+            // (lihat tes "menolak simpan tanda tangan tanpa nama..."),
+            // supaya galatnya tampil tepat di kolom nama.
+            ->assertSet('semuaBuktiLengkap', true)
+            ->set('namaPenandatanganToko', 'Ibu Sari')
+            ->call('simpanKonfirmasi')
+            ->assertHasNoErrors();
+
+        $tandaTangan = $stop->fresh()->fotos->firstWhere('jenis', JenisBuktiPengiriman::TandaTanganTokoSusunSendiri);
+
+        expect($stop->fresh()->fotos)->toHaveCount(5)
+            ->and($stop->fresh()->fotos->firstWhere('jenis', JenisBuktiPengiriman::FreezerDisusun))->toBeNull()
+            ->and($tandaTangan)->not->toBeNull()
+            ->and($tandaTangan->catatan)->toBe('Ibu Sari');
+
+        Storage::disk('public')->assertExists($tandaTangan->path);
+    });
+
+    it('menolak simpan tanda tangan tanpa nama penanggung jawab toko', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->set('tokoSusunSendiri', true)
+            ->call('terimaTandaTangan', gambarBuktiUji());
+
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji());
+        }
+
+        $komponen->call('simpanKonfirmasi')->assertHasErrors(['namaPenandatanganToko']);
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+    });
+
+    it('beralih ke "toko susun sendiri" menghapus foto freezer disusun yang sudah diambil, begitu juga sebaliknya', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->call('terimaBuktiFoto', 'freezer_disusun', gambarBuktiUji())
+            ->assertSet('buktiFoto.freezer_disusun', fn ($v) => $v !== null)
+            ->set('tokoSusunSendiri', true)
+            ->assertSet('buktiFoto.freezer_disusun', null)
+            ->call('terimaTandaTangan', gambarBuktiUji())
+            ->set('namaPenandatanganToko', 'Pak Budi')
+            ->set('tokoSusunSendiri', false)
+            ->assertSet('tandaTanganToko', null)
+            ->assertSet('namaPenandatanganToko', '');
+    });
+
+    it('hapusBuktiFoto dan hapusTandaTangan mengosongkan slotnya supaya bisa diambil ulang', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+
+        Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->call('terimaBuktiFoto', 'barcode', gambarBuktiUji())
+            ->assertSet('buktiFoto.barcode', fn ($v) => $v !== null)
+            ->call('hapusBuktiFoto', 'barcode')
+            ->assertSet('buktiFoto.barcode', null)
+            ->set('tokoSusunSendiri', true)
+            ->call('terimaTandaTangan', gambarBuktiUji())
+            ->assertSet('tandaTanganToko', fn ($v) => $v !== null)
+            ->call('hapusTandaTangan')
+            ->assertSet('tandaTanganToko', null);
+    });
+
+    it('bukti tetap tersimpan lewat jalur coret nota (pengiriman sebagian), bukan cuma pengiriman penuh', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("jumlahKonfirmasi.{$item->id}", 6)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'));
+
+        lengkapiBuktiPengiriman($komponen)
+            ->call('simpanKonfirmasi')
+            ->assertHasNoErrors();
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Selesai)
+            ->and($stop->fresh()->fotos)->toHaveCount(5);
+    });
+
+    it('gambar bukti yang rusak ditolak dan tidak meninggalkan berkas yatim', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->call('terimaBuktiFoto', 'barcode', 'data:image/jpeg;base64,bukan-gambar-sungguhan')
+            ->call('terimaBuktiFoto', 'suhu_freezer', gambarBuktiUji())
+            ->call('terimaBuktiFoto', 'dus_pesanan', gambarBuktiUji())
+            ->call('terimaBuktiFoto', 'depan_toko', gambarBuktiUji())
+            ->call('terimaBuktiFoto', 'freezer_disusun', gambarBuktiUji())
+            ->call('simpanKonfirmasi')
+            ->assertDispatched('notifikasi');
+
+        expect($stop->fresh()->status)->toBe(StatusStop::Pending)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+    });
+
+    it('tampil di menu Pesanan (Admin) beserta nama penanggung jawab kalau tanda tangan', function () {
+        $kendaraan = siapkanMobil([[['produk' => $this->air, 'dus' => 10]]]);
+        $stop = stopUntuk($kendaraan, 'Toko 1');
+        $item = $stop->pesanan->items->first();
+
+        $komponen = Livewire::actingAs($this->driver)
+            ->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
+            ->call('bukaKonfirmasi', $stop->id)
+            ->set("dicekKonfirmasi.{$item->id}", true)
+            ->set('fotoNota', UploadedFile::fake()->image('nota.jpg'))
+            ->set('tokoSusunSendiri', true)
+            ->call('terimaTandaTangan', gambarBuktiUji())
+            ->set('namaPenandatanganToko', 'Ibu Sari');
+
+        foreach (JenisBuktiPengiriman::wajibFoto() as $jenis) {
+            $komponen->call('terimaBuktiFoto', $jenis->value, gambarBuktiUji());
+        }
+
+        $komponen->call('simpanKonfirmasi')->assertHasNoErrors();
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->set('pesananDilihat', $stop->fresh()->pesanan_id)
+            ->assertSee(__('pengiriman.bukti_barcode'))
+            ->assertSee(__('pengiriman.bukti_tanda_tangan_toko_susun_sendiri'))
+            ->assertSee('Ibu Sari');
     });
 });
 

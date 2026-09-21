@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
@@ -60,6 +61,16 @@ class KendaraanStop extends Model
     public function toko(): BelongsTo
     {
         return $this->belongsTo(Toko::class);
+    }
+
+    /** Bukti pengiriman tambahan (foto QR/suhu/dus/depan toko/freezer, atau tanda tangan toko) — lihat App\Enums\JenisBuktiPengiriman. */
+    /** @return HasMany<StopFoto, $this> */
+    public function fotos(): HasMany
+    {
+        // Urutan penyimpanan = urutan pengambilan (bukti wajib dulu, baru
+        // freezer disusun/tanda tangan) — orderBy eksplisit supaya urutan
+        // tampilnya tidak bergantung kebetulan urutan baris di database.
+        return $this->hasMany(StopFoto::class, 'kendaraan_stop_id')->orderBy('id');
     }
 
     public function isKampas(): bool

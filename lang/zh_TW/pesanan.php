@@ -10,6 +10,7 @@ return [
     'banner_promo_memenuhi_syarat' => '此訂單已符合促銷「:nama」的條件——請在下方選擇最多 :maks 箱贈品。',
     'banner_promo_belum_memenuhi_syarat' => '促銷「:nama」正在進行中。在步驟2再增加 :sisa 箱即可開啟贈品。',
     'tambah_baris_promo_bonus' => '+ 新增促銷贈品列',
+    'label_item_reguler' => '常規商品',
     'langkah_bonus' => '選擇贈品與箱數',
     'ket_bonus' => '適用於有權獲得贈品的商店。無論填寫多少箱數，價格皆為0元——出貨時庫存仍會照常扣減。可以選擇與步驟2相同的產品；兩者仍會作為兩筆獨立紀錄顯示在發票上。',
     'tambah_baris_bonus' => '+ 新增贈品列',

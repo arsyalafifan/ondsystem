@@ -1,4 +1,4 @@
-<div>
+<div x-data="{ kameraTerbuka: false, kameraSlot: null }">
     @php $p = $this->progres; @endphp
 
     <x-judul-halaman :judul="$kendaraan->nama"
@@ -308,7 +308,7 @@
     {{-- ============ Konfirmasi penerimaan & unggah nota ============ --}}
     @if ($this->stopKonfirmasiModel)
         @php $sk = $this->stopKonfirmasiModel; @endphp
-        <x-modal :judul="__('driver.judul_konfirmasi', ['toko' => $sk->toko->nama])" lebar="max-w-xl" tutup="tutupKonfirmasi">
+        <x-modal :judul="__('driver.judul_konfirmasi', ['toko' => $sk->toko->nama])" lebar="max-w-2xl" tutup="tutupKonfirmasi">
             <div class="space-y-4 p-5">
                 <p class="text-sm text-gray-600">{{ __('driver.ket_konfirmasi') }}</p>
 
@@ -377,6 +377,111 @@
                     @endif
                 </div>
 
+                {{-- ============ Bukti pengiriman tambahan ============ --}}
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('pengiriman.judul_bukti_tambahan') }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ __('pengiriman.ket_bukti_tambahan') }}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    @foreach (\App\Enums\JenisBuktiPengiriman::wajibFoto() as $jenisBukti)
+                        @php $gambarBukti = $buktiFoto[$jenisBukti->value] ?? null; @endphp
+                        <div class="rounded-lg border border-gray-200 p-2 text-center" wire:key="bukti-{{ $jenisBukti->value }}">
+                            <p class="truncate text-xs font-medium text-gray-700" title="{{ $jenisBukti->petunjuk() }}">{{ $jenisBukti->label() }}</p>
+                            @if ($gambarBukti)
+                                <img src="{{ $gambarBukti }}" alt="{{ $jenisBukti->label() }}" class="mx-auto mt-1.5 h-20 w-full rounded-md object-cover">
+                                <button type="button" wire:click="hapusBuktiFoto('{{ $jenisBukti->value }}')"
+                                        class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
+                                    {{ __('pengiriman.ambil_ulang') }}
+                                </button>
+                            @else
+                                <button type="button"
+                                        @click="kameraSlot = '{{ $jenisBukti->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
+                                        class="mt-1.5 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50">
+                                    <x-heroicon-o-camera class="size-5" />
+                                    <span class="text-xs">{{ __('pengiriman.ambil_foto') }}</span>
+                                </button>
+                            @endif
+                            @error('buktiFoto.'.$jenisBukti->value) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Freezer disusun driver, ATAU toko menyusun sendiri + tanda tangan --}}
+                <div class="rounded-lg border border-gray-200 p-3">
+                    <label class="flex items-start gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model.live="tokoSusunSendiri"
+                               class="mt-0.5 size-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500">
+                        <span>
+                            {{ __('pengiriman.atr_toko_susun_sendiri') }}
+                            <span class="block text-xs text-gray-500">{{ __('pengiriman.ket_toko_susun_sendiri') }}</span>
+                        </span>
+                    </label>
+
+                    @if (! $tokoSusunSendiri)
+                        @php $jenisFreezer = \App\Enums\JenisBuktiPengiriman::FreezerDisusun; $gambarFreezer = $buktiFoto[$jenisFreezer->value] ?? null; @endphp
+                        <div class="mt-3">
+                            <p class="text-xs font-medium text-gray-700">{{ $jenisFreezer->label() }}</p>
+                            <p class="text-xs text-gray-500">{{ $jenisFreezer->petunjuk() }}</p>
+                            @if ($gambarFreezer)
+                                <img src="{{ $gambarFreezer }}" alt="{{ $jenisFreezer->label() }}" class="mt-1.5 max-h-40 rounded-lg border border-gray-200">
+                                <button type="button" wire:click="hapusBuktiFoto('{{ $jenisFreezer->value }}')"
+                                        class="mt-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                                    {{ __('pengiriman.ambil_ulang') }}
+                                </button>
+                            @else
+                                <button type="button"
+                                        @click="kameraSlot = '{{ $jenisFreezer->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
+                                        class="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                                    <x-heroicon-o-camera class="size-4" /> {{ __('pengiriman.ambil_foto') }}
+                                </button>
+                            @endif
+                            @error('buktiFoto.'.$jenisFreezer->value) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @else
+                        <div class="mt-3 space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">{{ __('pengiriman.atr_nama_penandatangan') }}</label>
+                                <input type="text" wire:model="namaPenandatanganToko" placeholder="{{ __('pengiriman.nama_penandatangan_contoh') }}"
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                @error('namaPenandatanganToko') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-medium text-gray-700">{{ __('pengiriman.atr_tanda_tangan_toko') }}</p>
+                                <p class="mt-0.5 text-xs text-gray-500">{{ __('pengiriman.ket_tanda_tangan_toko') }}</p>
+
+                                @if ($tandaTanganToko)
+                                    <img src="{{ $tandaTanganToko }}" alt="{{ __('pengiriman.atr_tanda_tangan_toko') }}"
+                                         class="mt-1.5 max-h-32 rounded-lg border border-gray-200 bg-white">
+                                    <button type="button" wire:click="hapusTandaTangan"
+                                            class="mt-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                                        {{ __('pengiriman.tanda_tangan_ulang') }}
+                                    </button>
+                                @else
+                                    {{-- wire:ignore: kanvas tanda tangan harus tidak tersentuh render
+                                         ulang Livewire mana pun (mis. isian lain di modal ini) supaya
+                                         coretan yang sudah digambar tidak hilang begitu saja. --}}
+                                    <div wire:ignore id="ttd-toko" class="mt-1.5">
+                                        <canvas id="kanvas-ttd-toko" width="500" height="200"
+                                                class="w-full touch-none rounded-lg border border-gray-300 bg-white" style="height: 160px"></canvas>
+                                        <div class="mt-1.5 flex gap-2">
+                                            <button type="button" id="bersihkan-ttd-toko"
+                                                    class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                                                {{ __('pengiriman.bersihkan_tanda_tangan') }}
+                                            </button>
+                                            <button type="button" id="simpan-ttd-toko"
+                                                    class="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700">
+                                                {{ __('pengiriman.simpan_tanda_tangan') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('umum.catatan_opsional') }}</label>
                     <textarea wire:model="catatanDriver" rows="2" placeholder="{{ __('driver.catatan_contoh') }}"
@@ -388,7 +493,7 @@
                 <button type="button" wire:click="tutupKonfirmasi"
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
                 <button type="button" wire:click="simpanKonfirmasi" wire:loading.attr="disabled" wire:target="simpanKonfirmasi,fotoNota"
-                        @disabled(! $this->semuaTercekKonfirmasi)
+                        @disabled(! $this->semuaTercekKonfirmasi || ! $this->semuaBuktiLengkap)
                         class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
                     <span wire:loading.remove wire:target="simpanKonfirmasi">{{ __('driver.simpan_selesaikan') }}</span>
                     <span wire:loading wire:target="simpanKonfirmasi">{{ __('umum.menyimpan') }}</span>
@@ -396,6 +501,37 @@
             </x-slot:aksi>
         </x-modal>
     @endif
+
+    {{-- ============ Jendela kamera bukti pengiriman (satu, dipakai bergantian oleh semua slot) ============ --}}
+    <div wire:ignore id="kamera-bukti-pengiriman" x-show="kameraTerbuka" x-cloak
+         class="fixed inset-0 z-50 flex flex-col bg-black">
+        <div class="flex items-center justify-between px-4 py-3 text-white">
+            <span class="text-sm font-medium" x-text="window._labelBuktiPengiriman?.[kameraSlot] ?? ''"></span>
+            <button type="button" @click="kameraTerbuka = false; window._kameraBuktiPengiriman?.matikan()"
+                    class="rounded p-2 text-white/70 hover:bg-white/10">
+                <x-heroicon-o-x-mark class="size-4 inline" />
+            </button>
+        </div>
+
+        <div class="relative flex-1 overflow-hidden">
+            <video playsinline muted class="size-full object-contain"></video>
+
+            <button type="button" id="tombol-ganti-lensa-bukti" title="{{ __('hr.ganti_kamera') }}"
+                    class="absolute right-3 top-3 rounded-full bg-white/20 px-3 py-2 text-white backdrop-blur">
+                <x-heroicon-o-arrow-path class="size-4 inline" />
+            </button>
+        </div>
+
+        <p id="pesan-kamera-bukti" class="mx-4 mb-2 hidden rounded-lg bg-red-500/90 p-2 text-center text-xs text-white"></p>
+
+        <div class="flex items-center justify-center gap-6 pb-8 pt-2">
+            <button type="button"
+                    @click="window._kameraBuktiPengiriman?.jepret(kameraSlot); kameraTerbuka = false"
+                    class="grid size-20 place-items-center rounded-full border-4 border-white bg-white/20 text-white active:scale-95">
+                <x-heroicon-o-camera class="size-6" />
+            </button>
+        </div>
+    </div>
 
     {{-- ============ Kampas ============ --}}
     @if ($kampasTerbuka)
@@ -663,6 +799,146 @@
                 }
             }
         }
+    </script>
+    @endscript
+
+    {{-- Satu kamera dipakai bergantian oleh kelima slot bukti pengiriman
+         (barcode, suhu freezer, dus pesanan, depan toko, freezer disusun) —
+         sama seperti kamera absensi/kendaraan, slotnya ditandai lewat
+         `kameraSlot` (Alpine) dan diteruskan ke jepret()/terimaBuktiFoto(). --}}
+    @script
+    <script>
+        window._labelBuktiPengiriman = @js(collect(\App\Enums\JenisBuktiPengiriman::wajibFoto())
+            ->push(\App\Enums\JenisBuktiPengiriman::FreezerDisusun)
+            ->mapWithKeys(fn ($j) => [$j->value => $j->label()]));
+
+        const kameraBukti = window.pasangKamera('kamera-bukti-pengiriman', {
+            pesan: @js([
+                'izinDitolak' => __('kunjungan.kamera_izin_ditolak'),
+                'gagal' => __('kunjungan.kamera_gagal'),
+                'tidakDidukung' => __('kunjungan.kamera_tidak_didukung'),
+                'belumSiap' => __('kunjungan.kamera_belum_siap'),
+                'sentuhUntukMulai' => __('kunjungan.sentuh_untuk_mulai'),
+            ]),
+        });
+
+        window._kameraBuktiPengiriman = kameraBukti;
+
+        document.getElementById('tombol-ganti-lensa-bukti')
+            ?.addEventListener('click', () => kameraBukti?.gantiLensa());
+
+        const wadahBukti = document.getElementById('kamera-bukti-pengiriman');
+
+        wadahBukti?.addEventListener('kamera:jepretan', (e) => {
+            $wire.terimaBuktiFoto(e.detail.jenis, e.detail.gambar);
+        });
+
+        wadahBukti?.addEventListener('kamera:galat', (e) => {
+            const pesan = document.getElementById('pesan-kamera-bukti');
+
+            if (pesan) {
+                pesan.textContent = e.detail ?? '';
+                pesan.classList.toggle('hidden', !e.detail);
+            }
+        });
+    </script>
+    @endscript
+
+    {{-- Tanda tangan digital toko: kanvas polos, digambar lewat mouse/jari
+         langsung — tanpa pustaka luar, cuma titik demi titik disambung
+         garis. wire:ignore di pembungkusnya (lihat blade) memastikan
+         Livewire tidak pernah menghapus coretan yang sudah digambar hanya
+         karena ada input lain di modal ini yang ikut me-render ulang.
+         Komentar JS TIDAK ditaruh di baris pertama <script> ini dengan
+         sengaja — lihat penjelasan di blok @script peta rute di atas. --}}
+    @script
+    <script>
+        const pasangTandaTangan = () => {
+            const kanvas = document.getElementById('kanvas-ttd-toko');
+
+            if (!kanvas || kanvas.dataset.terpasang) {
+                return;
+            }
+
+            kanvas.dataset.terpasang = '1';
+
+            const ctx = kanvas.getContext('2d');
+            let menggambar = false;
+            let x = 0;
+            let y = 0;
+            let sudahMenggambar = false;
+
+            function posisi(e) {
+                const kotak = kanvas.getBoundingClientRect();
+                const titik = e.touches?.[0] ?? e;
+
+                return {
+                    x: (titik.clientX - kotak.left) * (kanvas.width / kotak.width),
+                    y: (titik.clientY - kotak.top) * (kanvas.height / kotak.height),
+                };
+            }
+
+            function mulai(e) {
+                e.preventDefault();
+                menggambar = true;
+                ({ x, y } = posisi(e));
+            }
+
+            function gambar(e) {
+                if (!menggambar) {
+                    return;
+                }
+
+                e.preventDefault();
+
+                const titik = posisi(e);
+
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(titik.x, titik.y);
+                ctx.stroke();
+
+                x = titik.x;
+                y = titik.y;
+                sudahMenggambar = true;
+            }
+
+            function selesai() {
+                menggambar = false;
+            }
+
+            kanvas.addEventListener('mousedown', mulai);
+            kanvas.addEventListener('mousemove', gambar);
+            window.addEventListener('mouseup', selesai);
+            kanvas.addEventListener('touchstart', mulai, { passive: false });
+            kanvas.addEventListener('touchmove', gambar, { passive: false });
+            kanvas.addEventListener('touchend', selesai);
+
+            document.getElementById('bersihkan-ttd-toko')?.addEventListener('click', () => {
+                ctx.clearRect(0, 0, kanvas.width, kanvas.height);
+                sudahMenggambar = false;
+            });
+
+            document.getElementById('simpan-ttd-toko')?.addEventListener('click', () => {
+                if (!sudahMenggambar) {
+                    return;
+                }
+
+                $wire.terimaTandaTangan(kanvas.toDataURL('image/png'));
+            });
+        };
+
+        pasangTandaTangan();
+
+        // Kanvasnya baru ADA di DOM setiap kali toko memilih "menyusun
+        // sendiri" (elemennya ditambah/dibuang lewat kondisi di Blade,
+        // bukan cuma disembunyikan) — jadi dipasang ulang setiap kali
+        // Livewire selesai me-render, sama seperti peta pemilih titik di
+        // layar Master Toko.
+        Livewire.hook('morphed', () => pasangTandaTangan());
     </script>
     @endscript
 </div>

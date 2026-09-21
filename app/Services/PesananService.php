@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\JenisBuktiPengiriman;
 use App\Enums\JenisPesanan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusBayar;
@@ -14,6 +15,7 @@ use App\Models\Promo;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
+use App\Services\Pengiriman\BuktiPengirimanService;
 use App\Support\Bahasa;
 use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,10 @@ use RuntimeException;
  */
 class PesananService
 {
+    public function __construct(
+        private readonly BuktiPengirimanService $buktiPengiriman,
+    ) {}
+
     /**
      * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $items  item biasa, harga penuh
      * @param  array<int, array{produk_id: int, jumlah_dus: int}>  $bonusItems  item bonus — harga SELALU 0
@@ -498,14 +504,23 @@ class PesananService
      * Menandai satu kunjungan selesai setelah driver mengunggah foto nota.
      * Stok fisik dipotong di sini, karena barangnya baru benar-benar keluar
      * gudang saat serah terima terjadi.
+     *
+     * @param  array<int, array{jenis: JenisBuktiPengiriman, path: string, catatan: ?string}>  $buktiFoto
+     *                                                                                                     bukti pengiriman tambahan (foto QR/suhu/dus/depan
+     *                                                                                                     toko/freezer, atau tanda tangan toko) — sudah
+     *                                                                                                     didekode & disimpan pemanggil lewat
+     *                                                                                                     App\Services\Pengiriman\BuktiPengirimanService,
+     *                                                                                                     di sini cuma dicatat sebagai baris StopFoto.
+     *                                                                                                     Kelengkapannya BUKAN urusan method ini — lihat
+     *                                                                                                     docblock BuktiPengirimanService.
      */
-    public function selesaikanPengiriman(KendaraanStop $stop, string $pathFotoNota, User $driver, ?string $catatan = null): void
+    public function selesaikanPengiriman(KendaraanStop $stop, string $pathFotoNota, User $driver, ?string $catatan = null, array $buktiFoto = []): void
     {
         if ($stop->status !== StatusStop::Pending) {
             throw new RuntimeException(__('pesanan.galat_sudah_selesai'));
         }
 
-        DB::transaction(function () use ($stop, $pathFotoNota, $driver, $catatan): void {
+        DB::transaction(function () use ($stop, $pathFotoNota, $driver, $catatan, $buktiFoto): void {
             // Relasi dimuat di sini karena layanan ini bisa dipanggil dengan
             // model yang relasinya belum ikut terambil.
             $stop->loadMissing('kendaraan');
@@ -525,6 +540,8 @@ class PesananService
                 'catatan_driver' => $catatan,
                 'selesai_at' => now(),
             ]);
+
+            $this->buktiPengiriman->simpanSemua($stop, $buktiFoto);
 
             $pesanan->update([
                 'status' => StatusPesanan::Selesai,

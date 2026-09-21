@@ -62,8 +62,21 @@ class DaftarPesanan extends Component
     // --- Order ulang (pesanan yang dibatalkan driver di lapangan) ---
     public ?int $pesananOrderUlang = null;
 
-    /** @var array<int, array{produk_id: int|string, jumlah_dus: int|string}> */
+    /** @var array<int, array{produk_id: int|string, jumlah_dus: int|string}> item reguler, harganya mengikuti harga produk saat ini */
     public array $barisOrderUlang = [];
+
+    /**
+     * Item bonus pesanan lama (manual maupun dari promo — keduanya sama
+     * saja tersimpan is_bonus=true, lihat App\Models\PesananItem) tetap
+     * bonus di pesanan baru: harganya SELALU 0, persis perlakuan bonus di
+     * Input Pesanan (BuatPesanan::$barisBonus). Dipisah dari
+     * $barisOrderUlang supaya PesananService::buat() diberi tahu lewat
+     * parameter bonusItems, bukan tercampur jadi item biasa yang malah
+     * ditagihkan.
+     *
+     * @var array<int, array{produk_id: int|string, jumlah_dus: int|string}>
+     */
+    public array $barisBonusOrderUlang = [];
 
     public ?int $salesOrderUlang = null;
 
@@ -207,8 +220,10 @@ class DaftarPesanan extends Component
     {
         return $this->pesananDilihat === null
             ? null
-            : $this->kueriPesanan()->with(['items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name', 'stop.kendaraan:id,nomor,nama'])
-                ->find($this->pesananDilihat);
+            : $this->kueriPesanan()->with([
+                'items.produk:id,nama,kode', 'toko.wilayah:id,nama', 'pembuat:id,name', 'pemroses:id,name', 'pembatal:id,name',
+                'stop.kendaraan:id,nomor,nama', 'stop.fotos',
+            ])->find($this->pesananDilihat);
     }
 
     /** Id pesanan berstatus ORDER pada halaman ini — hanya itu yang bisa disetujui. */
@@ -354,10 +369,28 @@ class DaftarPesanan extends Component
         }
 
         $this->pesananOrderUlang = $id;
-        $this->barisOrderUlang = $pesanan->items->map(fn ($i) => [
+        // Item bonus (is_bonus=true, manual maupun dari promo — keduanya
+        // tersimpan sama) dipisah ke barisnya sendiri, supaya tetap bonus
+        // (harga 0) di pesanan baru alih-alih ikut ditagihkan sebagai item
+        // biasa — lihat docblock $barisBonusOrderUlang.
+        $this->barisOrderUlang = $pesanan->items->reject(fn ($i) => $i->is_bonus)->map(fn ($i) => [
             'produk_id' => $i->produk_id,
             'jumlah_dus' => $i->jumlah_dus,
-        ])->all();
+        ])->values()->all();
+
+        if ($this->barisOrderUlang === []) {
+            $this->tambahBarisOrderUlang();
+        }
+
+        $this->barisBonusOrderUlang = $pesanan->items->where('is_bonus', true)->map(fn ($i) => [
+            'produk_id' => $i->produk_id,
+            'jumlah_dus' => $i->jumlah_dus,
+        ])->values()->all();
+
+        if ($this->barisBonusOrderUlang === []) {
+            $this->tambahBarisBonusOrderUlang();
+        }
+
         // Kalau pesanan aslinya diinput sales sendiri, atas nama sales-nya
         // otomatis diwariskan — admin tinggal ganti kalau memang perlu.
         $this->salesOrderUlang = $pesanan->pembuat->role === PeranPengguna::Sales ? $pesanan->pembuat->id : null;
@@ -367,7 +400,7 @@ class DaftarPesanan extends Component
 
     public function tutupOrderUlang(): void
     {
-        $this->reset(['pesananOrderUlang', 'barisOrderUlang', 'salesOrderUlang', 'catatanOrderUlang']);
+        $this->reset(['pesananOrderUlang', 'barisOrderUlang', 'barisBonusOrderUlang', 'salesOrderUlang', 'catatanOrderUlang']);
     }
 
     public function tambahBarisOrderUlang(): void
@@ -385,14 +418,32 @@ class DaftarPesanan extends Component
         }
     }
 
+    public function tambahBarisBonusOrderUlang(): void
+    {
+        $this->barisBonusOrderUlang[] = ['produk_id' => '', 'jumlah_dus' => ''];
+    }
+
+    public function hapusBarisBonusOrderUlang(int $indeks): void
+    {
+        unset($this->barisBonusOrderUlang[$indeks]);
+        $this->barisBonusOrderUlang = array_values($this->barisBonusOrderUlang);
+
+        if ($this->barisBonusOrderUlang === []) {
+            $this->tambahBarisBonusOrderUlang();
+        }
+    }
+
     /**
      * Membuat pesanan baru dengan item yang sama seperti pesanan yang
      * dibatalkan (driver di lapangan MAUPUN admin langsung dari sini) —
      * lewat PesananService::buat() apa adanya, supaya seluruh aturan biasa
      * (stok tersedia, minimal dus, toko tidak lagi punya pesanan aktif
-     * lain) tetap berlaku sama persis seperti Input Pesanan. Kalau stoknya
-     * kurang, galatnya muncul di modal ini juga — admin tinggal menunggu
-     * stok tersedia atau mengubah baris produknya langsung di sini, tanpa
+     * lain) tetap berlaku sama persis seperti Input Pesanan. Item reguler
+     * dan item bonus dikirim lewat parameter yang terpisah (items vs
+     * bonusItems) supaya bonus TETAP bonus (harga 0) di pesanan baru,
+     * bukan ikut tertagih seperti item biasa. Kalau stoknya kurang,
+     * galatnya muncul di modal ini juga — admin tinggal menunggu stok
+     * tersedia atau mengubah baris produknya langsung di sini, tanpa
      * perlu pindah layar.
      */
     public function simpanOrderUlang(PesananService $service): void
@@ -428,12 +479,14 @@ class DaftarPesanan extends Component
                 items: $this->barisOrderUlang,
                 pembuat: auth()->user(),
                 catatan: $this->catatanOrderUlang ?: null,
+                bonusItems: $this->barisBonusOrderUlang,
                 atasNamaSales: $this->salesOrderUlang !== null ? User::find($this->salesOrderUlang) : null,
             );
         } catch (ValidationException $e) {
             foreach ($e->errors() as $kolom => $pesan) {
                 $kolomTampil = match ($kolom) {
                     'items' => 'barisOrderUlang',
+                    'bonusItems' => 'barisBonusOrderUlang',
                     'atasNamaSales' => 'salesOrderUlang',
                     default => $kolom,
                 };

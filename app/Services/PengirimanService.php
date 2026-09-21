@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\JenisBuktiPengiriman;
 use App\Enums\JenisPesanan;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
@@ -13,6 +14,7 @@ use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
 use App\Models\User;
+use App\Services\Pengiriman\BuktiPengirimanService;
 use App\Support\DepotContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +40,7 @@ class PengirimanService
 {
     public function __construct(
         private readonly RoutingService $routingService,
+        private readonly BuktiPengirimanService $buktiPengiriman,
     ) {}
 
     /**
@@ -101,6 +104,9 @@ class PengirimanService
      * Mencoret nota: toko hanya menerima sebagian dari yang dipesan.
      *
      * @param  array<int, int>  $jumlahTerkirim  jumlah diterima, dikunci pada id item pesanan
+     * @param  array<int, array{jenis: JenisBuktiPengiriman, path: string, catatan: ?string}>  $buktiFoto
+     *                                                                                                     lihat docblock parameter yang sama di
+     *                                                                                                     PesananService::selesaikanPengiriman()
      *
      * @throws RuntimeException bila jumlahnya tidak masuk akal
      */
@@ -110,6 +116,7 @@ class PengirimanService
         string $pathFotoNota,
         User $driver,
         ?string $catatan = null,
+        array $buktiFoto = [],
     ): void {
         $stop->loadMissing(['pesanan.items.produk', 'kendaraan']);
 
@@ -151,7 +158,7 @@ class PengirimanService
             ]));
         }
 
-        DB::transaction(function () use ($stop, $rapi, $total, $pathFotoNota, $driver, $catatan): void {
+        DB::transaction(function () use ($stop, $rapi, $total, $pathFotoNota, $driver, $catatan, $buktiFoto): void {
             $pesanan = $stop->pesanan()->lockForUpdate()->first();
 
             if ($pesanan->status !== StatusPesanan::Delivery) {
@@ -185,6 +192,8 @@ class PengirimanService
                 'catatan_driver' => $catatan,
                 'selesai_at' => now(),
             ]);
+
+            $this->buktiPengiriman->simpanSemua($stop, $buktiFoto);
 
             $this->segarkanKendaraan($stop->kendaraan);
         });
