@@ -386,6 +386,8 @@
             <div class="space-y-4 p-5">
                 <p class="text-sm text-gray-600">{{ __('pesanan.ket_order_ulang', ['toko' => $po->toko->nama, 'alasan' => $po->alasan_cancel]) }}</p>
 
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('pesanan.label_item_reguler') }}</p>
+
                 <div class="overflow-hidden rounded-lg border border-gray-200">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -427,6 +429,53 @@
                     {{ __('pesanan.tambah_baris') }}
                 </button>
                 @error('barisOrderUlang') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+
+                {{-- Item bonus (manual maupun dari promo) pesanan lama tetap
+                     bonus di sini — harganya selalu Rp 0 saat disimpan,
+                     sama seperti langkah bonus di Input Pesanan. --}}
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('pesanan.langkah_bonus') }}</p>
+                    <p class="mt-1 text-xs text-gray-500">{{ __('pesanan.ket_bonus') }}</p>
+                </div>
+
+                <div class="overflow-hidden rounded-lg border border-gray-200">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2 font-medium">{{ __('umum.produk') }}</th>
+                                <th class="w-32 px-3 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
+                                <th class="w-10 px-3 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($barisBonusOrderUlang as $i => $b)
+                                <tr wire:key="baris-bonus-order-ulang-{{ $i }}">
+                                    <td class="px-3 py-2">
+                                        <x-pilih-cari :opsi="$opsiProdukOrderUlang" :nilai="$b['produk_id']"
+                                                       set="barisBonusOrderUlang.{{ $i }}.produk_id"
+                                                       placeholder="{{ __('pesanan.pilih_produk') }}" />
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <input type="number" min="1" wire:model.live.debounce.400ms="barisBonusOrderUlang.{{ $i }}.jumlah_dus"
+                                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        <button type="button" wire:click="hapusBarisBonusOrderUlang({{ $i }})"
+                                                class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
+                                            <x-heroicon-o-trash class="size-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button" wire:click="tambahBarisBonusOrderUlang"
+                        class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
+                    {{ __('pesanan.tambah_baris_bonus') }}
+                </button>
+                @error('barisBonusOrderUlang') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('pesanan.label_sales') }}</label>

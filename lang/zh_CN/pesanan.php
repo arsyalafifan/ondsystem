@@ -10,6 +10,7 @@ return [
     'banner_promo_memenuhi_syarat' => '此订单已符合促销「:nama」的条件——请在下方选择最多 :maks 箱赠品。',
     'banner_promo_belum_memenuhi_syarat' => '促销「:nama」正在进行中。在步骤2再增加 :sisa 箱即可开启赠品。',
     'tambah_baris_promo_bonus' => '+ 添加促销赠品行',
+    'label_item_reguler' => '常规商品',
     'langkah_bonus' => '选择赠品与箱数',
     'ket_bonus' => '适用于有权获得赠品的商店。无论填写多少箱数，价格始终为0元——发货时库存仍会照常扣减。可以选择与步骤2相同的产品；两者仍会作为两条独立记录显示在发票上。',
     'tambah_baris_bonus' => '+ 添加赠品行',

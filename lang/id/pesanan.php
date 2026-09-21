@@ -10,6 +10,7 @@ return [
     'banner_promo_memenuhi_syarat' => 'Pesanan memenuhi syarat promo ":nama" — pilih hingga :maks dus bonus di bawah.',
     'banner_promo_belum_memenuhi_syarat' => 'Promo ":nama" sedang berjalan. Tambah :sisa dus lagi pada langkah 2 untuk membuka bonusnya.',
     'tambah_baris_promo_bonus' => '+ Tambah baris bonus promo',
+    'label_item_reguler' => 'Item Reguler',
     'langkah_bonus' => 'Pilih Bonus Produk & Jumlah Dus',
     'ket_bonus' => 'Untuk toko yang berhak mendapat bonus. Berapa pun jumlah dus yang diisi, harganya selalu Rp 0 — stok tetap berkurang seperti biasa saat pengiriman. Boleh memilih produk yang sama dengan langkah 2; keduanya tetap tercatat sebagai dua baris terpisah di faktur.',
     'tambah_baris_bonus' => '+ Tambah baris bonus',

@@ -109,6 +109,40 @@ function pesananDibatalkanAdmin(string $alasan, int $jumlahDus = 10, ?Toko $toko
     return $pesanan->fresh(['items', 'toko', 'pembuat']);
 }
 
+/**
+ * Sama seperti pesananDibatalkanDriver(), tapi pesanan lamanya juga punya
+ * item bonus (harga 0) selain item reguler — dipakai menguji item bonus
+ * tetap bonus saat di-order ulang.
+ */
+function pesananDibatalkanDriverDenganBonus(
+    string $alasan,
+    int $jumlahDus = 7,
+    int $jumlahBonus = 2,
+    ?Toko $toko = null,
+): Pesanan {
+    $toko ??= buatTokoOrderUlang();
+
+    $pesanan = test()->pesananService->buat(
+        $toko,
+        [['produk_id' => test()->produk->id, 'jumlah_dus' => $jumlahDus]],
+        test()->sales,
+        bonusItems: [['produk_id' => test()->produk->id, 'jumlah_dus' => $jumlahBonus]],
+    );
+    test()->pesananService->setujui($pesanan, test()->admin);
+
+    $batch = test()->routingService->generate(test()->admin);
+    test()->routingService->setujui($batch, test()->admin);
+
+    $kendaraan = $batch->fresh()->kendaraans->first();
+    $kendaraan->update(['driver_id' => test()->driver->id]);
+
+    $stop = $kendaraan->fresh(['stops'])->stops->first();
+
+    test()->pengirimanService->batalkanDiLapangan($stop, test()->driver, $alasan);
+
+    return $pesanan->fresh(['items', 'toko', 'stop', 'pembuat']);
+}
+
 // =====================================================================
 describe('Pesanan::bisa_order_ulang', function () {
     it('benar untuk pesanan yang dibatalkan driver dengan alasan selain toko membatalkan', function () {
@@ -331,5 +365,113 @@ describe('DaftarPesanan (Livewire): Order Ulang', function () {
             ->test(DaftarPesanan::class)
             ->call('tandaiBatalKarenaToko', $pesanan->id)
             ->assertStatus(403);
+    });
+});
+
+// =====================================================================
+/**
+ * Bug nyata yang dilaporkan pengguna: item bonus (is_bonus=true, harga 0)
+ * dari pesanan lama ikut masuk ke barisan item REGULER saat Order Ulang,
+ * sehingga ikut ditagihkan dengan harga produk saat ini alih-alih tetap
+ * gratis. Perlakuannya harus sama seperti Input Pesanan (BuatPesanan):
+ * item reguler dan item bonus adalah dua daftar terpisah, dan bonus
+ * SELALU tersimpan dengan harga_satuan/subtotal 0.
+ */
+describe('DaftarPesanan (Livewire): Order Ulang - item bonus tetap bonus', function () {
+    it('membuka modal Order Ulang memisahkan item reguler dan item bonus pesanan lama ke dua baris berbeda', function () {
+        $pesanan = pesananDibatalkanDriverDenganBonus(__('pesanan.alasan_stok'), jumlahDus: 7, jumlahBonus: 2);
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->call('bukaOrderUlang', $pesanan->id)
+            ->assertSet('barisOrderUlang', [['produk_id' => $this->produk->id, 'jumlah_dus' => 7]])
+            ->assertSet('barisBonusOrderUlang', [['produk_id' => $this->produk->id, 'jumlah_dus' => 2]]);
+    });
+
+    it('menyimpan order ulang menjaga item bonus tetap gratis (harga 0), bukan ikut ditagihkan seperti item biasa', function () {
+        $pesanan = pesananDibatalkanDriverDenganBonus(__('pesanan.alasan_stok'), jumlahDus: 7, jumlahBonus: 2);
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->call('bukaOrderUlang', $pesanan->id)
+            ->call('simpanOrderUlang')
+            ->assertHasNoErrors();
+
+        $baru = Pesanan::where('id', '!=', $pesanan->id)->with('items')->firstOrFail();
+
+        $reguler = $baru->items->firstWhere('is_bonus', false);
+        $bonus = $baru->items->firstWhere('is_bonus', true);
+
+        expect($baru->items)->toHaveCount(2)
+            ->and($baru->total_dus)->toBe(9)
+            ->and($reguler->jumlah_dus)->toBe(7)
+            ->and((float) $reguler->harga_satuan)->toBe(20_000.0)
+            ->and((float) $reguler->subtotal)->toBe(140_000.0)
+            ->and($bonus)->not->toBeNull()
+            ->and($bonus->jumlah_dus)->toBe(2)
+            ->and((float) $bonus->harga_satuan)->toBe(0.0)
+            ->and((float) $bonus->subtotal)->toBe(0.0)
+            // Nilai pesanan cuma dari item reguler — bonus tidak pernah
+            // ikut menambah tagihan, berapa pun dus-nya.
+            ->and((float) $baru->total_nilai)->toBe(140_000.0);
+    });
+
+    it('admin bisa menambah, mengubah, atau menghapus baris bonus sebelum menyimpan order ulang', function () {
+        $produkLain = Produk::create(['kode' => 'P2', 'nama' => 'Teh Botol', 'stok' => 50, 'harga' => 15_000]);
+        $pesanan = pesananDibatalkanDriverDenganBonus(__('pesanan.alasan_stok'), jumlahDus: 7, jumlahBonus: 2);
+
+        Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->call('bukaOrderUlang', $pesanan->id)
+            ->set('barisBonusOrderUlang.0.jumlah_dus', 3)
+            ->call('tambahBarisBonusOrderUlang')
+            ->set('barisBonusOrderUlang.1.produk_id', $produkLain->id)
+            ->set('barisBonusOrderUlang.1.jumlah_dus', 1)
+            ->call('simpanOrderUlang')
+            ->assertHasNoErrors();
+
+        $baru = Pesanan::where('id', '!=', $pesanan->id)->with('items')->firstOrFail();
+        $bonusItems = $baru->items->where('is_bonus', true);
+
+        expect($bonusItems)->toHaveCount(2)
+            ->and($bonusItems->sum('jumlah_dus'))->toBe(4)
+            ->and($bonusItems->sum('subtotal'))->toEqual(0.0);
+    });
+
+    it('pesanan lama yang seluruhnya bonus (tanpa item reguler sama sekali) tetap bisa di-order ulang', function () {
+        $toko = buatTokoOrderUlang();
+
+        $pesanan = $this->pesananService->buat(
+            $toko,
+            [],
+            $this->sales,
+            bonusItems: [['produk_id' => $this->produk->id, 'jumlah_dus' => 6]],
+        );
+        $this->pesananService->setujui($pesanan, $this->admin);
+        $batch = $this->routingService->generate($this->admin);
+        $this->routingService->setujui($batch, $this->admin);
+        $kendaraan = $batch->fresh()->kendaraans->first();
+        $kendaraan->update(['driver_id' => $this->driver->id]);
+        $stop = $kendaraan->fresh(['stops'])->stops->first();
+        $this->pengirimanService->batalkanDiLapangan($stop, $this->driver, __('pesanan.alasan_stok'));
+
+        $komponen = Livewire::actingAs($this->admin)
+            ->test(DaftarPesanan::class)
+            ->call('bukaOrderUlang', $pesanan->fresh()->id);
+
+        // Baris reguler kosong (tidak dipaksa terisi), tapi tetap ada satu
+        // baris kosong siap diisi kalau admin mau menambah item reguler.
+        expect($komponen->get('barisOrderUlang'))->toHaveCount(1)
+            ->and($komponen->get('barisOrderUlang')[0]['produk_id'])->toBe('');
+
+        $komponen->assertSet('barisBonusOrderUlang', [['produk_id' => $this->produk->id, 'jumlah_dus' => 6]])
+            ->call('simpanOrderUlang')
+            ->assertHasNoErrors();
+
+        $baru = Pesanan::where('id', '!=', $pesanan->id)->with('items')->firstOrFail();
+
+        expect($baru->items)->toHaveCount(1)
+            ->and($baru->items->first()->is_bonus)->toBeTrue()
+            ->and((float) $baru->total_nilai)->toBe(0.0);
     });
 });

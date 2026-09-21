@@ -10,6 +10,7 @@ return [
     'banner_promo_memenuhi_syarat' => 'This order qualifies for the ":nama" promo — pick up to :maks bonus boxes below.',
     'banner_promo_belum_memenuhi_syarat' => 'The ":nama" promo is running. Add :sisa more boxes in step 2 to unlock the bonus.',
     'tambah_baris_promo_bonus' => '+ Add promo bonus row',
+    'label_item_reguler' => 'Regular Items',
     'langkah_bonus' => 'Bonus Products & Box Quantities',
     'ket_bonus' => 'For stores entitled to a bonus. Whatever quantity is entered, the price is always Rp 0 — stock still decreases as usual on delivery. The same product from step 2 may be reused here; both stay as separate lines on the invoice.',
     'tambah_baris_bonus' => '+ Add bonus row',
