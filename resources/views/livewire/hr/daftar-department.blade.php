@@ -1,10 +1,20 @@
 <div>
     <x-judul-halaman :judul="__('hr.judul_department')" :keterangan="__('hr.ket_department')">
         <x-slot:aksi>
-            <button type="button" wire:click="buatBaru"
-                    class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                {{ __('hr.department_baru') }}
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" wire:click="unduhExcel"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    {{ __('hr.ekspor_excel') }}
+                </button>
+                <button type="button" wire:click="$set('imporTerbuka', true)"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    {{ __('hr.impor_excel') }}
+                </button>
+                <button type="button" wire:click="buatBaru"
+                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    {{ __('hr.department_baru') }}
+                </button>
+            </div>
         </x-slot:aksi>
     </x-judul-halaman>
 
@@ -85,6 +95,89 @@
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
                 <button type="button" wire:click="hapus({{ $konfirmasiHapus }})"
                         class="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">{{ __('umum.hapus') }}</button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- Modal Impor CSV / Excel --}}
+    @if ($imporTerbuka)
+        <x-modal :judul="__('hr.impor_department_judul')" tutup="$set('imporTerbuka', false)">
+            <div class="space-y-4 p-5">
+                @if (! $imporBerjalan)
+                    <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                        <p class="font-medium">{{ __('hr.petunjuk_impor_department') }}</p>
+                        <ul class="mt-1 list-disc pl-5 text-xs text-blue-800 space-y-1">
+                            <li>{{ __('hr.ket_impor_department_update') }}</li>
+                            <li>{{ __('hr.ket_impor_department_kolom') }}</li>
+                        </ul>
+                        <div class="mt-3 flex flex-wrap items-center gap-4 text-xs">
+                            <button type="button" wire:click="unduhContohExcel"
+                                    class="font-semibold text-blue-700 underline hover:text-blue-900">
+                                ⬇ {{ __('hr.contoh_format_csv') }}
+                            </button>
+                            <button type="button" wire:click="unduhExcel"
+                                    class="font-semibold text-blue-700 underline hover:text-blue-900">
+                                ⬇ {{ __('hr.ekspor_excel') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('hr.unggah_berkas_impor') }}</label>
+                        <input type="file" wire:model="berkasCsv" accept=".csv,.xlsx,.xls,text/csv"
+                               class="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700">
+                        @error('berkasCsv') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <div wire:loading wire:target="berkasCsv" class="mt-1 text-sm text-gray-500">{{ __('umum.mengunggah') }}</div>
+                    </div>
+                @else
+                    <div wire:poll.300ms="lanjutkanImporCsv">
+                        <div class="flex items-center justify-between text-sm text-gray-700">
+                            <span>{{ __('hr.proses_impor') }}</span>
+                            <span class="tabular-nums">{{ $imporOffset }} / {{ $imporTotal }}</span>
+                        </div>
+                        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div class="h-full rounded-full bg-blue-600 transition-all"
+                                 style="width: {{ $imporTotal > 0 ? min(100, round($imporOffset / $imporTotal * 100)) : 0 }}%"></div>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($hasilImpor)
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                        <p class="font-medium text-emerald-900">
+                            {{ __('hr.hasil_impor_department', ['baru' => $hasilImpor['baru'], 'diperbarui' => $hasilImpor['diperbarui']]) }}
+                        </p>
+                        @if ($hasilImpor['dilewati'])
+                            <p class="mt-2 font-medium text-amber-900">
+                                {{ __('hr.baris_dilewati', ['jumlah' => count($hasilImpor['dilewati'])]) }}
+                            </p>
+                            <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto text-xs text-amber-800">
+                                @foreach ($hasilImpor['dilewati'] as $baris)
+                                    <li>• {{ $baris }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            <x-slot:aksi>
+                @if ($imporBerjalan)
+                    <button type="button" wire:click="batalkanImporCsv"
+                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                        {{ __('hr.batalkan') }}
+                    </button>
+                @else
+                    <button type="button" wire:click="$set('imporTerbuka', false)"
+                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                        {{ __('hr.tutup') }}
+                    </button>
+                    <button type="button" wire:click="mulaiImporCsv" wire:loading.attr="disabled" wire:target="mulaiImporCsv,berkasCsv"
+                            class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                        <span wire:loading.remove wire:target="mulaiImporCsv">{{ __('hr.mulai_impor') }}</span>
+                        <span wire:loading wire:target="mulaiImporCsv">{{ __('umum.memproses') }}</span>
+                    </button>
+                @endif
             </x-slot:aksi>
         </x-modal>
     @endif

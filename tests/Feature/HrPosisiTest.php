@@ -144,3 +144,79 @@ it('hari kerja bawaan mengikuti hari kerja perusahaan, bukan tujuh hari penuh', 
     expect(Posisi::create(['kode' => 'STF', 'nama' => 'Staff'])->hariKerja())
         ->toBe(range((int) config('visit.hari_mulai'), (int) config('visit.hari_selesai')));
 });
+
+it('bisa mengunduh berkas contoh dan ekspor excel posisi', function () {
+    Posisi::create(['kode' => 'POS-EXP', 'nama' => 'Export Posisi', 'aktif' => true]);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarPosisi::class)
+        ->call('unduhContohExcel')
+        ->assertFileDownloaded('contoh-import-posisi.xlsx');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarPosisi::class)
+        ->call('unduhExcel')
+        ->assertFileDownloaded('posisi-'.now()->format('Y-m-d').'.xlsx');
+});
+
+it('bisa mengimpor posisi dari csv dan memperbarui yang sudah ada', function () {
+    $kontenCsv = "kode,nama,status\n".
+        "ADM,Administrasi,aktif\n".
+        "SLS,Sales,nonaktif\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('posisi.csv', $kontenCsv);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarPosisi::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->assertHasNoErrors()
+        ->assertSet('imporBerjalan', true)
+        ->call('lanjutkanImporCsv')
+        ->assertSet('imporBerjalan', false);
+
+    $posAdm = Posisi::where('kode', 'ADM')->first();
+    $posSls = Posisi::where('kode', 'SLS')->first();
+
+    expect($posAdm?->nama)->toBe('Administrasi')
+        ->and($posAdm?->aktif)->toBeTrue()
+        ->and($posSls?->nama)->toBe('Sales')
+        ->and($posSls?->aktif)->toBeFalse();
+
+    // Update lewat import
+    $kontenUpdate = "kode,nama,status\n".
+        "ADM,Administrasi & Keuangan,aktif\n";
+
+    $fileUpdate = \Illuminate\Http\UploadedFile::fake()->createWithContent('posisi_update.csv', $kontenUpdate);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarPosisi::class)
+        ->set('berkasCsv', $fileUpdate)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    expect(Posisi::where('kode', 'ADM')->first()?->nama)->toBe('Administrasi & Keuangan');
+});
+
+it('melewati baris posisi yang kosong atau duplikat dalam berkas impor', function () {
+    $kontenCsv = "kode,nama,status\n".
+        ",Tanpa Kode,aktif\n".
+        "DRV,,aktif\n".
+        "GDG,Staff Gudang 1,aktif\n".
+        "GDG,Staff Gudang 2 (Duplikat),aktif\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('posisi_invalid.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarPosisi::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and(count($hasil['dilewati']))->toBe(3);
+
+    expect(Posisi::where('kode', 'GDG')->first()?->nama)->toBe('Staff Gudang 1');
+});
+

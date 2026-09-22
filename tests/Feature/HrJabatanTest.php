@@ -107,3 +107,74 @@ it('menolak akses selain Admin, Hr, dan Superadmin', function () {
 
     $this->actingAs($driver)->get(route('hr.jabatan'))->assertForbidden();
 });
+
+it('bisa mengunduh berkas contoh dan ekspor excel jabatan', function () {
+    Jabatan::create(['kode' => 'J-EXP', 'nama' => 'Export Jabatan']);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarJabatan::class)
+        ->call('unduhContohExcel')
+        ->assertFileDownloaded('contoh-import-jabatan.xlsx');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarJabatan::class)
+        ->call('unduhExcel')
+        ->assertFileDownloaded('jabatan-'.now()->format('Y-m-d').'.xlsx');
+});
+
+it('bisa mengimpor jabatan dari csv dan memperbarui yang sudah ada', function () {
+    $kontenCsv = "kode,nama\n".
+        "MGR,Manager\n".
+        "SPV,Supervisor\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('jabatan.csv', $kontenCsv);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarJabatan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->assertHasNoErrors()
+        ->assertSet('imporBerjalan', true)
+        ->call('lanjutkanImporCsv')
+        ->assertSet('imporBerjalan', false);
+
+    expect(Jabatan::where('kode', 'MGR')->first()?->nama)->toBe('Manager')
+        ->and(Jabatan::where('kode', 'SPV')->first()?->nama)->toBe('Supervisor');
+
+    // Update lewat import
+    $kontenUpdate = "kode,nama\n".
+        "MGR,General Manager\n";
+
+    $fileUpdate = \Illuminate\Http\UploadedFile::fake()->createWithContent('jabatan_update.csv', $kontenUpdate);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarJabatan::class)
+        ->set('berkasCsv', $fileUpdate)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    expect(Jabatan::where('kode', 'MGR')->first()?->nama)->toBe('General Manager');
+});
+
+it('melewati baris jabatan yang kosong atau duplikat dalam berkas impor', function () {
+    $kontenCsv = "kode,nama\n".
+        ",Tanpa Kode\n".
+        "DIR,\n".
+        "STF,Staff 1\n".
+        "STF,Staff 2 (Duplikat)\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('jabatan_invalid.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarJabatan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and(count($hasil['dilewati']))->toBe(3);
+
+    expect(Jabatan::where('kode', 'STF')->first()?->nama)->toBe('Staff 1');
+});
+

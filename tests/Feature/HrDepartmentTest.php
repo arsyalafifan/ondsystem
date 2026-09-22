@@ -108,3 +108,74 @@ it('menolak akses selain Admin, Hr, dan Superadmin', function () {
 
     $this->actingAs($sales)->get(route('hr.department'))->assertForbidden();
 });
+
+it('bisa mengunduh berkas contoh dan ekspor excel department', function () {
+    Department::create(['kode' => 'D-EXP', 'nama' => 'Export Dept']);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarDepartment::class)
+        ->call('unduhContohExcel')
+        ->assertFileDownloaded('contoh-import-department.xlsx');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarDepartment::class)
+        ->call('unduhExcel')
+        ->assertFileDownloaded('department-'.now()->format('Y-m-d').'.xlsx');
+});
+
+it('bisa mengimpor department dari csv dan memperbarui yang sudah ada', function () {
+    $kontenCsv = "kode,nama\n".
+        "HRD,Human Resources\n".
+        "FIN,Finance\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('dept.csv', $kontenCsv);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarDepartment::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->assertHasNoErrors()
+        ->assertSet('imporBerjalan', true)
+        ->call('lanjutkanImporCsv')
+        ->assertSet('imporBerjalan', false);
+
+    expect(Department::where('kode', 'HRD')->first()?->nama)->toBe('Human Resources')
+        ->and(Department::where('kode', 'FIN')->first()?->nama)->toBe('Finance');
+
+    // Update lewat import
+    $kontenUpdate = "kode,nama\n".
+        "HRD,Human Resources & GA\n";
+
+    $fileUpdate = \Illuminate\Http\UploadedFile::fake()->createWithContent('dept_update.csv', $kontenUpdate);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarDepartment::class)
+        ->set('berkasCsv', $fileUpdate)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    expect(Department::where('kode', 'HRD')->first()?->nama)->toBe('Human Resources & GA');
+});
+
+it('melewati baris department yang kosong atau duplikat dalam berkas impor', function () {
+    $kontenCsv = "kode,nama\n".
+        ",Tanpa Kode\n".
+        "OPS,\n".
+        "MKT,Marketing 1\n".
+        "MKT,Marketing 2 (Duplikat)\n";
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('dept_invalid.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarDepartment::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and(count($hasil['dilewati']))->toBe(3);
+
+    expect(Department::where('kode', 'MKT')->first()?->nama)->toBe('Marketing 1');
+});
+
