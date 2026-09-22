@@ -20,6 +20,7 @@ return [
     'unduh' => '下载',
     'aksi' => '操作',
     'status' => '状态',
+    'semua_status' => '所有状态',
     'kode' => '编号',
     'nama' => '名称',
     'alamat' => '地址',

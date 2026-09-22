@@ -54,6 +54,10 @@ it('menampilkan semua halaman admin', function (string $rute) {
     'master.toko',
     'master.produk',
     'master.wilayah',
+    'noo.daftar',
+    'noo.persetujuan',
+    'noo.routing',
+    'noo.paket',
 ]);
 
 it('menampilkan semua halaman admin untuk superadmin', function (string $rute) {

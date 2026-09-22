@@ -228,7 +228,7 @@ class DaftarToko extends Component
         }
 
         $this->resetForm();
-        $this->kode = $this->kodeBerikutnya();
+        $this->kode = Toko::kodeBerikutnya();
         $this->wilayahId = $this->wilayahs->first()?->id;
         $this->formTerbuka = true;
     }
@@ -1194,24 +1194,6 @@ class DaftarToko extends Component
         $nilai = trim((string) $nilai);
 
         return $nilai === '' ? null : $nilai;
-    }
-
-    /**
-     * Nomor urut berikutnya untuk kode toko. Karena nomornya diisi nol di
-     * depan, urutan abjad sama dengan urutan angka, jadi cukup ambil yang
-     * terbesar lalu potong awalannya — tanpa fungsi SQL yang khas satu mesin
-     * basis data saja.
-     */
-    private function kodeBerikutnya(): string
-    {
-        $terakhir = Toko::query()
-            ->where('kode', 'like', 'TK-%')
-            ->orderByDesc('kode')
-            ->value('kode');
-
-        $nomor = $terakhir === null ? 0 : (int) substr($terakhir, 3);
-
-        return sprintf('TK-%04d', $nomor + 1);
     }
 
     public function render()

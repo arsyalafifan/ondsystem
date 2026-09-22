@@ -24,6 +24,7 @@ return [
     'hak_akses' => 'Hak Akses Management',
     'master' => 'Master',
     'master_toko' => 'Master Toko',
+    'master_freezer' => 'Master Freezer',
     'master_produk' => 'Master Produk',
     'master_wilayah' => 'Master Wilayah',
     'master_promo' => 'Master Promo',
@@ -55,4 +56,9 @@ return [
     'hr_setting_approval_izin' => 'Setting Izin & Lembur',
     'hr_ajukan_lembur' => 'Ajukan Lembur',
     'hr_persetujuan_lembur' => 'Persetujuan Lembur',
+    'noo' => 'NOO',
+    'noo_daftar' => 'Pengajuan NOO',
+    'noo_persetujuan' => 'Persetujuan NOO',
+    'noo_routing' => 'Routing Freezer',
+    'noo_paket' => 'Default Pesanan NOO',
 ];

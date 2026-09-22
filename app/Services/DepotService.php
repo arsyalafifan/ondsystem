@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Depot;
+use App\Models\PaketNoo;
 use App\Models\PengaturanKunjungan;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,21 @@ class DepotService
                 'depot_id' => $depot->id,
                 'maks_toko_per_hari' => 20,
             ]);
+
+            // Paket NOO bawaan, alasan depot_id eksplisit sama seperti di
+            // atas. Produknya sengaja dibiarkan kosong — katalog depot baru
+            // masih nol, jadi tidak ada yang bisa dipilihkan di sini. Selama
+            // itu paketnya belum muncul sebagai pilihan sales (PaketNoo::lengkap).
+            foreach ([['15+2', 15, 2, 1], ['10+1', 10, 1, 2]] as [$nama, $reguler, $bonus, $urutan]) {
+                PaketNoo::create([
+                    'depot_id' => $depot->id,
+                    'nama' => $nama,
+                    'dus_reguler' => $reguler,
+                    'dus_bonus' => $bonus,
+                    'urutan' => $urutan,
+                    'aktif' => true,
+                ]);
+            }
 
             return $depot;
         });

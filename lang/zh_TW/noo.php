@@ -1,0 +1,181 @@
+<?php
+
+/**
+ * NOO（新開門市）——新客戶開發，從業務員登記潛在門市，到冰櫃安裝完成、
+ * 首張訂單自動產生為止。
+ */
+return [
+
+    // --- NOO 預設訂單設定 ---
+    'judul_paket' => 'NOO 預設訂單設定',
+    'ket_paket' => '新合作門市的首單銷售套餐。業務員登記門市時選擇其中一個，冰櫃送達後其內容會自動成為該門市的第一張訂單。',
+    'paket_baru' => '新增套餐',
+    'paket_kosong' => '尚無套餐',
+    'judul_paket_baru' => '新增 NOO 套餐',
+    'judul_paket_sunting' => '編輯 NOO 套餐',
+    'judul_hapus_paket' => '刪除套餐',
+    'ket_hapus_paket' => '業務員將無法再選擇此套餐。',
+
+    'atr_nama_paket' => '套餐名稱',
+    'nama_paket_contoh' => '例如 15+2',
+    'atr_dus_reguler' => '正價箱數',
+    'atr_dus_bonus' => '贈送箱數',
+    'atr_paket_aktif' => '啟用——業務員可選擇',
+    'atr_produk' => '產品',
+    'atr_jumlah_dus' => '箱數',
+
+    'isi_paket' => '套餐內容',
+    'isi_paket_kosong' => '尚未選擇產品',
+    'bonus' => '贈品',
+    'belum_lengkap' => '尚未設定完整',
+    'ket_belum_lengkap' => '所選產品的箱數尚未與套餐相符，因此業務員還不能選擇。',
+    'judul_item_reguler' => '正價箱產品',
+    'judul_item_bonus' => '贈送箱產品',
+    'hitungan_dus' => ':terpilih / :target 箱',
+    'pilih_produk' => '請選擇產品',
+    'tambah_produk' => '新增產品',
+
+    'paket_tersimpan' => '套餐已儲存。',
+    'paket_dihapus' => '套餐已刪除。',
+
+    'galat_nama_paket_dipakai' => '此套餐名稱已被使用。',
+    'galat_produk_dobel' => '同一產品不能選擇兩次。',
+    'galat_item_kosong' => '請先選擇構成此套餐的產品。',
+    'galat_dus_reguler_tidak_cocok' => '所選正價箱數（:terpilih）必須剛好等於 :target 箱。',
+    'galat_dus_bonus_tidak_cocok' => '所選贈送箱數（:terpilih）必須剛好等於 :target 箱。',
+
+    // --- 潛在合作門市登記 ---
+    'judul' => 'NOO——新客戶開發',
+    'ket' => '登記潛在的新合作門市。管理員審核通過後，冰櫃將排線並由司機配送；配送完成後會自動產生第一張訂單。',
+    'noo_baru' => '新增 NOO',
+    'cari_placeholder' => '搜尋編號、門市名稱或店主姓名……',
+    'semua_status' => '所有狀態',
+    'kolom_kode' => '編號',
+    'kolom_pengaju' => '提交人',
+    'kosong' => '尚無 NOO 申請',
+    'ket_kosong' => '提交的申請會顯示在這裡。',
+
+    'judul_noo_baru' => '新增 NOO 申請',
+    'judul_data_toko' => '門市資料',
+    'judul_data_pemilik' => '店主資料',
+    'judul_paket_dipilih' => '套餐與冰櫃',
+    'judul_titik_lokasi' => '門市位置',
+    'judul_foto_wajib' => '必拍照片',
+    'judul_detail' => 'NOO :kode 詳情',
+    'judul_bukti' => '照片憑證',
+
+    'atr_nama_toko' => '門市名稱',
+    'atr_paket' => '套餐',
+    'atr_freezer_tipe' => '冰櫃型號',
+    'freezer_tipe_contoh' => '選填，例如 6 尺',
+    'ringkas_paket' => ':reguler 箱 + :bonus 贈',
+    'belum_ada_paket_tersedia' => '尚無可用套餐。請管理員在「NOO 預設訂單設定」中補齊套餐產品。',
+    'ket_titik_lokasi' => '站在門市門口時點選「我的位置」，或在地圖上拖曳標記。',
+    'titik_belum_dipilih' => '尚未選擇位置',
+    'ket_foto_wajib' => '可直接用相機拍攝，若相機有問題也可從相簿上傳。',
+    'ambil_foto' => '拍照',
+    'ambil_ulang' => '重拍',
+    'tombol_ajukan' => '提交',
+    'toko_terbentuk' => '已產生門市',
+    'alasan_tolak' => '拒絕原因',
+    'notif_diajukan' => '申請 :kode 已儲存，等待管理員審核。',
+
+    // --- 狀態 ---
+    'status_order' => '待審核',
+    'ket_status_order' => '等待管理員審核。',
+    'status_process' => '已審核',
+    'ket_status_process' => '已通過——等待冰櫃排線。',
+    'status_delivery' => '配送中',
+    'ket_status_delivery' => '冰櫃正在送往門市途中。',
+    'status_selesai' => '已完成',
+    'ket_status_selesai' => '冰櫃已安裝，門市已啟用。',
+    'status_ditolak' => '已拒絕',
+    'ket_status_ditolak' => '該潛在門市未獲管理員核准。',
+
+    // --- 照片憑證 ---
+    'bukti_ktp_pemilik' => '店主身分證',
+    'bukti_kartu_keluarga' => '戶口名簿',
+    'bukti_tampak_depan_sales' => '門市正面',
+    'bukti_tampak_depan_driver' => '門市正面',
+    'bukti_surat_perjanjian' => '合作協議交接',
+    'bukti_qr_code' => '冰櫃 QR Code',
+    'bukti_posisi_freezer' => '冰櫃擺放位置',
+    'bukti_spanduk' => '橫幅',
+    'bukti_flag_hanger' => '吊旗',
+
+    'petunjuk_bukti_ktp_pemilik' => '拍攝店主身分證，確保證號與姓名清晰可辨。',
+    'petunjuk_bukti_kartu_keluarga' => '拍攝店主的戶口名簿。',
+    'petunjuk_bukti_tampak_depan_sales' => '從店外拍攝門市正面，需能看到招牌。',
+    'petunjuk_bukti_tampak_depan_driver' => '冰櫃安裝完成後，從店外拍攝門市正面。',
+    'petunjuk_bukti_surat_perjanjian' => '拍攝司機與手持合作協議的店主合影。',
+    'petunjuk_bukti_qr_code' => '拍攝貼在冰櫃上的 QR Code。',
+    'petunjuk_bukti_posisi_freezer' => '拍攝冰櫃在店內最終擺放位置。',
+    'petunjuk_bukti_spanduk' => '拍攝已掛好的橫幅。',
+    'petunjuk_bukti_flag_hanger' => '拍攝已掛好的吊旗。',
+
+    // --- 錯誤 ---
+    'galat_koordinat_wajib' => '必須選擇門市位置。',
+    'galat_paket_tidak_tersedia' => '所選套餐無法使用。',
+    'galat_bukti_belum_lengkap' => '請先補齊所有必拍照片。',
+    'galat_bukan_order' => 'NOO :kode 已非待審核狀態。',
+    'galat_alasan_tolak_wajib' => '必須填寫拒絕原因。',
+
+    // --- 管理員審核 ---
+    'judul_persetujuan' => 'NOO 審核',
+    'ket_persetujuan' => '等待決定的潛在合作門市申請。核准後會在門市主檔中建立該門市——在冰櫃安裝完成前仍為停用狀態。',
+    'periksa' => '查看',
+    'antrean_kosong' => '尚無待審核項目',
+    'ket_antrean_kosong' => '業務員的新申請會顯示在這裡。',
+    'judul_periksa' => '查看 NOO :kode',
+    'ket_koreksi_admin' => '核准前可修改以下資料。每次修改都會記錄修改人與時間。',
+    'alasan_tolak_contoh' => '例如：位置離現有合作門市太近，或店主資料不符。',
+
+    'peringatan_jarak_judul' => '距離已啟用門市過近',
+    'peringatan_jarak' => '此位置距離已啟用的 :toko（:kode）僅 :jarak 公尺。',
+    'ket_peringatan_jarak' => '這是提醒而非限制。若確實是相鄰的兩家不同門市，可繼續操作。',
+
+    'tombol_tolak' => '拒絕',
+    'tombol_simpan_perubahan' => '儲存修改',
+    'tombol_setujui' => '核准',
+    'tombol_tetap_setujui' => '仍然核准',
+
+    'notif_perubahan_disimpan' => '修改已儲存。',
+    'notif_disetujui' => 'NOO :kode 已核准。門市 :toko 已建立，等待安裝冰櫃。',
+    'notif_ditolak' => 'NOO :kode 已拒絕。',
+
+    // --- 冰櫃排線 ---
+    'judul_routing' => 'NOO 冰櫃排線',
+    'ket_routing' => '為已核准的潛在門市安排冰櫃配送路線。與訂單排線分開，因為裝載單位是冰櫃台數而非箱數。',
+    'menunggu_rute' => ':jumlah 個潛在門市待排線',
+    'ket_menunggu_rute' => '已獲管理員核准且尚未排入任何路線的 NOO。',
+    'tombol_susun_rute' => '產生路線',
+    'tidak_ada_siap_rute' => '尚無待排線項目',
+    'ket_tidak_ada_siap_rute' => '剛獲核准的潛在門市會顯示在這裡。',
+    'ringkas_rute' => ':mobil 輛車 · :freezer 台冰櫃',
+    'ringkas_mobil' => ':freezer 台冰櫃 · :km 公里',
+    'tombol_setujui_rute' => '核准路線',
+    'rute_sudah_disetujui' => '已核准',
+    'ket_hapus_draft_rute' => '草稿路線將被捨棄，其中所有潛在門市會重新回到待排線狀態。',
+    'notif_rute_dibuat' => '路線 :kode 已產生。請先分配司機再核准。',
+    'notif_rute_disetujui' => '路線 :kode 已核准。冰櫃可以出車了。',
+    'notif_rute_dihapus' => '草稿路線已捨棄。',
+    'galat_tidak_ada_siap_routing' => '尚無可排線的潛在門市。',
+
+    // --- 司機安裝冰櫃 ---
+    'label_noo' => 'NOO',
+    'satu_freezer' => '1 台冰櫃',
+    'tombol_pasang_freezer' => '安裝冰櫃',
+    'judul_pasang' => '冰櫃安裝——:toko',
+    'ket_pasang' => '填寫冰櫃上黏貼的編號（IDN），補齊尚未填寫的門市資料，然後拍攝六張安裝憑證照片。',
+    'atr_idn' => 'IDN／冰櫃編號',
+    'idn_contoh' => '例如 IDNAH2025280001',
+    'judul_lengkapi_alamat' => '補齊門市資料',
+    'ket_lengkapi_alamat' => '只需填寫仍為空白的項目——確實不清楚可以留空。',
+    'judul_bukti_pemasangan' => '安裝憑證',
+    'tombol_selesaikan_pasang' => '完成安裝',
+    'notif_terpasang' => ':kode 的冰櫃已安裝。門市已啟用，第一張訂單也已產生。',
+    'catatan_pesanan_perdana' => '來自 :kode 的第一張訂單',
+    'galat_bukan_delivery' => 'NOO :kode 尚未進入配送狀態。',
+
+    'ket_badge_pesanan' => '來自 NOO 的第一張訂單——必須逐張核准，不會納入批次審核。',
+];

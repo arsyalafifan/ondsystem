@@ -33,11 +33,16 @@ use App\Livewire\Kunjungan\DetailPeriode;
 use App\Livewire\Kunjungan\Kunjungi;
 use App\Livewire\Kunjungan\Penugasan;
 use App\Livewire\Kunjungan\TugasSaya;
+use App\Livewire\Master\DaftarFreezer;
 use App\Livewire\Master\DaftarProduk;
 use App\Livewire\Master\DaftarPromo;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Master\DaftarWilayah;
 use App\Livewire\Monitoring\PenggunaanBahanBakar;
+use App\Livewire\Noo\DaftarNoo;
+use App\Livewire\Noo\DaftarPaket;
+use App\Livewire\Noo\Persetujuan as PersetujuanNoo;
+use App\Livewire\Noo\RoutingFreezer;
 use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
@@ -55,8 +60,10 @@ use App\Livewire\Statistik\FormPembelianProduk;
 use App\Livewire\Statistik\RepeatOrderSales;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
+use App\Models\NooFoto;
 use App\Models\PengajuanIzin;
 use App\Services\Izin\PengajuanIzinService;
+use App\Services\Noo\BuktiNooService;
 use App\Support\Bahasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -149,6 +156,23 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/kunjungan/penugasan', Penugasan::class)->name('kunjungan.penugasan')->middleware('akses:ond.penugasan');
 
+    Route::get('/noo', DaftarNoo::class)->name('noo.daftar')->middleware('akses:ond.noo_daftar');
+    Route::get('/noo/paket', DaftarPaket::class)->name('noo.paket')->middleware('akses:ond.setting_paket_noo');
+    Route::get('/noo/persetujuan', PersetujuanNoo::class)->name('noo.persetujuan')->middleware('akses:ond.noo_persetujuan');
+    Route::get('/noo/routing', RoutingFreezer::class)->name('noo.routing')->middleware('akses:ond.noo_routing');
+
+    // Foto NOO disimpan di disk PRIVAT — di antaranya ada KTP dan kartu
+    // keluarga pemilik toko. Hanya sales yang mengajukannya dan admin yang
+    // boleh membukanya; tidak ada URL publik yang bisa ditebak.
+    Route::get('/noo/foto/{foto}', function (Request $request, NooFoto $foto) {
+        $pengguna = $request->user();
+
+        abort_unless($foto->noo->diajukan_oleh === $pengguna->id || $pengguna->isAdmin(), 403);
+        abort_unless(Storage::disk(BuktiNooService::DISK)->exists($foto->path), 404);
+
+        return Storage::disk(BuktiNooService::DISK)->response($foto->path);
+    })->name('noo.foto');
+
     Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan')->middleware('akses:ond.pelunasan');
     Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas')->middleware('akses:ond.belum_lunas');
     Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan')->middleware('akses:ond.pendapatan');
@@ -164,6 +188,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/monitoring/bahan-bakar', PenggunaanBahanBakar::class)->name('monitoring.bahan-bakar')->middleware('akses:ond.monitoring_bbm');
 
     Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
+    Route::get('/master/freezer', DaftarFreezer::class)->name('master.freezer')->middleware('akses:ond.master_freezer');
     Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
     Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');
     Route::get('/master/promo', DaftarPromo::class)->name('master.promo')->middleware('akses:ond.master_promo');

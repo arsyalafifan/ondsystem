@@ -78,7 +78,7 @@ class GenerateRouting extends Component
         // pekerjaan admin tidak hilang saat halaman ditutup.
         $this->batchId = $batch?->exists
             ? $batch->id
-            : RoutingBatch::draft()->latest('id')->value('id');
+            : RoutingBatch::reguler()->draft()->latest('id')->value('id');
 
         $this->peringatan = Session::pull('routing.peringatan', []);
     }
@@ -108,7 +108,7 @@ class GenerateRouting extends Component
     {
         return $this->batchId === null
             ? null
-            : RoutingBatch::with([
+            : RoutingBatch::reguler()->with([
                 'kendaraans.wilayah:id,nama',
                 'kendaraans.driver:id,name',
                 'kendaraans.stops.toko:id,nama,kode,alamat,latitude,longitude',
@@ -514,7 +514,7 @@ class GenerateRouting extends Component
 
     private function pastikanMasihDraft(?int $batchId): void
     {
-        $batch = $batchId === null ? null : RoutingBatch::find($batchId);
+        $batch = $batchId === null ? null : RoutingBatch::reguler()->find($batchId);
 
         if ($batch === null || ! $batch->isDraft()) {
             abort(422, __('routing.galat_sudah_disetujui'));

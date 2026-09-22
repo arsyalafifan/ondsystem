@@ -20,6 +20,7 @@ return [
     'unduh' => 'Download',
     'aksi' => 'Actions',
     'status' => 'Status',
+    'semua_status' => 'All statuses',
     'kode' => 'Code',
     'nama' => 'Name',
     'alamat' => 'Address',

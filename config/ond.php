@@ -135,4 +135,18 @@ return [
         '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | NOO (New Open Outlet)
+    |--------------------------------------------------------------------------
+    | Muatan rute NOO adalah unit freezer, bukan dus, jadi batas isi mobilnya
+    | pun berbeda dari `max_dus` milik depot. Disimpan di config (bukan kolom
+    | depot) karena angkanya ditentukan ukuran bak mobil, bukan kebijakan
+    | gudang — ubah di sini kalau armada freezernya berganti.
+    */
+
+    'noo' => [
+        'maks_freezer_per_mobil' => (int) env('NOO_MAKS_FREEZER_PER_MOBIL', 6),
+    ],
+
 ];

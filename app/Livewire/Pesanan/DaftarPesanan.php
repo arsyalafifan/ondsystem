@@ -226,12 +226,20 @@ class DaftarPesanan extends Component
             ])->find($this->pesananDilihat);
     }
 
-    /** Id pesanan berstatus ORDER pada halaman ini — hanya itu yang bisa disetujui. */
+    /**
+     * Id pesanan berstatus ORDER pada halaman ini yang boleh disetujui
+     * MASSAL.
+     *
+     * Pesanan perdana dari NOO sengaja tidak pernah ikut: tanggal
+     * berangkatnya belum tentu sama dengan gelombang pesanan reguler hari
+     * itu, jadi ia harus disetujui satu per satu dengan sadar lewat tombol
+     * di barisnya sendiri (setujui()).
+     */
     #[Computed]
     public function idBisaDisetujui(): array
     {
         return $this->pesanans
-            ->filter(fn (Pesanan $p) => $p->status === StatusPesanan::Order)
+            ->filter(fn (Pesanan $p) => $p->status === StatusPesanan::Order && $p->noo_id === null)
             ->pluck('id')
             ->all();
     }
@@ -266,7 +274,10 @@ class DaftarPesanan extends Component
         $berhasil = 0;
         $gagal = 0;
 
-        foreach ($this->kueriPesanan()->whereIn('id', $this->terpilih)->get() as $pesanan) {
+        // whereNull('noo_id') diulang di query, bukan sekadar mengandalkan
+        // idBisaDisetujui() yang cuma menyaring tampilan — daftar $terpilih
+        // datang dari klien dan tidak pernah dipercaya begitu saja.
+        foreach ($this->kueriPesanan()->whereIn('id', $this->terpilih)->whereNull('noo_id')->get() as $pesanan) {
             try {
                 $service->setujui($pesanan, auth()->user());
                 $berhasil++;

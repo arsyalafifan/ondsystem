@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
 use RuntimeException;
 
 #[Fillable([
-    'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'sales_id', 'promo_id', 'status', 'jenis',
+    'kode', 'toko_id', 'wilayah_id', 'dibuat_oleh', 'sales_id', 'promo_id', 'noo_id', 'status', 'jenis',
     'kurang_kirim', 'status_bayar', 'tanggal_lunas', 'dilunasi_oleh',
     'nominal_cash', 'nominal_transfer',
     'tanggal', 'total_dus', 'total_nilai', 'catatan',
