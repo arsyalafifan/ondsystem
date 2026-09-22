@@ -179,9 +179,9 @@ class LengkapiData extends Component
         $depotId = DepotContext::currentOrFail()->id;
 
         $data = $this->validate([
-            'namaPemilik' => 'required|string|max:255',
+            'namaPemilik' => 'nullable|string|max:255',
             'nikPemilik' => [
-                'required', 'digits:16',
+                'nullable', 'digits:16',
                 Rule::unique('tokos', 'nik_pemilik')->ignore($toko->id)->where('depot_id', $depotId),
             ],
             'alamat' => 'required|string',
@@ -193,10 +193,9 @@ class LengkapiData extends Component
                 'required', 'string', 'max:30',
                 Rule::unique('tokos', 'telepon')->ignore($toko->id)->where('depot_id', $depotId),
             ],
-            // Ketiganya boleh kosong — tidak memengaruhi rute pengantaran
-            // (yang dipakai cuma titik koordinat) maupun transaksi lain,
-            // beda dari kelima field di atas yang benar-benar dibutuhkan
-            // (identitas pemilik, kontak, pengenal freezer).
+            // Nama pemilik, NIK, dan wilayah administratif boleh kosong —
+            // yang WAJIB adalah nomor freezer (assetId / IDN), alamat jalan,
+            // dan kontak telepon. IDN terisi otomatis menyelesaikan progres.
             'kecamatan' => 'nullable|string|max:255',
             'kota' => 'nullable|string|max:255',
             'provinsi' => 'nullable|string|max:255',
@@ -221,8 +220,8 @@ class LengkapiData extends Component
         // mencoba mengirim properti lain, update() di bawah cuma menulis
         // kolom yang disebut eksplisit di sini.
         $toko->update([
-            'nama_pemilik' => $data['namaPemilik'],
-            'nik_pemilik' => $data['nikPemilik'],
+            'nama_pemilik' => $data['namaPemilik'] ?: null,
+            'nik_pemilik' => $data['nikPemilik'] ?: null,
             'alamat' => $data['alamat'],
             // Dirapikan sama seperti Master Toko: huruf besar tanpa spasi,
             // supaya tetap cocok dengan hasil pemindaian QR freezer.
