@@ -311,3 +311,159 @@ describe('tautan ke akun pengguna', function () {
         expect($daftar->pluck('id')->all())->toContain($penggunaDepotLain->id);
     });
 });
+
+it('bisa mengunduh berkas contoh dan ekspor excel karyawan', function () {
+    $data = dataKaryawanValid();
+    isiForm(Livewire::actingAs($this->admin)->test(DaftarKaryawan::class)->call('buatBaru'), $data)->call('simpan');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->call('unduhContohExcel')
+        ->assertFileDownloaded('contoh-import-karyawan.xlsx');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->call('unduhExcel')
+        ->assertFileDownloaded('karyawan-'.now()->format('Y-m-d').'.xlsx');
+});
+
+it('bisa mengimpor karyawan dari csv dan memperbarui data yang sudah ada', function () {
+    $kontenCsv = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,status\n".
+        "EMP-IMP-1,Karyawan Impor 1,1234567890123456,L,1990-01-01,081234567890,Jl. Merdeka,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,123456,,Catatan 1,aktif\n";
+
+    $file = UploadedFile::fake()->createWithContent('karyawan.csv', $kontenCsv);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->assertHasNoErrors()
+        ->assertSet('imporBerjalan', true)
+        ->call('lanjutkanImporCsv')
+        ->assertSet('imporBerjalan', false);
+
+    $karyawan = Karyawan::where('nik', '1234567890123456')->first();
+    expect($karyawan)->not->toBeNull()
+        ->and($karyawan->nama_lengkap)->toBe('Karyawan Impor 1')
+        ->and($karyawan->kode_karyawan)->toBe('EMP-IMP-1')
+        ->and($karyawan->department_id)->toBe($this->department->id)
+        ->and($karyawan->jabatan_id)->toBe($this->jabatan->id)
+        ->and($karyawan->posisi_id)->toBe($this->posisi->id)
+        ->and($karyawan->depot_id)->toBe($this->depot->id);
+
+    // Update lewat NIK yang sama
+    $kontenUpdate = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,status\n".
+        "EMP-IMP-1,Karyawan Impor 1 Diperbarui,1234567890123456,L,1990-01-01,081234567890,Jl. Merdeka Baru,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,6000000,123456,,Catatan 2,aktif\n";
+
+    $fileUpdate = UploadedFile::fake()->createWithContent('karyawan_update.csv', $kontenUpdate);
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $fileUpdate)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    expect($karyawan->fresh()->nama_lengkap)->toBe('Karyawan Impor 1 Diperbarui')
+        ->and((float) $karyawan->fresh()->gaji_pokok)->toBe(6000000.0)
+        ->and($karyawan->fresh()->alamat_domisili)->toBe('Jl. Merdeka Baru');
+});
+
+it('melewati baris karyawan dengan relasi tidak ditemukan atau nik invalid', function () {
+    $kontenCsv = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,status\n".
+        "EMP-SKP-1,Karyawan NIK Pendek,12345,L,1990-01-01,0812,Jl. A,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,aktif\n".
+        "EMP-SKP-2,Karyawan Dept Salah,9999888877776666,L,1990-01-01,0812,Jl. B,DeptTidakAda,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,aktif\n".
+        "EMP-SKP-3,Karyawan Duplikat NIK,8888777766665555,L,1990-01-01,0812,Jl. C,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,aktif\n".
+        "EMP-SKP-4,Karyawan Duplikat NIK 2,8888777766665555,L,1990-01-01,0812,Jl. D,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,aktif\n";
+
+    $file = UploadedFile::fake()->createWithContent('karyawan_skip.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and(count($hasil['dilewati']))->toBe(3);
+});
+
+it('bisa menautkan karyawan ke akun pengguna berdasarkan email akun saat impor', function () {
+    $userAkun = User::factory()->create(['email' => 'karyawan.baru@example.com']);
+
+    $kontenCsv = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,email_akun,status\n".
+        "EMP-USR-1,Karyawan Taut Akun,1122334455667788,L,1993-04-10,081299990000,Jl. Kebon Sirih,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,karyawan.baru@example.com,aktif\n";
+
+    $file = UploadedFile::fake()->createWithContent('karyawan_user.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $karyawan = Karyawan::where('nik', '1122334455667788')->first();
+    expect($karyawan)->not->toBeNull()
+        ->and($karyawan->user_id)->toBe($userAkun->id);
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and($hasil['catatan'])->toBeEmpty();
+});
+
+it('memberikan peringatan jika email akun tidak ditemukan tetapi karyawan tetap berhasil disimpan', function () {
+    $kontenCsv = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,email_akun,status\n".
+        "EMP-NOUSR-1,Karyawan Akun Hilang,9988776655443322,P,1994-05-12,081288887777,Jl. Thamrin,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,tidak.ada@domain-palsu.com,aktif\n";
+
+    $file = UploadedFile::fake()->createWithContent('karyawan_nouser.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $karyawan = Karyawan::where('nik', '9988776655443322')->first();
+    expect($karyawan)->not->toBeNull()
+        ->and($karyawan->user_id)->toBeNull();
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and($hasil['dilewati'])->toBeEmpty()
+        ->and(count($hasil['catatan']))->toBe(1)
+        ->and($hasil['catatan'][0])->toContain('tidak.ada@domain-palsu.com');
+});
+
+it('memberikan peringatan jika email akun sudah ditautkan ke karyawan lain', function () {
+    $userSama = User::factory()->create(['email' => 'sudah.dipakai@example.com']);
+    $dataKaryawanA = dataKaryawanValid(['userId' => (string) $userSama->id]);
+    isiForm(Livewire::actingAs($this->admin)->test(DaftarKaryawan::class)->call('buatBaru'), $dataKaryawanA)->call('simpan');
+
+    $karyawanA = Karyawan::where('kode_karyawan', $dataKaryawanA['kodeKaryawan'])->first();
+    expect($karyawanA->user_id)->toBe($userSama->id);
+
+    $kontenCsv = "kode_karyawan,nama_lengkap,nik,jenis_kelamin,tanggal_lahir,no_hp,alamat,department,jabatan,posisi,penempatan,tanggal_masuk,status_karyawan,tanggal_berakhir_kontrak,gaji_pokok,no_rekening,npwp,catatan,email_akun,status\n".
+        "EMP-DUPUSR-1,Karyawan B,4455667788990011,L,1991-08-08,081277776666,Jl. Gatot Subroto,Finance,Staff,Staff Kantor,{$this->depot->nama},2023-01-01,tetap,,5000000,,,,sudah.dipakai@example.com,aktif\n";
+
+    $file = UploadedFile::fake()->createWithContent('karyawan_duplikat_user.csv', $kontenCsv);
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarKaryawan::class)
+        ->set('berkasCsv', $file)
+        ->call('mulaiImporCsv')
+        ->call('lanjutkanImporCsv');
+
+    $karyawanB = Karyawan::where('nik', '4455667788990011')->first();
+    expect($karyawanB)->not->toBeNull()
+        ->and($karyawanB->user_id)->toBeNull();
+
+    // Pastikan user akun tetap milik Karyawan A
+    expect($karyawanA->fresh()->user_id)->toBe($userSama->id);
+
+    $hasil = $komponen->get('hasilImpor');
+    expect($hasil['baru'])->toBe(1)
+        ->and(count($hasil['catatan']))->toBe(1)
+        ->and($hasil['catatan'][0])->toContain('sudah.dipakai@example.com');
+});
+
+

@@ -165,21 +165,13 @@ class Toko extends Model
     }
 
     /**
-     * Apakah kelima field profil yang WAJIB dilengkapi sales (lihat
-     * `App\Livewire\Toko\LengkapiData`) sudah semuanya terisi — dipakai
-     * sebagai penanda "belum lengkap" di daftar pencarian layar itu, supaya
-     * sales tahu toko mana yang masih perlu disentuh tanpa membuka satu
-     * per satu. Kecamatan/kota/provinsi SENGAJA tidak ikut dihitung di
-     * sini — ketiganya boleh kosong di layar itu (tidak memengaruhi rute
-     * pengantaran maupun transaksi lain), jadi kosongnya bukan tanda toko
-     * ini "belum lengkap".
+     * Progres profil toko dianggap selesai ketika nomor stiker freezer (IDN / asset_id)
+     * sudah terisi. Nilai false memicu badge "Belum Lengkap" kuning di layar
+     * Lengkapi Data Toko dan memperhitungkan progres sales di tab Progres.
      */
     protected function profilLengkap(): Attribute
     {
-        return Attribute::get(fn (): bool => collect([
-            $this->nama_pemilik, $this->nik_pemilik, $this->alamat,
-            $this->asset_id, $this->telepon,
-        ])->every(fn ($v) => $v !== null && $v !== ''));
+        return Attribute::get(fn (): bool => filled($this->asset_id));
     }
 
     protected function alamatLengkap(): Attribute
@@ -187,6 +179,29 @@ class Toko extends Model
         return Attribute::get(fn (): string => collect([
             $this->alamat, $this->kelurahan, $this->kecamatan, $this->kota, $this->provinsi, $this->kode_pos,
         ])->filter()->implode(', '));
+    }
+
+    /**
+     * Nomor urut berikutnya untuk kode toko. Karena nomornya diisi nol di
+     * depan, urutan abjad sama dengan urutan angka, jadi cukup ambil yang
+     * terbesar lalu potong awalannya — tanpa fungsi SQL yang khas satu mesin
+     * basis data saja.
+     *
+     * Tinggal di model, bukan di layar Master Toko, karena toko juga lahir
+     * dari persetujuan NOO (App\Services\Noo\NooService::setujui()) dan
+     * keduanya HARUS memakai deret yang sama — bukan dua deret yang
+     * kebetulan mirip lalu bentrok di batasan unik.
+     */
+    public static function kodeBerikutnya(): string
+    {
+        $terakhir = static::query()
+            ->where('kode', 'like', 'TK-%')
+            ->orderByDesc('kode')
+            ->value('kode');
+
+        $nomor = $terakhir === null ? 0 : (int) substr($terakhir, 3);
+
+        return sprintf('TK-%04d', $nomor + 1);
     }
 
     #[Scope]

@@ -107,13 +107,22 @@
                         <tr class="hover:bg-gray-50">
                             @if (auth()->user()->isAdmin())
                                 <td class="px-4 py-2">
-                                    @if ($p->status === \App\Enums\StatusPesanan::Order)
+                                    {{-- Pesanan perdana NOO tidak punya ceklis: ia
+                                         sengaja hanya bisa disetujui satu per satu,
+                                         lihat DaftarPesanan::idBisaDisetujui(). --}}
+                                    @if ($p->status === \App\Enums\StatusPesanan::Order && $p->noo_id === null)
                                         <input type="checkbox" wire:model.live="terpilih" value="{{ $p->id }}"
                                                class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     @endif
                                 </td>
                             @endif
-                            <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">{{ $p->kode }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 font-medium text-gray-900">
+                                {{ $p->kode }}
+                                @if ($p->noo_id)
+                                    <span class="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800"
+                                          title="{{ __('noo.ket_badge_pesanan') }}">{{ __('noo.label_noo') }}</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2">
                                 <span class="block font-medium text-gray-900">{{ $p->toko->nama }}</span>
                                 <span class="block text-xs text-gray-500">

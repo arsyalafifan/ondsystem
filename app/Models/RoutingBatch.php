@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\JenisRouting;
 use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'kode', 'tanggal', 'status', 'total_kendaraan', 'total_toko', 'total_dus',
+    'kode', 'jenis', 'tanggal', 'status', 'total_kendaraan', 'total_toko', 'total_dus',
     'total_jarak_m', 'total_durasi_s', 'max_toko', 'max_dus', 'sumber_jarak',
     'dibuat_oleh', 'disetujui_oleh', 'disetujui_at',
 ])]
@@ -25,6 +26,7 @@ class RoutingBatch extends Model
     protected function casts(): array
     {
         return [
+            'jenis' => JenisRouting::class,
             'tanggal' => 'date',
             'disetujui_at' => 'datetime',
         ];
@@ -74,5 +76,25 @@ class RoutingBatch extends Model
     protected function disetujui(Builder $query): void
     {
         $query->where('status', 'disetujui');
+    }
+
+    /**
+     * Rute pengantaran dus es krim — antrean routing yang lama.
+     *
+     * Dipakai SETIAP layar routing reguler: tanpa ini, batch pengantaran
+     * freezer NOO akan ikut muncul di sana dan dihitung sebagai rute yang
+     * kelewat dirutekan.
+     */
+    #[Scope]
+    protected function reguler(Builder $query): void
+    {
+        $query->where('jenis', JenisRouting::Reguler);
+    }
+
+    /** Rute pengantaran freezer untuk calon mitra baru. */
+    #[Scope]
+    protected function noo(Builder $query): void
+    {
+        $query->where('jenis', JenisRouting::Noo);
     }
 }

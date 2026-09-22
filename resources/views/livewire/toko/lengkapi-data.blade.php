@@ -134,21 +134,21 @@
                 <x-kartu :judul="__('toko.langkah_data')">
                     <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                         <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600">{{ __('master.atr_nama_pemilik') }}</label>
+                            <label class="block text-xs font-medium text-gray-600">{{ __('master.atr_nama_pemilik') }} <span class="font-normal text-gray-400">({{ __('umum.opsional') }})</span></label>
                             <input type="text" wire:model="namaPemilik"
                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             @error('namaPemilik') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-gray-600">{{ __('master.nik_pemilik') }}</label>
+                            <label class="block text-xs font-medium text-gray-600">{{ __('master.nik_pemilik') }} <span class="font-normal text-gray-400">({{ __('umum.opsional') }})</span></label>
                             <input type="text" inputmode="numeric" maxlength="16" wire:model="nikPemilik"
                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                             @error('nikPemilik') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-gray-600">{{ __('master.asset_id') }}</label>
+                            <label class="block text-xs font-medium text-gray-600">{{ __('master.asset_id') }} (IDN) <span class="text-red-500">*</span></label>
                             <input type="text" wire:model="assetId"
                                    placeholder="{{ __('master.asset_id_ket') }}"
                                    class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">

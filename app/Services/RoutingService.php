@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\JenisRouting;
+use App\Enums\StatusNoo;
 use App\Enums\StatusPesanan;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
+use App\Models\Noo;
 use App\Models\Pesanan;
 use App\Models\RoutingBatch;
 use App\Models\User;
@@ -83,7 +86,7 @@ class RoutingService
         }
 
         $titik = $layak->map(fn (Pesanan $p) => new TitikPengiriman(
-            pesananId: $p->id,
+            rujukanId: $p->id,
             tokoId: $p->toko_id,
             wilayahId: $p->wilayah_id,
             namaToko: $p->toko->nama,
@@ -101,14 +104,76 @@ class RoutingService
             ]);
         }
 
-        return $this->simpan($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan);
+        return $this->simpan($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan, JenisRouting::Reguler);
     }
 
-    private function simpan(HasilRouting $hasil, User $admin, int $maxToko, int $maxDus, CarbonImmutable $tanggalKeberangkatan): RoutingBatch
+    /**
+     * NOO yang sudah disetujui dan belum masuk rute pengantaran freezer.
+     *
+     * @return Collection<int, Noo>
+     */
+    public function nooSiapRouting(): Collection
     {
-        return DB::transaction(function () use ($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan): RoutingBatch {
+        return Noo::query()
+            ->where('status', StatusNoo::Process)
+            ->whereDoesntHave('stop')
+            ->with('toko:id,kode,nama,alamat,latitude,longitude,wilayah_id')
+            ->orderBy('disetujui_at')
+            ->get();
+    }
+
+    /**
+     * Menyusun rute pengantaran FREEZER untuk calon mitra yang baru disetujui.
+     *
+     * Mesin dan cara menyimpannya sama persis dengan rute pesanan — yang
+     * berbeda cuma muatannya. Satu NOO = satu unit freezer, jadi `dus`-nya
+     * selalu 1 dan yang membatasi isi mobil adalah berapa unit freezer yang
+     * muat, bukan berapa dus (lihat config `ond.noo.maks_freezer_per_mobil`).
+     *
+     * Koordinat diambil dari NOO-nya, bukan dari tokonya: keduanya memang
+     * sama saat ini (toko dibuat dari data NOO), tapi titik NOO-lah yang
+     * disurvei sales sambil berdiri di depan tokonya.
+     *
+     * @throws RuntimeException bila tidak ada NOO yang siap dirutekan
+     */
+    public function generateNoo(User $admin, ?CarbonImmutable $tanggalKeberangkatan = null): RoutingBatch
+    {
+        $tanggalKeberangkatan ??= CarbonImmutable::today();
+        $maks = (int) config('ond.noo.maks_freezer_per_mobil');
+
+        $noos = $this->nooSiapRouting();
+
+        if ($noos->isEmpty()) {
+            throw new RuntimeException(__('noo.galat_tidak_ada_siap_routing'));
+        }
+
+        $titik = $noos->map(fn (Noo $noo) => new TitikPengiriman(
+            rujukanId: $noo->id,
+            tokoId: (int) $noo->toko_id,
+            wilayahId: (int) $noo->wilayah_id,
+            namaToko: $noo->nama,
+            alamat: $noo->alamat,
+            dus: 1,
+            koordinat: $noo->koordinat,
+        ))->all();
+
+        $hasil = $this->mesin->susun($titik, $this->depot(), $maks, $maks, pisahPerWilayah: true);
+
+        return $this->simpan($hasil, $admin, $maks, $maks, $tanggalKeberangkatan, JenisRouting::Noo);
+    }
+
+    private function simpan(
+        HasilRouting $hasil,
+        User $admin,
+        int $maxToko,
+        int $maxDus,
+        CarbonImmutable $tanggalKeberangkatan,
+        JenisRouting $jenis,
+    ): RoutingBatch {
+        return DB::transaction(function () use ($hasil, $admin, $maxToko, $maxDus, $tanggalKeberangkatan, $jenis): RoutingBatch {
             $batch = RoutingBatch::create([
                 'kode' => $this->kodeBatch(),
+                'jenis' => $jenis,
                 'tanggal' => $tanggalKeberangkatan,
                 'status' => 'draft',
                 'total_kendaraan' => count($hasil->rute),
@@ -128,7 +193,7 @@ class RoutingService
             foreach ($hasil->rute as $i => $rute) {
                 $kendaraan = $this->simpanKendaraan($batch, $rute, $i + 1, $warna, $jamBerangkat, $tanggalKeberangkatan);
 
-                $this->simpanStops($kendaraan, $rute, $jamBerangkat);
+                $this->simpanStops($kendaraan, $rute, $jamBerangkat, $jenis);
             }
 
             // Relasi dimuat selengkapnya di sini supaya pemanggil bisa
@@ -169,8 +234,10 @@ class RoutingService
         ]);
     }
 
-    private function simpanStops(Kendaraan $kendaraan, RuteKendaraan $rute, CarbonImmutable $jamBerangkat): void
+    private function simpanStops(Kendaraan $kendaraan, RuteKendaraan $rute, CarbonImmutable $jamBerangkat, JenisRouting $jenis): void
     {
+        $noo = $jenis === JenisRouting::Noo;
+
         $waktu = $jamBerangkat;
         $bongkarMenit = DepotContext::currentOrFail()->service_minutes;
 
@@ -181,7 +248,11 @@ class RoutingService
             $waktu = $waktu->addSeconds((int) round($leg['durasi_s']));
 
             $kendaraan->stops()->create([
-                'pesanan_id' => $titik->pesananId,
+                // Satu dari keduanya SELALU kosong: stop freezer belum punya
+                // pesanan apa pun, dan stop reguler tidak berasal dari NOO.
+                'pesanan_id' => $noo ? null : $titik->rujukanId,
+                'noo_id' => $noo ? $titik->rujukanId : null,
+                'jenis' => $noo ? 'noo' : 'rute',
                 'toko_id' => $titik->tokoId,
                 'urutan' => $i + 1,
                 'total_dus' => $titik->dus,
@@ -207,15 +278,20 @@ class RoutingService
         }
 
         DB::transaction(function () use ($batch, $admin): void {
-            $pesananIds = KendaraanStop::query()
-                ->whereIn('kendaraan_id', $batch->kendaraans()->select('id'))
-                ->pluck('pesanan_id');
+            $stops = KendaraanStop::query()->whereIn('kendaraan_id', $batch->kendaraans()->select('id'));
 
-            Pesanan::whereIn('id', $pesananIds)->update([
-                'status' => StatusPesanan::Delivery->value,
-                'dikirim_at' => now(),
-                'updated_at' => now(),
-            ]);
+            if ($batch->jenis === JenisRouting::Noo) {
+                Noo::whereIn('id', (clone $stops)->pluck('noo_id'))->update([
+                    'status' => StatusNoo::Delivery->value,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                Pesanan::whereIn('id', (clone $stops)->pluck('pesanan_id'))->update([
+                    'status' => StatusPesanan::Delivery->value,
+                    'dikirim_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             // Muatan saat berangkat disalin ke target_dus dan tidak pernah
             // berubah lagi. Ia menjadi penyebut persentase pengiriman, supaya
@@ -351,7 +427,7 @@ class RoutingService
         }
 
         $titik = $stops->map(fn (KendaraanStop $s) => new TitikPengiriman(
-            pesananId: $s->pesanan_id,
+            rujukanId: $s->id,
             tokoId: $s->toko_id,
             wilayahId: (int) $kendaraan->wilayah_id,
             namaToko: '',
@@ -374,11 +450,14 @@ class RoutingService
             return;
         }
 
-        $urutanPesanan = array_map(fn (TitikPengiriman $t) => $t->pesananId, $hasil->rute[0]->titik);
+        // Dikunci pada id STOP, bukan id pesanan: stop pengantaran freezer
+        // sama sekali tidak punya pesanan, dan mencocokkan lewat kolom yang
+        // kosong akan mengenai semua barisnya sekaligus.
+        $urutanStop = array_map(fn (TitikPengiriman $t) => $t->rujukanId, $hasil->rute[0]->titik);
 
-        DB::transaction(function () use ($kendaraan, $urutanPesanan): void {
-            foreach ($urutanPesanan as $i => $pesananId) {
-                $kendaraan->stops()->where('pesanan_id', $pesananId)->update(['urutan' => $i + 1]);
+        DB::transaction(function () use ($kendaraan, $urutanStop): void {
+            foreach ($urutanStop as $i => $stopId) {
+                $kendaraan->stops()->whereKey($stopId)->update(['urutan' => $i + 1]);
             }
 
             $this->hitungUlang($kendaraan->fresh());

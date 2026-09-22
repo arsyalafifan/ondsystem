@@ -219,18 +219,36 @@ it('menolak simpan tanpa memilih toko', function () {
         ->assertHasErrors('tokoId');
 });
 
-it('menolak simpan kalau salah satu field wajib kosong', function () {
+it('menolak simpan kalau nomor aset freezer (IDN) kosong', function () {
     $toko = buatTokoLengkapi();
     tugaskanKeSales($toko, $this->sales);
 
     Livewire::actingAs($this->sales)
         ->test(LengkapiData::class)
         ->call('pilihToko', $toko->id)
-        ->set(dataProfilValid(['namaPemilik' => '']))
+        ->set(dataProfilValid(['assetId' => '']))
         ->call('simpan')
-        ->assertHasErrors('namaPemilik');
+        ->assertHasErrors('assetId');
 
-    expect($toko->fresh()->nama_pemilik)->toBeNull();
+    expect($toko->fresh()->asset_id)->toBeNull();
+});
+
+it('mengizinkan simpan walau nama pemilik dan NIK dikosongkan, asalkan nomor freezer (IDN) terisi', function () {
+    $toko = buatTokoLengkapi();
+    tugaskanKeSales($toko, $this->sales);
+
+    Livewire::actingAs($this->sales)
+        ->test(LengkapiData::class)
+        ->call('pilihToko', $toko->id)
+        ->set(dataProfilValid(['namaPemilik' => '', 'nikPemilik' => '']))
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    $segar = $toko->fresh();
+    expect($segar->nama_pemilik)->toBeNull()
+        ->and($segar->nik_pemilik)->toBeNull()
+        ->and($segar->asset_id)->not->toBeNull()
+        ->and($segar->profil_lengkap)->toBeTrue();
 });
 
 it('menolak NIK yang bukan 16 digit angka', function () {

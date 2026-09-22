@@ -34,7 +34,7 @@ function mesin(): MesinRouting
 function titikDari(array $spesifikasi): array
 {
     return array_map(fn (array $s, int $i) => new TitikPengiriman(
-        pesananId: $i + 1,
+        rujukanId: $i + 1,
         tokoId: $i + 1,
         wilayahId: $s['wilayah'] ?? 1,
         namaToko: 'Toko '.($i + 1),
@@ -67,7 +67,7 @@ it('memasukkan setiap pesanan tepat satu kali ke dalam rute', function () {
     $hasil = mesin()->susun($titik, depot(), maxToko: 25, maxDus: 220);
 
     $pesananIds = collect($hasil->rute)
-        ->flatMap(fn (RuteKendaraan $r) => array_map(fn (TitikPengiriman $t) => $t->pesananId, $r->titik));
+        ->flatMap(fn (RuteKendaraan $r) => array_map(fn (TitikPengiriman $t) => $t->rujukanId, $r->titik));
 
     expect($pesananIds)->toHaveCount(60)
         ->and($pesananIds->unique())->toHaveCount(60)

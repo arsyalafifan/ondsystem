@@ -24,6 +24,7 @@ return [
     'hak_akses' => 'Access Management',
     'master' => 'Master Data',
     'master_toko' => 'Stores',
+    'master_freezer' => 'Freezers',
     'master_produk' => 'Products',
     'master_wilayah' => 'Regions',
     'master_promo' => 'Promos',
@@ -55,4 +56,9 @@ return [
     'hr_setting_approval_izin' => 'Leave & Overtime Settings',
     'hr_ajukan_lembur' => 'Request Overtime',
     'hr_persetujuan_lembur' => 'Overtime Approval',
+    'noo' => 'NOO',
+    'noo_daftar' => 'NOO Submissions',
+    'noo_persetujuan' => 'NOO Approval',
+    'noo_routing' => 'Freezer Routing',
+    'noo_paket' => 'NOO Default Order',
 ];

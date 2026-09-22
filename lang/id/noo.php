@@ -1,0 +1,181 @@
+<?php
+
+/**
+ * NOO (New Open Outlet) — pengembangan pelanggan baru, dari sales mendata
+ * calon toko sampai freezernya terpasang dan pesanan perdananya terbentuk.
+ */
+return [
+
+    // --- Setting Default Pesanan NOO ---
+    'judul_paket' => 'Setting Default Pesanan NOO',
+    'ket_paket' => 'Paket penjualan perdana untuk mitra baru. Sales memilih salah satunya saat mendaftarkan toko, dan isinya otomatis jadi pesanan pertama toko itu begitu freezernya selesai diantar.',
+    'paket_baru' => 'Paket Baru',
+    'paket_kosong' => 'Belum ada paket',
+    'judul_paket_baru' => 'Paket NOO Baru',
+    'judul_paket_sunting' => 'Sunting Paket NOO',
+    'judul_hapus_paket' => 'Hapus Paket',
+    'ket_hapus_paket' => 'Paket ini tidak akan lagi bisa dipilih sales.',
+
+    'atr_nama_paket' => 'Nama paket',
+    'nama_paket_contoh' => 'mis. 15+2',
+    'atr_dus_reguler' => 'Dus reguler',
+    'atr_dus_bonus' => 'Dus bonus',
+    'atr_paket_aktif' => 'Paket aktif — bisa dipilih sales',
+    'atr_produk' => 'produk',
+    'atr_jumlah_dus' => 'jumlah dus',
+
+    'isi_paket' => 'Isi paket',
+    'isi_paket_kosong' => 'Produk belum dipilih',
+    'bonus' => 'bonus',
+    'belum_lengkap' => 'Belum lengkap',
+    'ket_belum_lengkap' => 'Jumlah dus produknya belum genap sesuai paket, jadi belum bisa dipilih sales.',
+    'judul_item_reguler' => 'Produk dus reguler',
+    'judul_item_bonus' => 'Produk dus bonus',
+    'hitungan_dus' => ':terpilih / :target dus',
+    'pilih_produk' => 'Pilih produk',
+    'tambah_produk' => 'Tambah produk',
+
+    'paket_tersimpan' => 'Paket tersimpan.',
+    'paket_dihapus' => 'Paket dihapus.',
+
+    'galat_nama_paket_dipakai' => 'Nama paket ini sudah dipakai.',
+    'galat_produk_dobel' => 'Produk yang sama tidak boleh dipilih dua kali.',
+    'galat_item_kosong' => 'Pilih dulu produk yang mengisi paket ini.',
+    'galat_dus_reguler_tidak_cocok' => 'Jumlah dus produk reguler (:terpilih) harus pas :target dus.',
+    'galat_dus_bonus_tidak_cocok' => 'Jumlah dus produk bonus (:terpilih) harus pas :target dus.',
+
+    // --- Pendataan calon mitra ---
+    'judul' => 'NOO — Pengembangan Pelanggan Baru',
+    'ket' => 'Pendataan calon toko mitra baru. Setelah disetujui admin, freezernya dirutekan dan diantar driver; pesanan perdananya terbentuk otomatis begitu pengantaran selesai.',
+    'noo_baru' => 'NOO Baru',
+    'cari_placeholder' => 'Cari kode, nama toko, atau nama pemilik...',
+    'semua_status' => 'Semua status',
+    'kolom_kode' => 'Kode',
+    'kolom_pengaju' => 'Diajukan oleh',
+    'kosong' => 'Belum ada pengajuan NOO',
+    'ket_kosong' => 'Pengajuan yang dibuat akan muncul di sini.',
+
+    'judul_noo_baru' => 'Pengajuan NOO Baru',
+    'judul_data_toko' => 'Data toko',
+    'judul_data_pemilik' => 'Data pemilik',
+    'judul_paket_dipilih' => 'Paket & freezer',
+    'judul_titik_lokasi' => 'Titik lokasi toko',
+    'judul_foto_wajib' => 'Foto wajib',
+    'judul_detail' => 'Rincian NOO :kode',
+    'judul_bukti' => 'Bukti foto',
+
+    'atr_nama_toko' => 'Nama toko',
+    'atr_paket' => 'Paket',
+    'atr_freezer_tipe' => 'Tipe freezer',
+    'freezer_tipe_contoh' => 'opsional, mis. 6 kaki',
+    'ringkas_paket' => ':reguler dus + :bonus bonus',
+    'belum_ada_paket_tersedia' => 'Belum ada paket yang siap dipakai. Minta admin melengkapi produk paketnya di Setting Default Pesanan NOO.',
+    'ket_titik_lokasi' => 'Tekan "Lokasi Saya" saat sedang berdiri di depan tokonya, atau geser penanda di peta.',
+    'titik_belum_dipilih' => 'Titik lokasi belum dipilih',
+    'ket_foto_wajib' => 'Ambil langsung dari kamera, atau unggah dari galeri kalau kameranya bermasalah.',
+    'ambil_foto' => 'Ambil Foto',
+    'ambil_ulang' => 'Ambil Ulang',
+    'tombol_ajukan' => 'Ajukan',
+    'toko_terbentuk' => 'Toko yang terbentuk',
+    'alasan_tolak' => 'Alasan ditolak',
+    'notif_diajukan' => 'Pengajuan :kode tersimpan dan menunggu persetujuan admin.',
+
+    // --- Status ---
+    'status_order' => 'Order',
+    'ket_status_order' => 'Menunggu persetujuan admin.',
+    'status_process' => 'Process',
+    'ket_status_process' => 'Disetujui — menunggu freezernya dirutekan.',
+    'status_delivery' => 'Delivery',
+    'ket_status_delivery' => 'Freezer sedang dalam perjalanan ke toko.',
+    'status_selesai' => 'Selesai',
+    'ket_status_selesai' => 'Freezer terpasang dan tokonya sudah aktif.',
+    'status_ditolak' => 'Ditolak',
+    'ket_status_ditolak' => 'Calon tidak disetujui admin.',
+
+    // --- Bukti foto ---
+    'bukti_ktp_pemilik' => 'KTP Pemilik',
+    'bukti_kartu_keluarga' => 'Kartu Keluarga',
+    'bukti_tampak_depan_sales' => 'Tampak Depan Toko',
+    'bukti_tampak_depan_driver' => 'Tampak Depan Toko',
+    'bukti_surat_perjanjian' => 'Serah Terima Surat Perjanjian',
+    'bukti_qr_code' => 'QR Code Freezer',
+    'bukti_posisi_freezer' => 'Posisi Freezer di Toko',
+    'bukti_spanduk' => 'Spanduk',
+    'bukti_flag_hanger' => 'Flag Hanger',
+
+    'petunjuk_bukti_ktp_pemilik' => 'Foto KTP pemilik toko — pastikan NIK dan namanya terbaca jelas.',
+    'petunjuk_bukti_kartu_keluarga' => 'Foto kartu keluarga pemilik toko.',
+    'petunjuk_bukti_tampak_depan_sales' => 'Foto bagian depan toko dari luar, papan namanya terlihat.',
+    'petunjuk_bukti_tampak_depan_driver' => 'Foto bagian depan toko dari luar setelah freezer terpasang.',
+    'petunjuk_bukti_surat_perjanjian' => 'Foto driver bersama pemilik toko yang sedang memegang surat perjanjian.',
+    'petunjuk_bukti_qr_code' => 'Foto QR code yang tertempel di freezer.',
+    'petunjuk_bukti_posisi_freezer' => 'Foto freezer pada posisi akhirnya di dalam toko.',
+    'petunjuk_bukti_spanduk' => 'Foto spanduk yang sudah terpasang.',
+    'petunjuk_bukti_flag_hanger' => 'Foto flag hanger yang sudah terpasang.',
+
+    // --- Galat ---
+    'galat_koordinat_wajib' => 'Titik lokasi toko wajib dipilih.',
+    'galat_paket_tidak_tersedia' => 'Paket yang dipilih tidak tersedia.',
+    'galat_bukti_belum_lengkap' => 'Lengkapi dulu seluruh foto wajibnya.',
+    'galat_bukan_order' => 'NOO :kode sudah tidak berstatus Order lagi.',
+    'galat_alasan_tolak_wajib' => 'Alasan penolakan wajib diisi.',
+
+    // --- Persetujuan admin ---
+    'judul_persetujuan' => 'Persetujuan NOO',
+    'ket_persetujuan' => 'Pengajuan calon mitra baru yang menunggu keputusan. Menyetujui berarti tokonya dibuat di Master Toko — masih nonaktif sampai freezernya terpasang.',
+    'periksa' => 'Periksa',
+    'antrean_kosong' => 'Tidak ada yang menunggu persetujuan',
+    'ket_antrean_kosong' => 'Pengajuan baru dari sales akan muncul di sini.',
+    'judul_periksa' => 'Periksa NOO :kode',
+    'ket_koreksi_admin' => 'Data di bawah boleh dikoreksi sebelum disetujui. Setiap perubahan dicatat beserta siapa dan kapan.',
+    'alasan_tolak_contoh' => 'Misalnya: lokasi terlalu dekat dengan mitra lama, atau data pemiliknya tidak sesuai.',
+
+    'peringatan_jarak_judul' => 'Terlalu dekat dengan toko aktif',
+    'peringatan_jarak' => 'Titik ini hanya :jarak m dari :toko (:kode) yang sudah aktif.',
+    'ket_peringatan_jarak' => 'Ini peringatan, bukan larangan. Kalau memang dua toko berbeda yang kebetulan bersebelahan, lanjutkan saja.',
+
+    'tombol_tolak' => 'Tolak',
+    'tombol_simpan_perubahan' => 'Simpan Perubahan',
+    'tombol_setujui' => 'Setujui',
+    'tombol_tetap_setujui' => 'Tetap Setujui',
+
+    'notif_perubahan_disimpan' => 'Perubahan tersimpan.',
+    'notif_disetujui' => 'NOO :kode disetujui. Toko :toko dibuat dan menunggu pemasangan freezer.',
+    'notif_ditolak' => 'NOO :kode ditolak.',
+
+    // --- Routing freezer ---
+    'judul_routing' => 'Routing Freezer NOO',
+    'ket_routing' => 'Menyusun rute pengantaran freezer untuk calon mitra yang sudah disetujui. Terpisah dari routing pesanan karena muatannya unit freezer, bukan dus.',
+    'menunggu_rute' => ':jumlah calon menunggu dirutekan',
+    'ket_menunggu_rute' => 'NOO yang sudah disetujui admin dan belum masuk rute mana pun.',
+    'tombol_susun_rute' => 'Susun Rute',
+    'tidak_ada_siap_rute' => 'Tidak ada yang menunggu dirutekan',
+    'ket_tidak_ada_siap_rute' => 'Calon yang baru disetujui akan muncul di sini.',
+    'ringkas_rute' => ':mobil mobil · :freezer freezer',
+    'ringkas_mobil' => ':freezer freezer · :km km',
+    'tombol_setujui_rute' => 'Setujui Rute',
+    'rute_sudah_disetujui' => 'Sudah disetujui',
+    'ket_hapus_draft_rute' => 'Draf rutenya dibuang dan seluruh calon di dalamnya kembali menunggu untuk dirutekan ulang.',
+    'notif_rute_dibuat' => 'Rute :kode tersusun. Tentukan drivernya, lalu setujui.',
+    'notif_rute_disetujui' => 'Rute :kode disetujui. Freezer siap diantar.',
+    'notif_rute_dihapus' => 'Draf rute dibuang.',
+    'galat_tidak_ada_siap_routing' => 'Belum ada calon mitra yang siap dirutekan.',
+
+    // --- Pemasangan freezer oleh driver ---
+    'label_noo' => 'NOO',
+    'satu_freezer' => '1 freezer',
+    'tombol_pasang_freezer' => 'Pasang Freezer',
+    'judul_pasang' => 'Pemasangan Freezer — :toko',
+    'ket_pasang' => 'Tuliskan nomor freezer (IDN) yang tertempel, lengkapi data toko yang masih kosong, lalu foto keenam bukti pemasangannya.',
+    'atr_idn' => 'IDN / nomor freezer',
+    'idn_contoh' => 'mis. IDNAH2025280001',
+    'judul_lengkapi_alamat' => 'Lengkapi data toko',
+    'ket_lengkapi_alamat' => 'Isi yang masih kosong saja — boleh dilewati kalau memang tidak diketahui.',
+    'judul_bukti_pemasangan' => 'Bukti pemasangan',
+    'tombol_selesaikan_pasang' => 'Selesaikan Pemasangan',
+    'notif_terpasang' => 'Freezer :kode terpasang. Tokonya sudah aktif dan pesanan perdananya dibuat.',
+    'catatan_pesanan_perdana' => 'Pesanan perdana dari :kode',
+    'galat_bukan_delivery' => 'NOO :kode belum berstatus Delivery.',
+
+    'ket_badge_pesanan' => 'Pesanan perdana dari NOO — harus disetujui satu per satu, tidak ikut persetujuan massal.',
+];

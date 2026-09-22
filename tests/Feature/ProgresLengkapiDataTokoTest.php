@@ -213,3 +213,63 @@ it('tidak menghitung sales atau toko dari depot lain', function () {
 
     expect($progres->pluck('sales.name'))->not->toContain('Sales Depot Lain');
 });
+
+describe('progres otomatis selesai jika IDN terisi', function () {
+    it('toko yang memiliki nomor freezer (IDN) otomatis dianggap lengkap walau nama pemilik dan NIK kosong', function () {
+        $toko = Toko::create([
+            'kode' => 'TK-HANYA-IDN',
+            'nama' => 'Toko Hanya Punya IDN',
+            'wilayah_id' => $this->wilayah->id,
+            'alamat' => 'Jl. Tanpa Pemilik',
+            'latitude' => -6.2,
+            'longitude' => 106.8,
+            'sumber_koordinat' => 'manual',
+            'nama_pemilik' => null,
+            'nik_pemilik' => null,
+            'asset_id' => 'IDNAH202528009999',
+        ]);
+
+        tugaskanProgres($toko, $this->sales);
+
+        expect($toko->profil_lengkap)->toBeTrue();
+
+        $baris = Livewire::actingAs($this->sales)
+            ->test(LengkapiData::class)
+            ->instance()->progres
+            ->firstWhere('sales.id', $this->sales->id);
+
+        expect($baris['total'])->toBe(1)
+            ->and($baris['lengkap'])->toBe(1)
+            ->and($baris['persen'])->toBe(100);
+    });
+
+    it('toko tanpa nomor freezer (IDN) dianggap belum lengkap walau nama pemilik dan NIK terisi', function () {
+        $toko = Toko::create([
+            'kode' => 'TK-TANPA-IDN',
+            'nama' => 'Toko Tanpa IDN',
+            'wilayah_id' => $this->wilayah->id,
+            'alamat' => 'Jl. Ada Pemilik',
+            'latitude' => -6.2,
+            'longitude' => 106.8,
+            'sumber_koordinat' => 'manual',
+            'nama_pemilik' => 'Pak Budi',
+            'nik_pemilik' => '1234567890123456',
+            'telepon' => '081234567899',
+            'asset_id' => null,
+        ]);
+
+        tugaskanProgres($toko, $this->sales);
+
+        expect($toko->profil_lengkap)->toBeFalse();
+
+        $baris = Livewire::actingAs($this->sales)
+            ->test(LengkapiData::class)
+            ->instance()->progres
+            ->firstWhere('sales.id', $this->sales->id);
+
+        expect($baris['total'])->toBe(1)
+            ->and($baris['lengkap'])->toBe(0)
+            ->and($baris['persen'])->toBe(0);
+    });
+});
+

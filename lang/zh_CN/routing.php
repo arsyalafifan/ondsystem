@@ -94,4 +94,6 @@ return [
     'galat_tanggal_sudah_jalan' => ':mobil 已经在现场开始配送，发车日期无法再更改。',
     'galat_bukan_driver' => ':nama 不是司机角色的账号。',
     'galat_driver_sedang_bertugas' => ':nama 已在同一天（:tanggal）驾驶另一辆车。',
+    'jenis_reguler' => '订单',
+    'jenis_noo' => 'NOO 冰柜',
 ];

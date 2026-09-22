@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Driver;
 
+use App\Enums\JenisBuktiNoo;
 use App\Enums\JenisBuktiPengiriman;
 use App\Enums\StatusStop;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
@@ -9,6 +10,7 @@ use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Toko;
 use App\Services\Kunjungan\PenguraiQr;
+use App\Services\Noo\NooService;
 use App\Services\Pengiriman\BuktiPengirimanService;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
@@ -17,6 +19,7 @@ use App\Support\DepotContext;
 use App\Support\KmlRuteBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -102,6 +105,26 @@ class DaftarKunjungan extends Component
     /** Nama penanggung jawab toko yang menandatangani — wajib diisi bersama tanda tangan. */
     public string $namaPenandatanganToko = '';
 
+    // --- Pemasangan freezer NOO (lihat bukaKonfirmasiNoo()) ---
+    public ?int $stopNooKonfirmasi = null;
+
+    public string $assetIdNoo = '';
+
+    public string $freezerTipeNoo = '';
+
+    public string $kelurahanNoo = '';
+
+    public string $kecamatanNoo = '';
+
+    public string $kotaNoo = '';
+
+    public string $provinsiNoo = '';
+
+    public string $kodePosNoo = '';
+
+    /** @var array<string, ?string> */
+    public array $buktiNoo = [];
+
     // --- Kampas ---
     public bool $kampasTerbuka = false;
 
@@ -185,6 +208,10 @@ class DaftarKunjungan extends Component
         return $this->kendaraan->stops()
             ->with(['toko:id,nama,kode,alamat,telepon,latitude,longitude', 'pesanan:id,kode,catatan,total_dus'])
             ->with('pesanan.items.produk:id,nama')
+            // Stop pengantaran freezer NOO tidak punya pesanan sama sekali;
+            // yang harus dibaca layar ini justru NOO-nya.
+            ->with('noo:id,kode,nama,nama_pemilik,telepon,alamat,freezer_tipe,paket_noo_id')
+            ->with('noo.paket:id,nama')
             ->orderBy('urutan')
             ->get();
     }
@@ -377,6 +404,13 @@ class DaftarKunjungan extends Component
     {
         $this->pastikanBisaBertindak();
 
+        // Pembatalan di lapangan mengembalikan dus dan membatalkan pesanan —
+        // dua-duanya tidak ada pada pengantaran freezer. Kalau memang urung,
+        // admin yang membuang rutenya, bukan driver dari sini.
+        if ($this->stopMilikMobil($stopId)->isNoo()) {
+            return;
+        }
+
         $this->stopDibatalkan = $stopId;
         $this->alasanBatal = '';
         $this->catatanBatal = '';
@@ -420,6 +454,15 @@ class DaftarKunjungan extends Component
         $this->pastikanBisaBertindak();
 
         $stop = $this->stopMilikMobil($stopId);
+
+        // Stop pemasangan freezer tidak punya pesanan apa pun — alurnya ada
+        // di bukaKonfirmasiNoo(). Dijaga di sini, bukan cuma disembunyikan
+        // di tampilan, supaya id yang dikirim langsung dari klien pun tidak
+        // bisa menyeretnya ke alur yang salah.
+        if ($stop->isNoo()) {
+            return;
+        }
+
         $stop->loadMissing('pesanan.items');
 
         $this->stopKonfirmasi = $stopId;
@@ -871,6 +914,139 @@ class DaftarKunjungan extends Component
         );
 
         $this->dispatch('peta-diperbarui', data: $this->dataPeta);
+    }
+
+    // ------------------------------------------------------------------
+    // Pemasangan freezer NOO
+    // ------------------------------------------------------------------
+
+    /**
+     * Menuntaskan stop NOO berbeda sama sekali dari stop pesanan: tidak ada
+     * dus yang diturunkan dan tidak ada nota yang dicoret. Yang dikerjakan
+     * driver adalah memasang freezer, menuliskan nomornya (IDN) ke sistem,
+     * melengkapi data toko yang belum terisi, lalu memotret enam bukti
+     * pemasangan.
+     */
+    public function bukaKonfirmasiNoo(int $stopId): void
+    {
+        $this->pastikanBisaBertindak();
+
+        $stop = $this->stopMilikMobil($stopId);
+
+        if (! $stop->isNoo()) {
+            return;
+        }
+
+        $toko = $stop->toko;
+
+        $this->stopNooKonfirmasi = $stopId;
+        $this->buktiNoo = [];
+        $this->assetIdNoo = (string) $toko->asset_id;
+        $this->freezerTipeNoo = (string) $toko->freezer_tipe;
+        $this->kelurahanNoo = (string) $toko->kelurahan;
+        $this->kecamatanNoo = (string) $toko->kecamatan;
+        $this->kotaNoo = (string) $toko->kota;
+        $this->provinsiNoo = (string) $toko->provinsi;
+        $this->kodePosNoo = (string) $toko->kode_pos;
+
+        $this->resetValidation();
+    }
+
+    public function tutupKonfirmasiNoo(): void
+    {
+        $this->reset([
+            'stopNooKonfirmasi', 'buktiNoo', 'assetIdNoo', 'freezerTipeNoo',
+            'kelurahanNoo', 'kecamatanNoo', 'kotaNoo', 'provinsiNoo', 'kodePosNoo',
+        ]);
+
+        $this->resetValidation();
+    }
+
+    public function terimaBuktiNoo(string $jenis, string $gambar): void
+    {
+        if (in_array(JenisBuktiNoo::tryFrom($jenis), JenisBuktiNoo::wajibDriver(), true)) {
+            $this->buktiNoo[$jenis] = $gambar;
+        }
+    }
+
+    public function hapusBuktiNoo(string $jenis): void
+    {
+        $this->buktiNoo[$jenis] = null;
+    }
+
+    /** Keenam bukti pemasangan sudah difoto. */
+    #[Computed]
+    public function semuaBuktiNooLengkap(): bool
+    {
+        foreach (JenisBuktiNoo::wajibDriver() as $jenis) {
+            if (empty($this->buktiNoo[$jenis->value])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function simpanKonfirmasiNoo(NooService $service): void
+    {
+        $this->pastikanBisaBertindak();
+
+        $stop = $this->stopMilikMobil((int) $this->stopNooKonfirmasi);
+        $noo = $stop->noo;
+
+        if ($noo === null) {
+            return;
+        }
+
+        $depotId = DepotContext::currentOrFail()->id;
+
+        $data = $this->validate([
+            // Nomor stiker freezer: unik per depot, sama seperti di Master
+            // Toko dan Lengkapi Data Toko — dan dirapikan dengan cara yang
+            // sama supaya tetap cocok dengan hasil pemindaian QR.
+            'assetIdNoo' => ['required', 'string', 'max:40',
+                Rule::unique('tokos', 'asset_id')->ignore($stop->toko_id)->where('depot_id', $depotId)],
+            'freezerTipeNoo' => 'nullable|string|max:40',
+            'kelurahanNoo' => 'nullable|string|max:255',
+            'kecamatanNoo' => 'nullable|string|max:255',
+            'kotaNoo' => 'nullable|string|max:255',
+            'provinsiNoo' => 'nullable|string|max:255',
+            'kodePosNoo' => 'nullable|string|max:10',
+        ], [
+            'assetIdNoo.unique' => __('toko.galat_freezer_dipakai'),
+        ], [
+            'assetIdNoo' => __('noo.atr_idn'),
+            'freezerTipeNoo' => __('noo.atr_freezer_tipe'),
+        ]);
+
+        if (! $this->semuaBuktiNooLengkap) {
+            $this->dispatch('notifikasi', pesan: __('noo.galat_bukti_belum_lengkap'), jenis: 'error');
+
+            return;
+        }
+
+        try {
+            $service->selesaikan($noo, [
+                'asset_id' => mb_strtoupper(preg_replace('/\s+/', '', $data['assetIdNoo'])),
+                'freezer_tipe' => $data['freezerTipeNoo'] ?: null,
+                'kelurahan' => $data['kelurahanNoo'] ?: null,
+                'kecamatan' => $data['kecamatanNoo'] ?: null,
+                'kota' => $data['kotaNoo'] ?: null,
+                'provinsi' => $data['provinsiNoo'] ?: null,
+                'kode_pos' => $data['kodePosNoo'] ?: null,
+            ], $this->buktiNoo, auth()->user());
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
+        $kode = $noo->kode;
+
+        $this->tutupKonfirmasiNoo();
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('noo.notif_terpasang', ['kode' => $kode]));
     }
 
     public function render()

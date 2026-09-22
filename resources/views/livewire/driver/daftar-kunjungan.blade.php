@@ -137,10 +137,17 @@
                     </a>
                 @endif
                 @unless ($this->melihatSebagaiAdmin)
-                    <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
-                            class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                        {{ __('driver.upload_nota') }}
-                    </button>
+                    @if ($this->berikutnya->isNoo())
+                        <button type="button" wire:click="bukaKonfirmasiNoo({{ $this->berikutnya->id }})"
+                                class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                            {{ __('noo.tombol_pasang_freezer') }}
+                        </button>
+                    @else
+                        <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
+                                class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                            {{ __('driver.upload_nota') }}
+                        </button>
+                    @endif
                 @endunless
             </div>
         </div>
@@ -180,6 +187,11 @@
                                     {{ __('pengiriman.label_kampas') }}
                                 </span>
                             @endif
+                            @if ($stop->isNoo())
+                                <span class="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800">
+                                    {{ __('noo.label_noo') }}
+                                </span>
+                            @endif
                             @if ($stop->pesanan?->kurang_kirim)
                                 <span class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-800">
                                     {{ __('pengiriman.kurang_kirim') }}
@@ -189,10 +201,18 @@
                         <p class="text-sm text-gray-600">{{ $stop->toko->alamat }}</p>
 
                         <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                            <span>
-                                <x-heroicon-o-cube class="size-4 inline" /> @angka($stop->total_dus_terkirim)/@angka($stop->total_dus) {{ __('umum.satuan_dus') }}
-                            </span>
-                            <span><x-heroicon-o-receipt-percent class="size-4 inline" /> {{ $stop->pesanan?->kode }}</span>
+                            @if ($stop->isNoo())
+                                <span><x-heroicon-o-sparkles class="size-4 inline" /> {{ $stop->noo?->kode }}</span>
+                                <span><x-heroicon-o-cube class="size-4 inline" /> {{ __('noo.satu_freezer') }}</span>
+                                @if ($stop->noo?->paket)
+                                    <span><x-heroicon-o-gift class="size-4 inline" /> {{ $stop->noo->paket->nama }}</span>
+                                @endif
+                            @else
+                                <span>
+                                    <x-heroicon-o-cube class="size-4 inline" /> @angka($stop->total_dus_terkirim)/@angka($stop->total_dus) {{ __('umum.satuan_dus') }}
+                                </span>
+                                <span><x-heroicon-o-receipt-percent class="size-4 inline" /> {{ $stop->pesanan?->kode }}</span>
+                            @endif
                             @if ($stop->eta && ! $stop->isKampas())
                                 <span><x-heroicon-o-clock class="size-4 inline" /> {{ __('routing.tiba', ['waktu' => substr((string) $stop->eta, 0, 5)]) }}</span>
                             @endif
@@ -207,6 +227,7 @@
                             </p>
                         @endif
 
+                        @unless ($stop->isNoo())
                         <details class="mt-2">
                             <summary class="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-900">
                                 {{ __('driver.rincian_barang') }}
@@ -224,6 +245,7 @@
                                 @endforeach
                             </ul>
                         </details>
+                        @endunless
 
                         @if ($batal)
                             <p class="mt-2 rounded bg-red-100 px-2 py-1 text-xs text-red-900">
@@ -252,13 +274,19 @@
                         @endif
 
                         @if ($stop->status === \App\Enums\StatusStop::Pending && ! $this->melihatSebagaiAdmin)
-                            <button type="button" wire:click="bukaKonfirmasi({{ $stop->id }})"
-                                    title="{{ __('driver.upload_nota') }}"
-                                    class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm text-white hover:bg-blue-700"><x-heroicon-o-camera class="size-4 inline" /></button>
+                            @if ($stop->isNoo())
+                                <button type="button" wire:click="bukaKonfirmasiNoo({{ $stop->id }})"
+                                        title="{{ __('noo.tombol_pasang_freezer') }}"
+                                        class="rounded-lg bg-violet-600 px-2.5 py-1.5 text-sm text-white hover:bg-violet-700"><x-heroicon-o-camera class="size-4 inline" /></button>
+                            @else
+                                <button type="button" wire:click="bukaKonfirmasi({{ $stop->id }})"
+                                        title="{{ __('driver.upload_nota') }}"
+                                        class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm text-white hover:bg-blue-700"><x-heroicon-o-camera class="size-4 inline" /></button>
 
-                            <button type="button" wire:click="bukaBatal({{ $stop->id }})"
-                                    title="{{ __('pengiriman.aksi_batalkan') }}"
-                                    class="rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-50"><x-heroicon-o-x-mark class="size-4 inline" /></button>
+                                <button type="button" wire:click="bukaBatal({{ $stop->id }})"
+                                        title="{{ __('pengiriman.aksi_batalkan') }}"
+                                        class="rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-50"><x-heroicon-o-x-mark class="size-4 inline" /></button>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -509,6 +537,91 @@
                         class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
                     <span wire:loading.remove wire:target="simpanKonfirmasi">{{ __('driver.simpan_selesaikan') }}</span>
                     <span wire:loading wire:target="simpanKonfirmasi">{{ __('umum.menyimpan') }}</span>
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
+    {{-- ============ Pemasangan freezer NOO ============ --}}
+    @if ($stopNooKonfirmasi)
+        @php $stopNoo = $this->stops->firstWhere('id', $stopNooKonfirmasi); @endphp
+        <x-modal :judul="__('noo.judul_pasang', ['toko' => $stopNoo?->toko->nama])" tutup="tutupKonfirmasiNoo" lebar="max-w-2xl">
+            <div class="space-y-4 p-5">
+                <p class="rounded-lg bg-violet-50 p-3 text-sm text-violet-900">{{ __('noo.ket_pasang') }}</p>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('noo.atr_idn') }}</label>
+                        <input type="text" wire:model="assetIdNoo" placeholder="{{ __('noo.idn_contoh') }}"
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm uppercase text-gray-900 shadow-sm transition-all placeholder:normal-case placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        @error('assetIdNoo') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('noo.atr_freezer_tipe') }}</label>
+                        <input type="text" wire:model="freezerTipeNoo" placeholder="{{ __('noo.freezer_tipe_contoh') }}"
+                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        @error('freezerTipeNoo') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('noo.judul_lengkapi_alamat') }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ __('noo.ket_lengkapi_alamat') }}</p>
+                    <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                        @foreach ([['kelurahanNoo', 'master.kelurahan'], ['kecamatanNoo', 'master.atr_kecamatan'], ['kotaNoo', 'master.atr_kota'], ['provinsiNoo', 'master.atr_provinsi'], ['kodePosNoo', 'master.atr_kode_pos']] as [$field, $label])
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">{{ __($label) }}</label>
+                                <input type="text" wire:model="{{ $field }}"
+                                       class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                @error($field) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('noo.judul_bukti_pemasangan') }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ __('noo.ket_foto_wajib') }}</p>
+
+                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        @foreach (\App\Enums\JenisBuktiNoo::wajibDriver() as $jenisNoo)
+                            @php $gambarNoo = $buktiNoo[$jenisNoo->value] ?? null; @endphp
+                            <div class="rounded-lg border border-gray-200 p-2 text-center" wire:key="bukti-noo-{{ $jenisNoo->value }}">
+                                <p class="truncate text-xs font-medium text-gray-700" title="{{ $jenisNoo->petunjuk() }}">{{ $jenisNoo->label() }}</p>
+
+                                @if ($gambarNoo)
+                                    <img src="{{ $gambarNoo }}" alt="{{ $jenisNoo->label() }}" class="mx-auto mt-1.5 h-20 w-full rounded-md object-cover">
+                                    <button type="button" wire:click="hapusBuktiNoo('{{ $jenisNoo->value }}')"
+                                            class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
+                                        {{ __('noo.ambil_ulang') }}
+                                    </button>
+                                @else
+                                    <button type="button"
+                                            @click="kameraSlot = '{{ $jenisNoo->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
+                                            class="mt-1.5 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50">
+                                        <x-heroicon-o-camera class="size-5" />
+                                        <span class="text-xs">{{ __('noo.ambil_foto') }}</span>
+                                    </button>
+                                    <label class="mt-1 block cursor-pointer text-center text-xs font-medium text-blue-600 hover:underline">
+                                        <x-heroicon-o-arrow-up-tray class="size-3 inline" /> {{ __('kunjungan.unggah_foto') }}
+                                        <input type="file" accept="image/*" class="hidden"
+                                               onchange="window.unggahBuktiPengiriman('{{ $jenisNoo->value }}', this)">
+                                    </label>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="tutupKonfirmasiNoo"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
+                <button type="button" wire:click="simpanKonfirmasiNoo" wire:loading.attr="disabled" wire:target="simpanKonfirmasiNoo"
+                        @disabled(! $this->semuaBuktiNooLengkap)
+                        class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+                    <span wire:loading.remove wire:target="simpanKonfirmasiNoo">{{ __('noo.tombol_selesaikan_pasang') }}</span>
+                    <span wire:loading wire:target="simpanKonfirmasiNoo">{{ __('umum.menyimpan') }}</span>
                 </button>
             </x-slot:aksi>
         </x-modal>
@@ -822,7 +935,17 @@
     <script>
         window._labelBuktiPengiriman = @js(collect(\App\Enums\JenisBuktiPengiriman::wajibFoto())
             ->push(\App\Enums\JenisBuktiPengiriman::FreezerDisusun)
+            ->concat(\App\Enums\JenisBuktiNoo::wajibDriver())
             ->mapWithKeys(fn ($j) => [$j->value => $j->label()]));
+
+        // Satu jendela kamera melayani dua alur yang berbeda di layar ini:
+        // bukti pengiriman pesanan dan bukti pemasangan freezer NOO. Slotnya
+        // dibedakan dari nama jenisnya, bukan dari jendela yang terpisah.
+        const jenisNoo = @js(collect(\App\Enums\JenisBuktiNoo::wajibDriver())->map(fn ($j) => $j->value));
+
+        const kirimBukti = (jenis, gambar) => jenisNoo.includes(jenis)
+            ? $wire.terimaBuktiNoo(jenis, gambar)
+            : $wire.terimaBuktiFoto(jenis, gambar);
 
         const kameraBukti = window.pasangKamera('kamera-bukti-pengiriman', {
             pesan: @js([
@@ -842,7 +965,7 @@
         const wadahBukti = document.getElementById('kamera-bukti-pengiriman');
 
         wadahBukti?.addEventListener('kamera:jepretan', (e) => {
-            $wire.terimaBuktiFoto(e.detail.jenis, e.detail.gambar);
+            kirimBukti(e.detail.jenis, e.detail.gambar);
         });
 
         wadahBukti?.addEventListener('kamera:galat', (e) => {
@@ -885,7 +1008,7 @@
             }
 
             const pembaca = new FileReader();
-            pembaca.onload = () => $wire.terimaBuktiFoto(jenis, pembaca.result);
+            pembaca.onload = () => kirimBukti(jenis, pembaca.result);
             pembaca.readAsDataURL(berkas);
         };
     </script>

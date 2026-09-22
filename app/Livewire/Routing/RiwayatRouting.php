@@ -14,7 +14,9 @@ class RiwayatRouting extends Component
     #[Computed]
     public function batches()
     {
-        return RoutingBatch::query()
+        // reguler(): rute pengantaran freezer NOO punya layarnya sendiri dan
+        // tidak boleh tercampur di riwayat rute pesanan.
+        return RoutingBatch::reguler()
             ->with(['pembuat:id,name', 'penyetuju:id,name'])
             ->withCount('kendaraans')
             ->latest('id')

@@ -14,15 +14,21 @@ use App\Models\Posisi;
 use App\Models\Scopes\DepotScope;
 use App\Models\Shift;
 use App\Models\User;
+use App\Livewire\Concerns\MendukungImporBerkas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Master Karyawan — lintas-gudang (lihat dokumentasi App\Models\Karyawan).
@@ -32,6 +38,7 @@ use Livewire\WithPagination;
  */
 class DaftarKaryawan extends Component
 {
+    use MendukungImporBerkas;
     use WithFileUploads;
     use WithPagination;
 
@@ -403,6 +410,561 @@ class DaftarKaryawan extends Component
         unset($this->karyawans, $this->penggunaBelumTertaut);
 
         $this->dispatch('notifikasi', pesan: __('hr.karyawan_dihapus', ['nama' => $nama]));
+    }
+
+    public function unduhExcel()
+    {
+        $karyawans = $this->kueriKaryawan()
+            ->with(['department:id,nama,kode', 'jabatan:id,nama,kode', 'posisi:id,nama,kode', 'depot:id,nama,kode', 'user:id,email'])
+            ->orderBy('nama_lengkap')
+            ->get();
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->fromArray([
+            'kode_karyawan', 'nama_lengkap', 'nik', 'jenis_kelamin', 'tanggal_lahir',
+            'no_hp', 'alamat', 'department', 'jabatan', 'posisi',
+            'penempatan', 'tanggal_masuk', 'status_karyawan', 'tanggal_berakhir_kontrak',
+            'gaji_pokok', 'no_rekening', 'npwp', 'catatan', 'email_akun', 'status',
+        ], null, 'A1');
+
+        $baris = 2;
+        foreach ($karyawans as $k) {
+            $sheet->fromArray([
+                null,
+                $k->nama_lengkap,
+                null,
+                $k->jenis_kelamin->value,
+                $k->tanggal_lahir?->format('Y-m-d'),
+                null,
+                $k->alamat_domisili,
+                $k->department?->nama,
+                $k->jabatan?->nama,
+                $k->posisi?->nama,
+                $k->depot?->nama,
+                $k->tanggal_masuk?->format('Y-m-d'),
+                $k->status_karyawan->value,
+                $k->tanggal_berakhir_kontrak?->format('Y-m-d'),
+                (float) $k->gaji_pokok,
+                null,
+                null,
+                $k->catatan,
+                null,
+                $k->aktif ? 'aktif' : 'nonaktif',
+            ], null, "A{$baris}");
+
+            $sheet->setCellValueExplicit("A{$baris}", (string) $k->kode_karyawan, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$baris}", (string) $k->nik, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("F{$baris}", (string) $k->no_hp, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("P{$baris}", (string) ($k->no_rekening ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("Q{$baris}", (string) ($k->npwp ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("S{$baris}", (string) ($k->user?->email ?? ''), DataType::TYPE_STRING);
+            $baris++;
+        }
+
+        $barisTerakhir = max(1, $baris - 1);
+        foreach (['A', 'C', 'F', 'P', 'Q', 'S'] as $kolText) {
+            $sheet->getStyle("{$kolText}1:{$kolText}{$barisTerakhir}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+
+        foreach (range('A', 'T') as $kolom) {
+            $sheet->getColumnDimension($kolom)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'karyawan-'.now()->format('Y-m-d').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function unduhContohExcel()
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->fromArray([
+            'kode_karyawan', 'nama_lengkap', 'nik', 'jenis_kelamin', 'tanggal_lahir',
+            'no_hp', 'alamat', 'department', 'jabatan', 'posisi',
+            'penempatan', 'tanggal_masuk', 'status_karyawan', 'tanggal_berakhir_kontrak',
+            'gaji_pokok', 'no_rekening', 'npwp', 'catatan', 'email_akun', 'status',
+        ], null, 'A1');
+
+        $sheet->fromArray([
+            null, 'Budi Santoso', null, 'L', '1990-05-15',
+            null, 'Jl. Merdeka No. 10 Jakarta', 'Operations', 'Staff', 'Staff Gudang',
+            'Depot Utama', '2023-01-10', 'tetap', '',
+            4500000, null, null, '', null, 'aktif',
+        ], null, 'A2');
+        $sheet->setCellValueExplicit('A2', 'EMP-001', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('C2', '3201012345670001', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('F2', '081234567890', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('P2', '1234567890', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('Q2', '09.123.456.7-123.000', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('S2', 'budi@example.com', DataType::TYPE_STRING);
+
+        $sheet->fromArray([
+            null, 'Siti Rahma', null, 'P', '1992-02-20',
+            null, 'Jl. Sudirman No. 45 Bandung', 'Finance', 'Manager', 'Administrasi Kantor',
+            'Depot Utama', '2023-06-01', 'kontrak', '2024-06-01',
+            6000000, null, null, '', null, 'aktif',
+        ], null, 'A3');
+        $sheet->setCellValueExplicit('A3', 'EMP-002', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('C3', '3201015502920002', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('F3', '081987654321', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('P3', '9876543210', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('Q3', '', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('S3', '', DataType::TYPE_STRING);
+
+        foreach (['A', 'C', 'F', 'P', 'Q', 'S'] as $kolText) {
+            $sheet->getStyle("{$kolText}1:{$kolText}100")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+
+        foreach (range('A', 'T') as $kolom) {
+            $sheet->getColumnDimension($kolom)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'contoh-import-karyawan.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function mulaiImporCsv(): void
+    {
+        $this->validate([
+            'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:20480',
+        ], [
+            'berkasCsv.required' => __('umum.pilih_berkas_dulu'),
+            'berkasCsv.mimes' => __('hr.gagal_urai_csv'),
+        ]);
+
+        $jalur = $this->berkasCsv->getRealPath();
+        $ekstensi = mb_strtolower((string) $this->berkasCsv->getClientOriginalExtension());
+
+        $semuaBaris = in_array($ekstensi, ['xlsx', 'xls'], true)
+            ? $this->bacaBarisExcel($jalur)
+            : $this->bacaBarisCsv($jalur);
+
+        $judul = array_shift($semuaBaris);
+
+        if ($judul === null) {
+            $this->addError('berkasCsv', __('hr.gagal_urai_csv'));
+
+            return;
+        }
+
+        $judul = array_map(
+            fn ($k) => str_replace([' ', '-'], '_', mb_strtolower(trim($this->keUtf8((string) $k)))),
+            $judul,
+        );
+
+        $barisNormal = array_values(array_map(
+            fn ($baris) => $this->normalisasiBaris($baris),
+            $semuaBaris,
+        ));
+
+        if ($barisNormal === []) {
+            $this->addError('berkasCsv', __('hr.gagal_urai_csv'));
+
+            return;
+        }
+
+        $isiJson = json_encode([
+            'judul' => $judul,
+            'baris' => $barisNormal,
+            'nik_dilihat' => [],
+            'catatan' => [],
+        ], JSON_INVALID_UTF8_SUBSTITUTE);
+
+        if ($isiJson === false) {
+            $this->addError('berkasCsv', __('hr.gagal_urai_csv'));
+
+            return;
+        }
+
+        $token = (string) Str::uuid();
+        Storage::disk('local')->put("impor-karyawan/{$token}.json", $isiJson);
+
+        $this->imporToken = $token;
+        $this->imporOffset = 0;
+        $this->imporTotal = count($barisNormal);
+        $this->imporBaru = 0;
+        $this->imporDiperbarui = 0;
+        $this->imporDilewati = [];
+        $this->imporCatatan = [];
+        $this->hasilImpor = null;
+
+        $this->imporBerjalan = true;
+    }
+
+    public function lanjutkanImporCsv(): void
+    {
+        if (! $this->imporBerjalan || $this->imporToken === null) {
+            return;
+        }
+
+        $jalurBerkas = "impor-karyawan/{$this->imporToken}.json";
+
+        if (! Storage::disk('local')->exists($jalurBerkas)) {
+            $this->imporBerjalan = false;
+            $this->dispatch('notifikasi', pesan: __('hr.sesi_impor_kedaluwarsa'), jenis: 'error');
+
+            return;
+        }
+
+        $tersimpan = json_decode((string) Storage::disk('local')->get($jalurBerkas), true);
+
+        if (! is_array($tersimpan) || ! isset($tersimpan['baris'], $tersimpan['judul'])) {
+            $this->imporBerjalan = false;
+            Storage::disk('local')->delete($jalurBerkas);
+            $this->dispatch('notifikasi', pesan: __('hr.gagal_urai_csv'), jenis: 'error');
+
+            return;
+        }
+
+        $judul = $tersimpan['judul'];
+        $nikDilihat = $tersimpan['nik_dilihat'] ?? [];
+        $this->imporCatatan = $tersimpan['catatan'] ?? [];
+        $batch = array_slice($tersimpan['baris'], $this->imporOffset, $this->ukuranBatchImpor);
+
+        if ($batch === []) {
+            $this->selesaikanImpor();
+
+            return;
+        }
+
+        $deptMap = [];
+        foreach (Department::all() as $d) {
+            $deptMap[mb_strtoupper(trim($d->kode))] = $d->id;
+            $deptMap[mb_strtoupper(trim($d->nama))] = $d->id;
+        }
+
+        $jabMap = [];
+        foreach (Jabatan::all() as $j) {
+            $jabMap[mb_strtoupper(trim($j->kode))] = $j->id;
+            $jabMap[mb_strtoupper(trim($j->nama))] = $j->id;
+        }
+
+        $posMap = [];
+        foreach (Posisi::all() as $p) {
+            $posMap[mb_strtoupper(trim($p->kode))] = $p->id;
+            $posMap[mb_strtoupper(trim($p->nama))] = $p->id;
+        }
+
+        $depotMap = [];
+        foreach (Depot::all() as $dp) {
+            $depotMap[mb_strtoupper(trim($dp->kode))] = $dp->id;
+            $depotMap[mb_strtoupper(trim($dp->nama))] = $dp->id;
+        }
+
+        $usersByEmail = User::withoutGlobalScope(DepotScope::class)
+            ->get(['id', 'email', 'name'])
+            ->keyBy(fn ($u) => mb_strtolower(trim($u->email)));
+
+        $userLinkedKaryawanMap = Karyawan::query()
+            ->whereNotNull('user_id')
+            ->pluck('id', 'user_id')
+            ->all();
+
+        $semuaKaryawan = Karyawan::all();
+        $karyawanByNik = [];
+        $karyawanByKode = [];
+        foreach ($semuaKaryawan as $k) {
+            $karyawanByNik[$k->nik] = $k;
+            $karyawanByKode[mb_strtoupper($k->kode_karyawan)] = $k;
+        }
+
+        $kolom = array_flip($judul);
+        $cariKolom = function (array $aliases) use ($kolom): ?int {
+            foreach ($aliases as $alias) {
+                if (isset($kolom[$alias])) {
+                    return $kolom[$alias];
+                }
+            }
+
+            return null;
+        };
+
+        $idxNik = $cariKolom(['nik', 'no_nik', 'nomor_nik', 'ktp']) ?? 2;
+        $idxKode = $cariKolom(['kode_karyawan', 'kode', 'id_karyawan', 'nip']) ?? 0;
+        $idxNama = $cariKolom(['nama_lengkap', 'nama']) ?? 1;
+        $idxJk = $cariKolom(['jenis_kelamin', 'jk', 'gender']) ?? 3;
+        $idxTglLahir = $cariKolom(['tanggal_lahir', 'tgl_lahir']) ?? 4;
+        $idxHp = $cariKolom(['no_hp', 'hp', 'telepon', 'no_telepon', 'nohp', 'phone']) ?? 5;
+        $idxAlamat = $cariKolom(['alamat', 'alamat_domisili', 'domisili']) ?? 6;
+        $idxDept = $cariKolom(['department', 'departemen', 'dept', 'divisi']) ?? 7;
+        $idxJab = $cariKolom(['jabatan']) ?? 8;
+        $idxPos = $cariKolom(['posisi', 'master_posisi']) ?? 9;
+        $idxDepot = $cariKolom(['penempatan', 'depot', 'gudang', 'cabang', 'kantor']) ?? 10;
+        $idxTglMasuk = $cariKolom(['tanggal_masuk', 'tgl_masuk', 'join_date']) ?? 11;
+        $idxStatusKaryawan = $cariKolom(['status_karyawan', 'status_kerja', 'tipe_karyawan']) ?? 12;
+        $idxTglKontrak = $cariKolom(['tanggal_berakhir_kontrak', 'tgl_berakhir_kontrak', 'akhir_kontrak', 'kontrak_selesai']) ?? 13;
+        $idxGaji = $cariKolom(['gaji_pokok', 'gaji', 'gapok']) ?? 14;
+        $idxRekening = $cariKolom(['no_rekening', 'nomor_rekening', 'rekening', 'no_rek']) ?? 15;
+        $idxNpwp = $cariKolom(['npwp', 'nomor_npwp']) ?? 16;
+        $idxCatatan = $cariKolom(['catatan', 'keterangan']) ?? 17;
+        $idxEmailAkun = $cariKolom(['email_akun', 'email', 'email_pengguna', 'email_user', 'email_login', 'akun_pengguna', 'user_email']) ?? 18;
+        $idxStatus = $cariKolom(['status', 'aktif']) ?? 19;
+
+        foreach ($batch as $offsetBatch => $baris) {
+            $nomorBaris = $this->imporOffset + $offsetBatch + 2;
+
+            $nikRaw = (string) ($baris[$idxNik] ?? '');
+            $nik = preg_replace('/[^0-9]/', '', $nikRaw);
+
+            if ($nik === '') {
+                $this->imporDilewati[] = __('hr.lewat_nik_kosong', ['nomor' => $nomorBaris]);
+                continue;
+            }
+
+            if (strlen($nik) !== 16) {
+                $this->imporDilewati[] = __('hr.lewat_nik_invalid', ['nomor' => $nomorBaris, 'nik' => $nikRaw]);
+                continue;
+            }
+
+            if (isset($nikDilihat[$nik])) {
+                $this->imporDilewati[] = __('hr.lewat_nik_duplikat_file', [
+                    'nomor' => $nomorBaris,
+                    'nik' => $nik,
+                    'pertama' => $nikDilihat[$nik],
+                ]);
+                continue;
+            }
+
+            $nikDilihat[$nik] = $nomorBaris;
+
+            $nama = trim((string) ($baris[$idxNama] ?? ''));
+            if ($nama === '') {
+                $this->imporDilewati[] = __('hr.lewat_nama_karyawan_kosong', ['nomor' => $nomorBaris]);
+                continue;
+            }
+
+            $deptVal = trim((string) ($baris[$idxDept] ?? ''));
+            $deptId = $deptMap[mb_strtoupper($deptVal)] ?? null;
+            if (! $deptId) {
+                $this->imporDilewati[] = __('hr.lewat_relasi_tidak_ditemukan', [
+                    'nomor' => $nomorBaris,
+                    'nama' => $nama,
+                    'jenis' => 'Department',
+                    'nilai' => $deptVal,
+                ]);
+                continue;
+            }
+
+            $jabVal = trim((string) ($baris[$idxJab] ?? ''));
+            $jabId = $jabMap[mb_strtoupper($jabVal)] ?? null;
+            if (! $jabId) {
+                $this->imporDilewati[] = __('hr.lewat_relasi_tidak_ditemukan', [
+                    'nomor' => $nomorBaris,
+                    'nama' => $nama,
+                    'jenis' => 'Jabatan',
+                    'nilai' => $jabVal,
+                ]);
+                continue;
+            }
+
+            $posVal = trim((string) ($baris[$idxPos] ?? ''));
+            $posId = $posMap[mb_strtoupper($posVal)] ?? null;
+            if (! $posId) {
+                $this->imporDilewati[] = __('hr.lewat_relasi_tidak_ditemukan', [
+                    'nomor' => $nomorBaris,
+                    'nama' => $nama,
+                    'jenis' => 'Posisi',
+                    'nilai' => $posVal,
+                ]);
+                continue;
+            }
+
+            $depotVal = trim((string) ($baris[$idxDepot] ?? ''));
+            $depotId = $depotMap[mb_strtoupper($depotVal)] ?? null;
+            if (! $depotId) {
+                $this->imporDilewati[] = __('hr.lewat_relasi_tidak_ditemukan', [
+                    'nomor' => $nomorBaris,
+                    'nama' => $nama,
+                    'jenis' => 'Penempatan (Depot)',
+                    'nilai' => $depotVal,
+                ]);
+                continue;
+            }
+
+            $tglLahir = $this->tanggalAtauNull($baris[$idxTglLahir] ?? null);
+            if (! $tglLahir) {
+                $this->imporDilewati[] = __('hr.lewat_tgl_lahir_invalid', ['nomor' => $nomorBaris, 'nama' => $nama]);
+                continue;
+            }
+
+            $tglMasuk = $this->tanggalAtauNull($baris[$idxTglMasuk] ?? null);
+            if (! $tglMasuk) {
+                $this->imporDilewati[] = __('hr.lewat_tgl_masuk_invalid', ['nomor' => $nomorBaris, 'nama' => $nama]);
+                continue;
+            }
+
+            $tglKontrak = $this->tanggalAtauNull($baris[$idxTglKontrak] ?? null);
+
+            $kodeInput = trim((string) ($baris[$idxKode] ?? ''));
+
+            $jkVal = mb_strtoupper(trim((string) ($baris[$idxJk] ?? 'L')));
+            $jk = (str_starts_with($jkVal, 'P') || str_contains($jkVal, 'WANITA') || str_contains($jkVal, 'PEREMPUAN'))
+                ? JenisKelamin::P
+                : JenisKelamin::L;
+
+            $skVal = mb_strtolower(trim((string) ($baris[$idxStatusKaryawan] ?? 'tetap')));
+            $sk = str_contains($skVal, 'kontrak') ? StatusKaryawan::Kontrak : StatusKaryawan::Tetap;
+
+            $gaji = (float) preg_replace('/[^0-9.]/', '', str_replace(',', '.', (string) ($baris[$idxGaji] ?? '0')));
+            $noHp = trim((string) ($baris[$idxHp] ?? ''));
+            $alamat = trim((string) ($baris[$idxAlamat] ?? ''));
+            $noRek = trim((string) ($baris[$idxRekening] ?? '')) ?: null;
+            $npwp = trim((string) ($baris[$idxNpwp] ?? '')) ?: null;
+            $catatan = trim((string) ($baris[$idxCatatan] ?? '')) ?: null;
+
+            $stVal = mb_strtolower(trim((string) ($baris[$idxStatus] ?? 'aktif')));
+            $aktif = ! in_array($stVal, ['nonaktif', 'tidak aktif', '0', 'false', 'inactive', 'non-aktif'], true);
+
+            $karyawanAda = $karyawanByNik[$nik] ?? ($kodeInput !== '' ? ($karyawanByKode[mb_strtoupper($kodeInput)] ?? null) : null);
+
+            $emailRaw = $idxEmailAkun !== null ? trim((string) ($baris[$idxEmailAkun] ?? '')) : '';
+            $userIdToSet = null;
+            $ubahUserId = false;
+
+            if ($emailRaw !== '') {
+                $emailLower = mb_strtolower($emailRaw);
+                $targetUser = $usersByEmail->get($emailLower);
+
+                if ($targetUser) {
+                    $linkedKaryawanId = $userLinkedKaryawanMap[$targetUser->id] ?? null;
+                    if ($linkedKaryawanId !== null && ($karyawanAda === null || (int) $linkedKaryawanId !== (int) $karyawanAda->id)) {
+                        $this->imporCatatan[] = __('hr.peringatan_akun_sudah_dipakai', [
+                            'nomor' => $nomorBaris,
+                            'nama' => $nama,
+                            'email' => $emailRaw,
+                        ]);
+                    } else {
+                        $userIdToSet = $targetUser->id;
+                        $ubahUserId = true;
+                        $userLinkedKaryawanMap[$targetUser->id] = $karyawanAda?->id ?? 'pending';
+                    }
+                } else {
+                    $this->imporCatatan[] = __('hr.peringatan_akun_tidak_ditemukan', [
+                        'nomor' => $nomorBaris,
+                        'nama' => $nama,
+                        'email' => $emailRaw,
+                    ]);
+                    $userIdToSet = null;
+                    $ubahUserId = true;
+                }
+            }
+
+            if ($karyawanAda) {
+                $kodeFinal = $kodeInput !== '' ? $kodeInput : $karyawanAda->kode_karyawan;
+                $updateData = [
+                    'kode_karyawan' => $kodeFinal,
+                    'nama_lengkap' => $nama,
+                    'nik' => $nik,
+                    'jenis_kelamin' => $jk,
+                    'tanggal_lahir' => $tglLahir,
+                    'no_hp' => $noHp ?: $karyawanAda->no_hp,
+                    'alamat_domisili' => $alamat ?: $karyawanAda->alamat_domisili,
+                    'department_id' => $deptId,
+                    'jabatan_id' => $jabId,
+                    'posisi_id' => $posId,
+                    'depot_id' => $depotId,
+                    'tanggal_masuk' => $tglMasuk,
+                    'status_karyawan' => $sk,
+                    'tanggal_berakhir_kontrak' => $sk === StatusKaryawan::Kontrak ? $tglKontrak : null,
+                    'gaji_pokok' => $gaji,
+                    'no_rekening' => $noRek,
+                    'npwp' => $npwp,
+                    'catatan' => $catatan,
+                    'aktif' => $aktif,
+                ];
+
+                if ($ubahUserId) {
+                    $updateData['user_id'] = $userIdToSet;
+                }
+
+                $karyawanAda->update($updateData);
+
+                if ($ubahUserId && $userIdToSet) {
+                    $userLinkedKaryawanMap[$userIdToSet] = $karyawanAda->id;
+                }
+                $this->imporDiperbarui++;
+            } else {
+                $kodeFinal = $kodeInput !== '' ? $kodeInput : ('EMP-'.substr($nik, -6));
+                if (isset($karyawanByKode[mb_strtoupper($kodeFinal)])) {
+                    $kodeFinal = 'EMP-'.$nik;
+                }
+
+                $karyawanBaru = Karyawan::create([
+                    'kode_karyawan' => $kodeFinal,
+                    'nama_lengkap' => $nama,
+                    'nik' => $nik,
+                    'jenis_kelamin' => $jk,
+                    'tanggal_lahir' => $tglLahir,
+                    'no_hp' => $noHp ?: '-',
+                    'alamat_domisili' => $alamat ?: '-',
+                    'department_id' => $deptId,
+                    'jabatan_id' => $jabId,
+                    'posisi_id' => $posId,
+                    'depot_id' => $depotId,
+                    'tanggal_masuk' => $tglMasuk,
+                    'status_karyawan' => $sk,
+                    'tanggal_berakhir_kontrak' => $sk === StatusKaryawan::Kontrak ? $tglKontrak : null,
+                    'gaji_pokok' => $gaji,
+                    'no_rekening' => $noRek,
+                    'npwp' => $npwp,
+                    'catatan' => $catatan,
+                    'user_id' => $ubahUserId ? $userIdToSet : null,
+                    'aktif' => $aktif,
+                ]);
+                $karyawanByNik[$nik] = $karyawanBaru;
+                $karyawanByKode[mb_strtoupper($kodeFinal)] = $karyawanBaru;
+                if ($ubahUserId && $userIdToSet) {
+                    $userLinkedKaryawanMap[$userIdToSet] = $karyawanBaru->id;
+                }
+                $this->imporBaru++;
+            }
+        }
+
+        $this->imporOffset += count($batch);
+
+        $tersimpan['nik_dilihat'] = $nikDilihat;
+        $tersimpan['catatan'] = $this->imporCatatan;
+        Storage::disk('local')->put($jalurBerkas, json_encode($tersimpan, JSON_INVALID_UTF8_SUBSTITUTE));
+
+        if ($this->imporOffset >= $this->imporTotal) {
+            $this->selesaikanImpor();
+        }
+    }
+
+    private function selesaikanImpor(): void
+    {
+        if ($this->imporToken !== null) {
+            Storage::disk('local')->delete("impor-karyawan/{$this->imporToken}.json");
+        }
+
+        $this->imporBerjalan = false;
+        $this->hasilImpor = [
+            'baru' => $this->imporBaru,
+            'diperbarui' => $this->imporDiperbarui,
+            'dilewati' => $this->imporDilewati,
+            'catatan' => $this->imporCatatan,
+        ];
+
+        unset($this->karyawans, $this->penggunaBelumTertaut);
+
+        $this->dispatch('notifikasi', pesan: __('hr.hasil_impor_karyawan', [
+            'baru' => $this->imporBaru,
+            'diperbarui' => $this->imporDiperbarui,
+        ]), jenis: 'sukses');
+    }
+
+    public function batalkanImporCsv(): void
+    {
+        $this->batalkanImporBerkas('impor-karyawan');
     }
 
     public function render()

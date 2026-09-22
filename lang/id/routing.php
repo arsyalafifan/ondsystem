@@ -94,4 +94,6 @@ return [
     'galat_tanggal_sudah_jalan' => ':mobil sudah mulai dikerjakan di lapangan, tanggal keberangkatannya tidak bisa diganti lagi.',
     'galat_bukan_driver' => ':nama bukan akun berperan driver.',
     'galat_driver_sedang_bertugas' => ':nama sedang membawa kendaraan lain yang berangkat di tanggal yang sama (:tanggal).',
+    'jenis_reguler' => 'Pesanan',
+    'jenis_noo' => 'Freezer NOO',
 ];
