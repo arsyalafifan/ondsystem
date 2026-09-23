@@ -66,7 +66,7 @@ function isiFormulirNoo($komponen, int $wilayahId, int $paketId)
         ->call('titikDipilih', -6.21, 106.83);
 }
 
-it('mencatat pengajuan lengkap beserta ketiga fotonya', function () {
+it('mencatat pengajuan lengkap beserta seluruh fotonya', function () {
     $komponen = Livewire::actingAs($this->sales)->test(DaftarNoo::class)->call('buatBaru');
 
     isiFormulirNoo($komponen, $this->wilayah->id, $this->paket->id)
@@ -80,7 +80,7 @@ it('mencatat pengajuan lengkap beserta ketiga fotonya', function () {
         ->and($noo->diajukan_oleh)->toBe($this->sales->id)
         ->and($noo->nama)->toBe('Toko Maju Jaya')
         ->and($noo->latitude)->toBe(-6.21)
-        ->and($noo->fotos)->toHaveCount(3)
+        ->and($noo->fotos)->toHaveCount(4)
         ->and($noo->fotos->pluck('jenis')->all())->toBe(JenisBuktiNoo::wajibSales());
 
     // Belum ada toko sungguhan — itu baru lahir saat admin menyetujui.
@@ -112,7 +112,7 @@ it('menolak pengajuan yang fotonya belum lengkap', function () {
         ->set('nikPemilik', '3201234567890123')
         ->set('paketNooId', $this->paket->id)
         ->call('titikDipilih', -6.21, 106.83)
-        // Cuma KTP yang diisi, dua lainnya belum.
+        // Cuma KTP yang diisi, sisanya belum.
         ->call('terimaBuktiFoto', JenisBuktiNoo::KtpPemilik->value, gambarNooUji())
         ->call('simpan');
 

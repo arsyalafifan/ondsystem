@@ -103,7 +103,7 @@
                         <p class="mt-0.5 text-xs text-gray-500">{{ __('noo.ket_foto_wajib') }}</p>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         @foreach (\App\Enums\JenisBuktiNoo::wajibSales() as $jenisBukti)
                             @php $gambar = $buktiFoto[$jenisBukti->value] ?? null; @endphp
                             <div class="rounded-lg border border-gray-200 p-2 text-center" wire:key="bukti-{{ $jenisBukti->value }}">

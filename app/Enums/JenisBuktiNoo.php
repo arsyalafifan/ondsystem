@@ -6,21 +6,22 @@ namespace App\Enums;
  * Bukti foto sepanjang alur NOO. Dua kelompok, dua tangan, dua waktu yang
  * berbeda:
  *
- * - `wajibSales()` diambil saat pendataan di lapangan. KTP dan kartu
- *   keluarga adalah dokumen identitas pemilik — dasar hukum kerja sama,
- *   sekaligus alasan seluruh foto NOO disimpan di disk privat dan hanya bisa
- *   dibuka lewat rute bergerbang, bukan URL publik seperti foto bukti lain.
- * - `wajibDriver()` diambil saat freezernya benar-benar terpasang. Keenamnya
- *   wajib: masing-masing membuktikan hal berbeda yang tidak bisa diwakili
- *   foto lain — tokonya benar ada, perjanjiannya benar diserahterimakan,
- *   freezernya benar milik toko ini (QR), benar masuk ke dalam toko, dan
- *   materi promosinya benar terpasang.
+ * - `wajibSales()` diambil saat pendataan di lapangan. KTP, kartu keluarga,
+ *   dan lembar bermaterai adalah dokumen identitas & dasar hukum kerja sama
+ *   — sekaligus alasan seluruh foto NOO disimpan di disk privat dan hanya
+ *   bisa dibuka lewat rute bergerbang, bukan URL publik seperti foto bukti
+ *   lain.
+ * - `wajibDriver()` diambil saat freezernya benar-benar terpasang.
+ *   Masing-masing membuktikan hal berbeda yang tidak bisa diwakili foto
+ *   lain — tokonya benar ada, perjanjiannya benar diserahterimakan,
+ *   freezernya benar milik toko ini (QR), dan benar masuk ke dalam toko.
  */
 enum JenisBuktiNoo: string
 {
     // --- Diambil sales saat mendata calon toko ---
     case KtpPemilik = 'ktp_pemilik';
     case KartuKeluarga = 'kartu_keluarga';
+    case LembarBermaterai = 'lembar_bermaterai';
     case TampakDepanSales = 'tampak_depan_sales';
 
     // --- Diambil driver saat memasang freezer ---
@@ -28,8 +29,6 @@ enum JenisBuktiNoo: string
     case SuratPerjanjian = 'surat_perjanjian';
     case QrCode = 'qr_code';
     case PosisiFreezer = 'posisi_freezer';
-    case Spanduk = 'spanduk';
-    case FlagHanger = 'flag_hanger';
 
     public function label(): string
     {
@@ -46,12 +45,11 @@ enum JenisBuktiNoo: string
         return match ($this) {
             self::KtpPemilik => 'identification',
             self::KartuKeluarga => 'users',
+            self::LembarBermaterai => 'document-check',
             self::TampakDepanSales, self::TampakDepanDriver => 'building-storefront',
             self::SuratPerjanjian => 'document-text',
             self::QrCode => 'qr-code',
             self::PosisiFreezer => 'cube',
-            self::Spanduk => 'flag',
-            self::FlagHanger => 'sparkles',
         };
     }
 
@@ -62,7 +60,7 @@ enum JenisBuktiNoo: string
      */
     public static function wajibSales(): array
     {
-        return [self::KtpPemilik, self::KartuKeluarga, self::TampakDepanSales];
+        return [self::KtpPemilik, self::KartuKeluarga, self::LembarBermaterai, self::TampakDepanSales];
     }
 
     /**
@@ -77,8 +75,6 @@ enum JenisBuktiNoo: string
             self::SuratPerjanjian,
             self::QrCode,
             self::PosisiFreezer,
-            self::Spanduk,
-            self::FlagHanger,
         ];
     }
 }

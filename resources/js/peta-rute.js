@@ -111,9 +111,13 @@ export function pasangPetaRute(idWadah, pengaturan = {}) {
                     }),
                 });
 
+                // satuanMuatan default ke 'dus' supaya pemanggil lama
+                // (Generate Routing pesanan, Monitoring) tidak perlu berubah.
+                const satuan = pengaturan.satuanMuatan ?? 'dus';
+
                 penanda.bindTooltip(
                     `<strong>${escapeHtml(stop.nama)}</strong><br>` +
-                        `${kendaraan.nama} · urutan ${stop.urutan} · ${stop.dus} dus` +
+                        `${kendaraan.nama} · urutan ${stop.urutan} · ${stop.dus} ${satuan}` +
                         (stop.eta ? `<br>Perkiraan tiba ${stop.eta}` : ''),
                     { direction: 'top' },
                 );

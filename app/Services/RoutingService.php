@@ -110,13 +110,15 @@ class RoutingService
     /**
      * NOO yang sudah disetujui dan belum masuk rute pengantaran freezer.
      *
+     * @param  array<int, int>  $nooIds  kosong berarti semua yang siap
      * @return Collection<int, Noo>
      */
-    public function nooSiapRouting(): Collection
+    public function nooSiapRouting(array $nooIds = []): Collection
     {
         return Noo::query()
             ->where('status', StatusNoo::Process)
             ->whereDoesntHave('stop')
+            ->when($nooIds !== [], fn ($q) => $q->whereIn('id', $nooIds))
             ->with('toko:id,kode,nama,alamat,latitude,longitude,wilayah_id')
             ->orderBy('disetujui_at')
             ->get();
@@ -134,14 +136,24 @@ class RoutingService
      * sama saat ini (toko dibuat dari data NOO), tapi titik NOO-lah yang
      * disurvei sales sambil berdiri di depan tokonya.
      *
+     * $nooIds MEMILIH calon mana yang dirutekan sekarang — kosong berarti
+     * semua yang siap. Ini yang membuat tanggal keberangkatan bisa berbeda
+     * per toko: admin memanggil ini beberapa kali dengan pilihan dan
+     * tanggal yang berbeda-beda, bukan sekali jalan untuk semuanya. NOO
+     * yang sudah masuk satu rute otomatis hilang dari nooSiapRouting()
+     * berikutnya (lihat whereDoesntHave('stop') di atas), jadi tidak
+     * mungkin dua rute berebut calon yang sama.
+     *
+     * @param  array<int, int>  $nooIds
+     *
      * @throws RuntimeException bila tidak ada NOO yang siap dirutekan
      */
-    public function generateNoo(User $admin, ?CarbonImmutable $tanggalKeberangkatan = null): RoutingBatch
+    public function generateNoo(User $admin, array $nooIds = [], ?CarbonImmutable $tanggalKeberangkatan = null): RoutingBatch
     {
         $tanggalKeberangkatan ??= CarbonImmutable::today();
         $maks = (int) config('ond.noo.maks_freezer_per_mobil');
 
-        $noos = $this->nooSiapRouting();
+        $noos = $this->nooSiapRouting($nooIds);
 
         if ($noos->isEmpty()) {
             throw new RuntimeException(__('noo.galat_tidak_ada_siap_routing'));

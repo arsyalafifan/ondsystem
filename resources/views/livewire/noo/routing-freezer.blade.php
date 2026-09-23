@@ -21,24 +21,34 @@
                                class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
                     <button type="button" wire:click="generate" wire:loading.attr="disabled" wire:target="generate"
-                            @disabled($this->siapRouting->isEmpty())
+                            @disabled(count($terpilih) === 0)
                             class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
-                        <span wire:loading.remove wire:target="generate">{{ __('noo.tombol_susun_rute') }}</span>
+                        <span wire:loading.remove wire:target="generate">
+                            {{ count($terpilih) > 0 ? __('noo.tombol_susun_rute_terpilih', ['jumlah' => count($terpilih)]) : __('noo.tombol_susun_rute') }}
+                        </span>
                         <span wire:loading wire:target="generate">{{ __('umum.memproses') }}</span>
                     </button>
                 </div>
             </div>
 
             @if ($this->siapRouting->isNotEmpty())
+                <label class="flex items-center gap-2 border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-600">
+                    <input type="checkbox" wire:model.live="pilihSemua"
+                           class="rounded border-gray-400 text-blue-600 focus:ring-blue-500/20">
+                    {{ __('noo.pilih_semua_menunggu') }}
+                </label>
+
                 <div class="divide-y divide-gray-100">
                     @foreach ($this->siapRouting as $noo)
-                        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm" wire:key="siap-{{ $noo->id }}">
-                            <div>
+                        <label class="flex flex-wrap items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50" wire:key="siap-{{ $noo->id }}">
+                            <input type="checkbox" wire:model.live="terpilih" value="{{ $noo->id }}"
+                                   class="rounded border-gray-400 text-blue-600 focus:ring-blue-500/20">
+                            <div class="flex-1">
                                 <span class="font-medium text-gray-900">{{ $noo->nama }}</span>
                                 <span class="ml-2 text-xs text-gray-500">{{ $noo->kode }} · {{ $noo->toko?->kode }}</span>
                             </div>
                             <span class="text-xs text-gray-500">{{ $noo->alamat }}</span>
-                        </div>
+                        </label>
                     @endforeach
                 </div>
             @else
@@ -46,10 +56,17 @@
             @endif
         </x-kartu>
 
-        {{-- ============ Draf/rute yang sudah disusun ============ --}}
-        @if ($this->batch)
-            @php $b = $this->batch; @endphp
-            <x-kartu class="mt-4">
+        {{-- ============ Peta rute ============ --}}
+        <x-kartu :judul="__('routing.peta_rute')" class="mt-4">
+            <div wire:ignore id="peta-routing-noo" class="peta h-[480px]"></div>
+        </x-kartu>
+
+        {{-- ============ Draf/rute yang sudah disusun ============ ---
+             Beberapa kartu sekaligus, satu per batch — bukan hanya yang
+             terakhir dibuat, karena tanggal keberangkatannya boleh berbeda
+             satu sama lain (lihat docblock App\Livewire\Noo\RoutingFreezer). --}}
+        @foreach ($this->batches as $b)
+            <x-kartu class="mt-4" wire:key="batch-{{ $b->id }}">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
                     <div>
                         <p class="text-sm font-semibold text-gray-900">{{ $b->kode }}</p>
@@ -65,10 +82,10 @@
                                     class="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
                                 {{ __('routing.hapus_draft') }}
                             </button>
-                            <button type="button" wire:click="setujui" wire:loading.attr="disabled" wire:target="setujui"
+                            <button type="button" wire:click="setujui({{ $b->id }})" wire:loading.attr="disabled" wire:target="setujui({{ $b->id }})"
                                     class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-                                <span wire:loading.remove wire:target="setujui">{{ __('noo.tombol_setujui_rute') }}</span>
-                                <span wire:loading wire:target="setujui">{{ __('umum.menyimpan') }}</span>
+                                <span wire:loading.remove wire:target="setujui({{ $b->id }})">{{ __('noo.tombol_setujui_rute') }}</span>
+                                <span wire:loading wire:target="setujui({{ $b->id }})">{{ __('umum.menyimpan') }}</span>
                             </button>
                         @else
                             <span class="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
@@ -105,7 +122,7 @@
 
                             <ol class="mt-2 space-y-1">
                                 @foreach ($kendaraan->stops as $stop)
-                                    <li class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs" wire:key="stop-{{ $stop->id }}">
+                                    <li id="stop-{{ $stop->id }}" class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs scroll-mt-4" wire:key="stop-{{ $stop->id }}">
                                         <span class="grid size-5 shrink-0 place-items-center rounded-full bg-white text-[10px] font-semibold text-gray-700">
                                             {{ $stop->urutan }}
                                         </span>
@@ -122,7 +139,7 @@
                     @endforeach
                 </div>
             </x-kartu>
-        @endif
+        @endforeach
     @endif
 
     @if ($konfirmasiHapus)
@@ -136,4 +153,26 @@
             </x-slot:aksi>
         </x-modal>
     @endif
+    {{-- Peta rute freezer — pola yang sama dengan Generate Routing pesanan
+         (resources/views/livewire/routing/generate-routing.blade.php),
+         cuma titiknya dari NOO. Komentar JS TIDAK ditaruh di baris pertama
+         <script> ini dengan sengaja; lihat penjelasan soal itu di
+         daftar-kunjungan.blade.php. --}}
+    @script
+    <script>
+        const petaNoo = window.pasangPetaRute('peta-routing-noo', @js($this->konfigPeta));
+
+        if (petaNoo) {
+            petaNoo.gambar(@js($this->dataPeta));
+
+            $wire.on('peta-diperbarui', (payload) => {
+                petaNoo.gambar(payload.data ?? payload[0]?.data ?? payload);
+            });
+
+            window.Livewire.on('stop-dipilih', ({ stopId }) => {
+                document.getElementById('stop-' + stopId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+    </script>
+    @endscript
 </div>

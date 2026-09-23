@@ -14,6 +14,7 @@ use App\Models\Noo;
 use App\Models\PaketNoo;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\RoutingBatch;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
@@ -169,9 +170,9 @@ it('mengaktifkan toko, mengisi IDN, dan membuat pesanan perdana saat driver sele
         ->and($toko->asset_id)->toBe('IDNAH2025280001')
         ->and($toko->freezer_tipe)->toBe('6 kaki')
         ->and($noo->stop->fresh()->status)->toBe(StatusStop::Selesai)
-        // Keenam bukti pemasangan tersimpan. (NOO di berkas tes ini dibuat
-        // langsung, tanpa lewat layar sales, jadi ketiga foto sales-nya
-        // memang tidak ada — itu diuji tersendiri di NooInputTest.)
+        // Seluruh bukti pemasangan tersimpan. (NOO di berkas tes ini dibuat
+        // langsung, tanpa lewat layar sales, jadi foto sales-nya memang
+        // tidak ada — itu diuji tersendiri di NooInputTest.)
         ->and($noo->fotos->pluck('jenis')->all())->toBe(JenisBuktiNoo::wajibDriver());
 
     $pesanan = Pesanan::firstOrFail();
@@ -185,7 +186,7 @@ it('mengaktifkan toko, mengisi IDN, dan membuat pesanan perdana saat driver sele
         ->and($pesanan->items()->where('is_bonus', true)->value('jumlah_dus'))->toBe(2);
 });
 
-it('menolak menyelesaikan pemasangan sebelum keenam fotonya lengkap', function () {
+it('menolak menyelesaikan pemasangan sebelum seluruh fotonya lengkap', function () {
     $noo = rutekanDanBerangkatkan();
     $kendaraan = $noo->stop->kendaraan;
 
@@ -288,15 +289,56 @@ it('tidak pernah mengikutkan pesanan perdana NOO ke persetujuan massal', functio
 });
 
 it('menyusun rute freezer lewat layarnya sendiri', function () {
-    nooDisetujui();
+    $noo = nooDisetujui();
 
     $komponen = Livewire::actingAs($this->admin)->test(RoutingFreezer::class);
 
     expect($komponen->instance()->siapRouting)->toHaveCount(1);
 
-    $komponen->call('generate');
+    $komponen->set('terpilih', [$noo->id])->call('generate');
 
-    expect($komponen->instance()->batch)->not->toBeNull()
-        ->and($komponen->instance()->batch->jenis)->toBe(JenisRouting::Noo)
-        ->and($komponen->instance()->siapRouting)->toHaveCount(0);
+    expect($komponen->instance()->batches)->toHaveCount(1)
+        ->and($komponen->instance()->batches->first()->jenis)->toBe(JenisRouting::Noo)
+        ->and($komponen->instance()->siapRouting)->toHaveCount(0)
+        // Seleksi dibersihkan setelah rute tersusun.
+        ->and($komponen->instance()->terpilih)->toBe([]);
+});
+
+it('membiarkan calon yang tidak dicentang tetap menunggu untuk tanggal lain', function () {
+    $satu = nooDisetujui('3201234567890111', '081200000111');
+    $dua = nooDisetujui('3201234567890222', '081200000222');
+
+    $komponen = Livewire::actingAs($this->admin)->test(RoutingFreezer::class);
+
+    expect($komponen->instance()->siapRouting)->toHaveCount(2);
+
+    // Hanya toko pertama yang dirutekan untuk hari ini...
+    $komponen->set('tanggalKeberangkatan', '2026-09-23')
+        ->set('terpilih', [$satu->id])
+        ->call('generate');
+
+    expect($komponen->instance()->batches)->toHaveCount(1)
+        ->and($komponen->instance()->siapRouting->pluck('id')->all())->toBe([$dua->id]);
+
+    // ...lalu toko kedua dirutekan terpisah untuk tanggal yang berbeda,
+    // dan batch pertama TETAP terlihat di layar yang sama.
+    $komponen->set('tanggalKeberangkatan', '2026-09-24')
+        ->set('terpilih', [$dua->id])
+        ->call('generate');
+
+    $batches = $komponen->instance()->batches;
+
+    expect($batches)->toHaveCount(2)
+        ->and($komponen->instance()->siapRouting)->toHaveCount(0)
+        ->and($batches->pluck('tanggal')->map->toDateString()->sort()->values()->all())
+        ->toBe(['2026-09-23', '2026-09-24']);
+});
+
+it('menolak menyusun rute tanpa memilih calon', function () {
+    nooDisetujui();
+
+    Livewire::actingAs($this->admin)->test(RoutingFreezer::class)
+        ->call('generate');
+
+    expect(RoutingBatch::noo()->count())->toBe(0);
 });

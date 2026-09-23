@@ -1,8 +1,14 @@
+@php
+    // Rute freezer NOO memakai satuan unit, bukan dus — angkanya menumpang
+    // kolom yang sama, jadi yang berbeda cuma sebutannya.
+    $satuan = $this->ruteNoo ? __('noo.satuan_freezer') : __('umum.satuan_dus');
+    $kunciProgres = $this->ruteNoo ? 'noo.progres_freezer' : 'driver.progres';
+@endphp
 <div x-data="{ kameraTerbuka: false, kameraSlot: null }">
     @php $p = $this->progres; @endphp
 
     <x-judul-halaman :judul="$kendaraan->nama"
-                     :keterangan="($kendaraan->wilayah?->nama ?? __('driver.semua_wilayah')).' · '.\App\Support\Bahasa::angka($p['target_dus']).' '.__('umum.satuan_dus').' · '.\App\Support\Bahasa::angka($kendaraan->jarak_km, 1).' km'">
+                     :keterangan="($kendaraan->wilayah?->nama ?? __('driver.semua_wilayah')).' · '.\App\Support\Bahasa::angka($p['target_dus']).' '.$satuan.' · '.\App\Support\Bahasa::angka($kendaraan->jarak_km, 1).' km'">
         @unless ($this->melihatSebagaiAdmin)
             <x-slot:aksi>
                 <a href="{{ route('driver.cek-kendaraan', $kendaraan) }}" wire:navigate
@@ -46,9 +52,9 @@
         <div class="flex items-baseline justify-between gap-3">
             <p class="text-sm text-gray-600">
                 <strong class="text-lg text-gray-900">@angka($p['dus_terkirim'])</strong>
-                / @angka($p['target_dus']) {{ __('umum.satuan_dus') }}
+                / @angka($p['target_dus']) {{ $satuan }}
                 <span class="block text-xs text-gray-500">
-                    {{ __('driver.progres', ['selesai' => $p['selesai'], 'total' => $p['total'], 'dus' => \App\Support\Bahasa::angka($p['dus_terkirim'])]) }}
+                    {{ __($kunciProgres, ['selesai' => $p['selesai'], 'total' => $p['total'], 'dus' => \App\Support\Bahasa::angka($p['dus_terkirim'])]) }}
                 </span>
             </p>
             <span class="shrink-0 text-lg font-semibold tabular-nums text-gray-900">{{ $p['persen'] }}%</span>
@@ -583,7 +589,7 @@
                     <p class="text-sm font-medium text-gray-700">{{ __('noo.judul_bukti_pemasangan') }}</p>
                     <p class="mt-0.5 text-xs text-gray-500">{{ __('noo.ket_foto_wajib') }}</p>
 
-                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         @foreach (\App\Enums\JenisBuktiNoo::wajibDriver() as $jenisNoo)
                             @php $gambarNoo = $buktiNoo[$jenisNoo->value] ?? null; @endphp
                             <div class="rounded-lg border border-gray-200 p-2 text-center" wire:key="bukti-noo-{{ $jenisNoo->value }}">
