@@ -558,14 +558,16 @@
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('noo.atr_idn') }}</label>
-                        <input type="text" wire:model="assetIdNoo" placeholder="{{ __('noo.idn_contoh') }}"
-                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm uppercase text-gray-900 shadow-sm transition-all placeholder:normal-case placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <x-pilih-cari :opsi="$this->opsiFreezer" :nilai="$assetIdNoo" set="assetIdNoo"
+                                      placeholder="{{ __('master.pilih_idn_placeholder') }}"
+                                      class="mt-1 font-mono uppercase" />
                         @error('assetIdNoo') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('noo.atr_freezer_tipe') }}</label>
-                        <input type="text" wire:model="freezerTipeNoo" placeholder="{{ __('noo.freezer_tipe_contoh') }}"
-                               class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <input type="text" wire:model="freezerTipeNoo" readonly placeholder="—"
+                               class="mt-1 block w-full cursor-not-allowed rounded-lg border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 shadow-sm">
+                        <p class="mt-1 text-xs text-gray-500">{{ __('master.tipe_freezer_otomatis') }}</p>
                         @error('freezerTipeNoo') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>

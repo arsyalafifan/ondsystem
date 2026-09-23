@@ -6,6 +6,7 @@ use App\Models\Concerns\BerDepot;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +32,16 @@ class Freezer extends Model
     protected function aktif(Builder $query): void
     {
         $query->where('aktif', true);
+    }
+
+    /**
+     * Label ringkas untuk pemilih IDN (Master Toko, Lengkapi Data Toko,
+     * pemasangan freezer NOO) — satu bentuk yang sama dipakai di mana pun
+     * IDN perlu ditampilkan sambil menyebut tipenya sekalian.
+     */
+    protected function label(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->idn.' · '.$this->tipe);
     }
 
     #[Scope]

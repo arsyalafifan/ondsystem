@@ -5,6 +5,8 @@ namespace App\Livewire\Master;
 use App\Enums\KategoriToko;
 use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Livewire\Concerns\PunyaPemilihFreezer;
+use App\Models\Freezer;
 use App\Models\Pesanan;
 use App\Models\Toko;
 use App\Models\Wilayah;
@@ -37,7 +39,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class DaftarToko extends Component
 {
-    use MembutuhkanDepotTerkunci;
+    use MembutuhkanDepotTerkunci, PunyaPemilihFreezer;
     use WithFileUploads, WithPagination;
 
     #[Url(as: 'q')]
@@ -261,6 +263,21 @@ class DaftarToko extends Component
         $this->formTerbuka = true;
     }
 
+    /** IDN dipilih lewat pemilih (bukan diketik bebas) — tipenya ikut mengikuti Master Freezer, bukan diketik manual lagi. */
+    public function updatedAssetId(?string $nilai): void
+    {
+        $this->freezerTipe = $this->freezerUntukIdn($nilai)?->tipe ?? '';
+    }
+
+    /** Peringatan kalau IDN yang tersimpan tidak (lagi) terdaftar di Master Freezer — null kalau tidak ada masalah. */
+    #[Computed]
+    public function peringatanIdn(): ?string
+    {
+        return $this->idnTidakDikenal($this->assetId)
+            ? __('toko.idn_belum_terdaftar', ['idn' => $this->assetId])
+            : null;
+    }
+
     public function tutupForm(): void
     {
         $this->resetForm();
@@ -385,13 +402,27 @@ class DaftarToko extends Component
         // kebetulan sudah dipakai toko di DEPOT LAIN.
         $depotId = DepotContext::currentOrFail()->id;
 
+        // Nilai yang SUDAH tersimpan (bukan properti komponen, yang sudah
+        // dibaca dari sana saat sunting() dan bisa saja belum berubah sama
+        // sekali) — dipakai aturanIdn() untuk melewatkan pengecekan Master
+        // Freezer kalau memang IDN-nya tidak disentuh sama sekali.
+        $assetIdSebelum = $this->tokoId !== null
+            ? Toko::whereKey($this->tokoId)->value('asset_id')
+            : null;
+
+        // Dirapikan SEBELUM divalidasi (bukan sesudah) — supaya pengecekan
+        // exists/unique terhadap Master Freezer membandingkan bentuk yang
+        // sama-sama sudah rapi, bukan salah tolak gara-gara cuma beda
+        // spasi/huruf besar-kecil dari yang tersimpan di sana.
+        $this->assetId = $this->assetId === '' ? '' : mb_strtoupper(preg_replace('/\s+/', '', $this->assetId));
+
         $data = $this->validate([
             'kode' => [
                 'required', 'string', 'max:30',
                 Rule::unique('tokos', 'kode')->ignore($this->tokoId)->where('depot_id', $depotId),
             ],
             'assetId' => [
-                'nullable', 'string', 'max:40',
+                ...$this->aturanIdn($depotId, $this->assetId ?: null, $assetIdSebelum),
                 Rule::unique('tokos', 'asset_id')->ignore($this->tokoId)->where('depot_id', $depotId),
             ],
             'freezerTipe' => 'nullable|string|max:40',
@@ -410,6 +441,8 @@ class DaftarToko extends Component
             'longitude' => 'nullable|numeric|between:-180,180',
         ], [
             'nikPemilik.digits' => __('master.nik_tidak_valid'),
+            'assetId.exists' => __('toko.galat_idn_tidak_terdaftar'),
+            'assetId.unique' => __('toko.galat_freezer_dipakai'),
         ], [
             'kode' => __('master.atr_kode_toko'),
             'assetId' => __('master.atr_asset_id'),
@@ -429,9 +462,9 @@ class DaftarToko extends Component
 
         $toko = Toko::updateOrCreate(['id' => $this->tokoId], [
             'kode' => $data['kode'],
-            // Disimpan huruf besar tanpa spasi agar cocok dengan hasil
-            // pemindaian QR, yang juga dirapikan dengan cara yang sama.
-            'asset_id' => $this->assetId === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $this->assetId)),
+            // Sudah dirapikan (huruf besar, tanpa spasi) sebelum divalidasi
+            // di atas, supaya cocok dengan hasil pemindaian QR.
+            'asset_id' => $this->assetId === '' ? null : $this->assetId,
             'freezer_tipe' => $this->freezerTipe ?: null,
             'nama' => $data['nama'],
             'kategori' => $this->kategori === '' ? null : $this->kategori,
@@ -668,6 +701,11 @@ class DaftarToko extends Component
         $tokoPerKode = $tokoRingkas->keyBy('kode');
         $tokoPerAssetId = $tokoRingkas->whereNotNull('asset_id')->keyBy('asset_id');
 
+        // IDN yang benar-benar boleh dipasangkan ke toko baru/berubah — sama
+        // seperti $tokoRingkas, diambil SEKALI di depan (bukan satu query per
+        // baris) supaya berkas beratus baris tetap ringan.
+        $idnAktif = Freezer::aktif()->pluck('idn')->flip();
+
         $tokoIdPesananAktif = Pesanan::query()
             ->whereIn('status', StatusPesanan::aktif())
             ->distinct()
@@ -688,7 +726,7 @@ class DaftarToko extends Component
         $nomor = $this->imporOffset + 1;
 
         DB::transaction(function () use (
-            $batch, $judul, $wilayahPerNama, $wilayahPerKode,
+            $batch, $judul, $wilayahPerNama, $wilayahPerKode, $idnAktif,
             &$tokoPerKode, &$tokoPerAssetId, $tokoIdPesananAktif, &$kodeTerakhirAngka,
             &$baru, &$diperbarui, &$dilewati, &$catatan, &$nomor,
         ): void {
@@ -708,6 +746,13 @@ class DaftarToko extends Component
 
                 $assetIdMentah = trim((string) ($data['asset_id'] ?? $data['kode_aset'] ?? $data['no_aset'] ?? ''));
                 $assetId = $assetIdMentah === '' ? null : mb_strtoupper(preg_replace('/\s+/', '', $assetIdMentah));
+
+                // IDN wajib bersumber dari Master Freezer — sama seperti
+                // formulir manual. Baris TETAP disimpan kalau IDN-nya tidak
+                // dikenal (lihat $kolomOpsional di bawah, kolom ini saja
+                // yang dilewati), bukan digagalkan seluruhnya: konsisten
+                // dengan cara kategori yang tidak dikenal ditangani.
+                $idnTidakTerdaftar = $assetId !== null && ! isset($idnAktif[$assetId]);
 
                 // Case-insensitif: "sekolah", "SEKOLAH", "Sekolah" semua
                 // dikenali sama (lihat KategoriToko::dariTeks()). Teks yang
@@ -814,7 +859,11 @@ class DaftarToko extends Component
                 // tersimpan dari upload atau input sebelumnya.
                 $kolomOpsional = [
                     'wilayah_id' => $wilayahId,
-                    'asset_id' => $assetId,
+                    // IDN yang tidak terdaftar di Master Freezer TIDAK
+                    // ditulis — persis seperti kategori yang tidak dikenal,
+                    // biar kolom yang sudah benar (kalau ada) tidak ikut
+                    // tertimpa nilai yang salah.
+                    'asset_id' => $idnTidakTerdaftar ? null : $assetId,
                     'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
                     'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
                     'kota' => $this->teksAtauNull($data['kota'] ?? null),
@@ -908,6 +957,14 @@ class DaftarToko extends Component
                         'nomor' => $nomor,
                         'kode' => $kodeAkhir,
                         'nilai' => $kategoriMentah,
+                    ]);
+                }
+
+                if ($idnTidakTerdaftar) {
+                    $catatan[] = __('master.catatan_idn_tidak_terdaftar', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                        'nilai' => $assetId,
                     ]);
                 }
 

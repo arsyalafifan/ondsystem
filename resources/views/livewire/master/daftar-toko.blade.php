@@ -189,15 +189,20 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('master.asset_id') }}</label>
-                            <input type="text" wire:model="assetId" placeholder="IDNAH202528004381"
-                                   class="mt-1 block w-full font-mono uppercase rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <x-pilih-cari :opsi="$this->opsiFreezer" :nilai="$assetId" set="assetId" bisa-kosong
+                                          placeholder="{{ __('master.pilih_idn_placeholder') }}"
+                                          class="mt-1 font-mono uppercase" />
                             @error('assetId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             <p class="mt-1 text-xs text-gray-500">{{ __('master.asset_id_ket') }}</p>
+                            @if ($this->peringatanIdn)
+                                <p class="mt-1 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{{ $this->peringatanIdn }}</p>
+                            @endif
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('master.freezer_tipe') }}</label>
-                            <input type="text" wire:model="freezerTipe" placeholder="SD-280"
-                                   class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <input type="text" wire:model="freezerTipe" readonly placeholder="—"
+                                   class="mt-1 block w-full cursor-not-allowed rounded-lg border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 shadow-sm">
+                            <p class="mt-1 text-xs text-gray-500">{{ __('master.tipe_freezer_otomatis') }}</p>
                         </div>
                     </div>
 

@@ -10,6 +10,7 @@ use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Noo\RoutingFreezer;
 use App\Livewire\Pesanan\DaftarPesanan;
 use App\Livewire\Routing\RiwayatRouting;
+use App\Models\Freezer;
 use App\Models\Noo;
 use App\Models\PaketNoo;
 use App\Models\Pesanan;
@@ -21,6 +22,7 @@ use App\Models\Wilayah;
 use App\Services\Noo\BuktiNooService;
 use App\Services\Noo\NooService;
 use App\Services\RoutingService;
+use App\Support\DepotContext;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -71,6 +73,20 @@ function nooDisetujui(string $nik = '3201234567890123', string $telepon = '08123
     app(NooService::class)->setujui($noo, test()->admin);
 
     return $noo->fresh();
+}
+
+/**
+ * IDN cuma boleh dipasang kalau sudah terdaftar di Master Freezer (depot
+ * yang sedang aktif) — lihat PunyaPemilihFreezer::aturanIdn(). Idn dioper
+ * apa adanya (belum dirapikan) supaya ikut menguji normalisasi komponen.
+ */
+function daftarkanFreezerNoo(string $idn): void
+{
+    $rapi = mb_strtoupper(preg_replace('/\s+/', '', $idn));
+
+    if (! Freezer::where('idn', $rapi)->exists()) {
+        Freezer::create(['depot_id' => DepotContext::currentOrFail()->id, 'idn' => $rapi, 'tipe' => 'SD-200']);
+    }
 }
 
 /** Data URL kecil untuk mengisi foto bukti di tes. */
@@ -149,6 +165,8 @@ it('mengaktifkan toko, mengisi IDN, dan membuat pesanan perdana saat driver sele
     $noo = rutekanDanBerangkatkan();
     $kendaraan = $noo->stop->kendaraan;
 
+    daftarkanFreezerNoo('idn ah2025 280001');
+
     $komponen = Livewire::actingAs($this->driver)->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
         ->call('bukaKonfirmasiNoo', $noo->stop->id)
         ->set('assetIdNoo', 'idn ah2025 280001')
@@ -190,6 +208,8 @@ it('menolak menyelesaikan pemasangan sebelum seluruh fotonya lengkap', function 
     $noo = rutekanDanBerangkatkan();
     $kendaraan = $noo->stop->kendaraan;
 
+    daftarkanFreezerNoo('IDN-001');
+
     $komponen = Livewire::actingAs($this->driver)->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
         ->call('bukaKonfirmasiNoo', $noo->stop->id)
         ->set('assetIdNoo', 'IDN-001')
@@ -205,6 +225,7 @@ it('menolak IDN yang sudah dipakai toko lain', function () {
         'kode' => 'TK-9000', 'nama' => 'Toko Lain', 'wilayah_id' => $this->wilayah->id,
         'alamat' => 'Jl. Lain', 'asset_id' => 'IDNAH2025280001',
     ]);
+    daftarkanFreezerNoo('IDNAH2025280001');
 
     $noo = rutekanDanBerangkatkan();
     $kendaraan = $noo->stop->kendaraan;
@@ -228,6 +249,8 @@ it('tetap menuntaskan pemasangan meski stok gudang tidak cukup untuk pesanan per
 
     // Gudang kosong: pesanan perdana pasti gagal dibuat.
     $this->produk->update(['stok' => 0]);
+
+    daftarkanFreezerNoo('IDNAH2025280002');
 
     $komponen = Livewire::actingAs($this->driver)->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
         ->call('bukaKonfirmasiNoo', $noo->stop->id)
@@ -260,6 +283,8 @@ it('tetap menuntaskan pemasangan meski stok gudang tidak cukup untuk pesanan per
 it('tidak pernah mengikutkan pesanan perdana NOO ke persetujuan massal', function () {
     $noo = rutekanDanBerangkatkan();
     $kendaraan = $noo->stop->kendaraan;
+
+    daftarkanFreezerNoo('IDNAH2025280003');
 
     $komponen = Livewire::actingAs($this->driver)->test(DaftarKunjungan::class, ['kendaraan' => $kendaraan])
         ->call('bukaKonfirmasiNoo', $noo->stop->id)

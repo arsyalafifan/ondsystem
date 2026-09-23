@@ -3,6 +3,7 @@
 namespace App\Livewire\Toko;
 
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Livewire\Concerns\PunyaPemilihFreezer;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
@@ -32,7 +33,7 @@ use Livewire\Component;
  */
 class LengkapiData extends Component
 {
-    use MembutuhkanDepotTerkunci;
+    use MembutuhkanDepotTerkunci, PunyaPemilihFreezer;
 
     /** 'lengkapi' untuk formulir pencarian/penyuntingan, 'progres' untuk tab ringkasan. */
     public string $tab = 'lengkapi';
@@ -101,6 +102,15 @@ class LengkapiData extends Component
         $this->kota = (string) $toko->kota;
         $this->provinsi = (string) $toko->provinsi;
         $this->resetValidation();
+    }
+
+    /** Peringatan kalau IDN yang tersimpan tidak (lagi) terdaftar di Master Freezer — null kalau tidak ada masalah. */
+    #[Computed]
+    public function peringatanIdn(): ?string
+    {
+        return $this->idnTidakDikenal($this->assetId)
+            ? __('toko.idn_belum_terdaftar', ['idn' => $this->assetId])
+            : null;
     }
 
     public function batalPilihToko(): void
@@ -178,6 +188,17 @@ class LengkapiData extends Component
         // sama secara operasional) boleh terdaftar di toko depot lain.
         $depotId = DepotContext::currentOrFail()->id;
 
+        // Sama seperti Master Toko: dilewatkan dari pengecekan Master
+        // Freezer kalau IDN-nya tidak disentuh sama sekali dari yang sudah
+        // tersimpan — lihat PunyaPemilihFreezer::aturanIdn().
+        $assetIdSebelum = $toko->asset_id;
+
+        // Dirapikan SEBELUM divalidasi (bukan sesudah) — supaya pengecekan
+        // exists/unique terhadap Master Freezer membandingkan bentuk yang
+        // sama-sama sudah rapi, bukan salah tolak gara-gara cuma beda
+        // spasi/huruf besar-kecil dari yang tersimpan di sana.
+        $this->assetId = $this->assetId === '' ? '' : mb_strtoupper(preg_replace('/\s+/', '', $this->assetId));
+
         $data = $this->validate([
             'namaPemilik' => 'nullable|string|max:255',
             'nikPemilik' => [
@@ -186,7 +207,7 @@ class LengkapiData extends Component
             ],
             'alamat' => 'required|string',
             'assetId' => [
-                'required', 'string', 'max:40',
+                ...$this->aturanIdn($depotId, $this->assetId ?: null, $assetIdSebelum, wajib: true),
                 Rule::unique('tokos', 'asset_id')->ignore($toko->id)->where('depot_id', $depotId),
             ],
             'telepon' => [
@@ -202,6 +223,7 @@ class LengkapiData extends Component
         ], [
             'nikPemilik.digits' => __('master.nik_tidak_valid'),
             'nikPemilik.unique' => __('toko.galat_nik_dipakai'),
+            'assetId.exists' => __('toko.galat_idn_tidak_terdaftar'),
             'assetId.unique' => __('toko.galat_freezer_dipakai'),
             'telepon.unique' => __('toko.galat_hp_dipakai'),
         ], [
@@ -223,9 +245,9 @@ class LengkapiData extends Component
             'nama_pemilik' => $data['namaPemilik'] ?: null,
             'nik_pemilik' => $data['nikPemilik'] ?: null,
             'alamat' => $data['alamat'],
-            // Dirapikan sama seperti Master Toko: huruf besar tanpa spasi,
-            // supaya tetap cocok dengan hasil pemindaian QR freezer.
-            'asset_id' => mb_strtoupper(preg_replace('/\s+/', '', $data['assetId'])),
+            // Sudah dirapikan (huruf besar, tanpa spasi) sebelum divalidasi
+            // di atas, sama seperti Master Toko.
+            'asset_id' => $data['assetId'],
             'telepon' => $data['telepon'],
             'kecamatan' => $data['kecamatan'] ?: null,
             'kota' => $data['kota'] ?: null,
