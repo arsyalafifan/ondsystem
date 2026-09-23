@@ -4,6 +4,7 @@ namespace App\Livewire\Driver;
 
 use App\Enums\JenisBuktiNoo;
 use App\Enums\JenisBuktiPengiriman;
+use App\Enums\JenisRouting;
 use App\Enums\StatusStop;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Kendaraan;
@@ -919,6 +920,20 @@ class DaftarKunjungan extends Component
     // ------------------------------------------------------------------
     // Pemasangan freezer NOO
     // ------------------------------------------------------------------
+
+    /**
+     * Mobil ini membawa freezer NOO, bukan dus es krim.
+     *
+     * Dipakai layar untuk memilih satuan yang benar: "1 freezer", bukan
+     * "1 dus". Angkanya sendiri memang menumpang kolom `total_dus` —
+     * mesin routing menghitung kapasitas dengan satu satuan apa pun isinya
+     * (lihat App\Services\RoutingService::generateNoo()).
+     */
+    #[Computed]
+    public function ruteNoo(): bool
+    {
+        return $this->kendaraan->batch->jenis === JenisRouting::Noo;
+    }
 
     /**
      * Menuntaskan stop NOO berbeda sama sekali dari stop pesanan: tidak ada
