@@ -7,6 +7,7 @@ use App\Enums\JenisBuktiPengiriman;
 use App\Enums\JenisRouting;
 use App\Enums\StatusStop;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Livewire\Concerns\PunyaPemilihFreezer;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Toko;
@@ -52,7 +53,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DaftarKunjungan extends Component
 {
-    use MembutuhkanDepotTerkunci;
+    use MembutuhkanDepotTerkunci, PunyaPemilihFreezer;
     use WithFileUploads;
 
     public Kendaraan $kendaraan;
@@ -977,6 +978,12 @@ class DaftarKunjungan extends Component
         $this->resetValidation();
     }
 
+    /** IDN dipilih lewat pemilih Master Freezer — tipenya ikut, tidak diketik manual. */
+    public function updatedAssetIdNoo(?string $nilai): void
+    {
+        $this->freezerTipeNoo = $this->freezerUntukIdn($nilai)?->tipe ?? '';
+    }
+
     public function terimaBuktiNoo(string $jenis, string $gambar): void
     {
         if (in_array(JenisBuktiNoo::tryFrom($jenis), JenisBuktiNoo::wajibDriver(), true)) {
@@ -1015,12 +1022,21 @@ class DaftarKunjungan extends Component
 
         $depotId = DepotContext::currentOrFail()->id;
 
+        // Dirapikan SEBELUM divalidasi (bukan sesudah) — supaya pengecekan
+        // exists/unique terhadap Master Freezer membandingkan bentuk yang
+        // sama-sama sudah rapi, bukan salah tolak gara-gara cuma beda
+        // spasi/huruf besar-kecil dari yang tersimpan di sana.
+        $this->assetIdNoo = $this->assetIdNoo === '' ? '' : mb_strtoupper(preg_replace('/\s+/', '', $this->assetIdNoo));
+
         $data = $this->validate([
-            // Nomor stiker freezer: unik per depot, sama seperti di Master
-            // Toko dan Lengkapi Data Toko — dan dirapikan dengan cara yang
-            // sama supaya tetap cocok dengan hasil pemindaian QR.
-            'assetIdNoo' => ['required', 'string', 'max:40',
-                Rule::unique('tokos', 'asset_id')->ignore($stop->toko_id)->where('depot_id', $depotId)],
+            // Nomor stiker freezer WAJIB dipilih dari Master Freezer — toko
+            // NOO belum pernah punya asset_id sebelumnya (lihat
+            // NooService::setujui()), jadi ini selalu pemasangan baru, tidak
+            // ada nilai lama yang perlu dilewatkan dari pengecekan ini.
+            'assetIdNoo' => [
+                ...$this->aturanIdn($depotId, $this->assetIdNoo ?: null, null, wajib: true),
+                Rule::unique('tokos', 'asset_id')->ignore($stop->toko_id)->where('depot_id', $depotId),
+            ],
             'freezerTipeNoo' => 'nullable|string|max:40',
             'kelurahanNoo' => 'nullable|string|max:255',
             'kecamatanNoo' => 'nullable|string|max:255',
@@ -1028,6 +1044,7 @@ class DaftarKunjungan extends Component
             'provinsiNoo' => 'nullable|string|max:255',
             'kodePosNoo' => 'nullable|string|max:10',
         ], [
+            'assetIdNoo.exists' => __('toko.galat_idn_tidak_terdaftar'),
             'assetIdNoo.unique' => __('toko.galat_freezer_dipakai'),
         ], [
             'assetIdNoo' => __('noo.atr_idn'),
@@ -1042,7 +1059,7 @@ class DaftarKunjungan extends Component
 
         try {
             $service->selesaikan($noo, [
-                'asset_id' => mb_strtoupper(preg_replace('/\s+/', '', $data['assetIdNoo'])),
+                'asset_id' => $data['assetIdNoo'],
                 'freezer_tipe' => $data['freezerTipeNoo'] ?: null,
                 'kelurahan' => $data['kelurahanNoo'] ?: null,
                 'kecamatan' => $data['kecamatanNoo'] ?: null,

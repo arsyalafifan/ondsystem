@@ -14,6 +14,8 @@ return [
     'galat_nik_dipakai' => '此身份证号已被其他门店使用。',
     'galat_hp_dipakai' => '此手机号已被其他门店使用。',
     'galat_freezer_dipakai' => '此冰柜编号已被其他门店使用。',
+    'galat_idn_tidak_terdaftar' => '此 IDN 未在冰柜主档中登记，或已停用。',
+    'idn_belum_terdaftar' => '目前储存的 IDN：:idn ——在冰柜主档中找不到。请先在冰柜主档登记此 IDN，或在上方选择其他 IDN。',
     'notif_tersimpan' => '门店 :nama 的资料已保存。',
     'ket_judul' => '说明',
     'ket_panel_1' => '销售只能完善自己负责的门店资料。管理员与超级管理员可以完善任何门店的资料。',

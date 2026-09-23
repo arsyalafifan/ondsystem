@@ -4,6 +4,7 @@ use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
+use App\Models\Freezer;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
@@ -49,13 +50,26 @@ function tugaskanKeSales(Toko $toko, User $sales): void
     ]);
 }
 
+/**
+ * IDN cuma boleh dipilih kalau sudah terdaftar di Master Freezer (depot
+ * yang sedang aktif) — lihat PunyaPemilihFreezer::aturanIdn().
+ */
+function daftarkanFreezer(string $idn): void
+{
+    $rapi = mb_strtoupper(preg_replace('/\s+/', '', $idn));
+
+    if (! Freezer::where('idn', $rapi)->exists()) {
+        Freezer::create(['depot_id' => DepotContext::currentOrFail()->id, 'idn' => $rapi, 'tipe' => 'SD-200']);
+    }
+}
+
 /** Data profil lengkap yang valid untuk dikirim lewat form simpan(). */
 function dataProfilValid(array $override = []): array
 {
     static $n = 0;
     $n++;
 
-    return array_merge([
+    $data = array_merge([
         'namaPemilik' => 'Pemilik '.$n,
         'nikPemilik' => str_pad((string) $n, 16, '9', STR_PAD_LEFT),
         'alamat' => 'Jl. Lengkap No. '.$n,
@@ -65,6 +79,12 @@ function dataProfilValid(array $override = []): array
         'kota' => 'Kota '.$n,
         'provinsi' => 'Provinsi '.$n,
     ], $override);
+
+    if ($data['assetId'] !== '') {
+        daftarkanFreezer($data['assetId']);
+    }
+
+    return $data;
 }
 
 it('menolak akses selain sales, admin, dan superadmin', function () {

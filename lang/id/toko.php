@@ -14,6 +14,8 @@ return [
     'galat_nik_dipakai' => 'NIK ini sudah dipakai toko lain.',
     'galat_hp_dipakai' => 'Nomor HP ini sudah dipakai toko lain.',
     'galat_freezer_dipakai' => 'Nomor freezer ini sudah dipakai toko lain.',
+    'galat_idn_tidak_terdaftar' => 'IDN ini tidak terdaftar di Master Freezer, atau sudah tidak aktif.',
+    'idn_belum_terdaftar' => 'IDN tersimpan saat ini: :idn — tidak ditemukan di Master Freezer. Daftarkan IDN ini di Master Freezer, atau pilih IDN lain di atas.',
     'notif_tersimpan' => 'Data toko :nama tersimpan.',
     'ket_judul' => 'Catatan',
     'ket_panel_1' => 'Sales hanya bisa melengkapi data toko yang menjadi tanggungannya sendiri. Admin dan superadmin bisa melengkapi data toko mana pun.',

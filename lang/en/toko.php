@@ -14,6 +14,8 @@ return [
     'galat_nik_dipakai' => 'This NIK is already used by another store.',
     'galat_hp_dipakai' => 'This phone number is already used by another store.',
     'galat_freezer_dipakai' => 'This freezer number is already used by another store.',
+    'galat_idn_tidak_terdaftar' => 'This IDN is not registered in Master Freezer, or is no longer active.',
+    'idn_belum_terdaftar' => 'Currently stored IDN: :idn — not found in Master Freezer. Register this IDN in Master Freezer, or pick a different one above.',
     'notif_tersimpan' => 'Store data for :nama saved.',
     'ket_judul' => 'Notes',
     'ket_panel_1' => 'Sales reps can only complete data for their own assigned stores. Admins and superadmins can complete data for any store.',
