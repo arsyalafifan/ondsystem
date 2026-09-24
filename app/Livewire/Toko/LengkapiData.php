@@ -104,6 +104,11 @@ class LengkapiData extends Component
         $this->resetValidation();
     }
 
+    protected function idnTersimpan(): ?string
+    {
+        return $this->tokoId !== null ? Toko::whereKey($this->tokoId)->value('asset_id') : null;
+    }
+
     /** Peringatan kalau IDN yang tersimpan tidak (lagi) terdaftar di Master Freezer — null kalau tidak ada masalah. */
     #[Computed]
     public function peringatanIdn(): ?string
@@ -183,9 +188,9 @@ class LengkapiData extends Component
             return;
         }
 
-        // nik_pemilik, telepon, & asset_id semuanya unik PER DEPOT — nilai
-        // yang sama (termasuk nomor stiker freezer, untuk toko yang memang
-        // sama secara operasional) boleh terdaftar di toko depot lain.
+        // nik_pemilik & telepon unik PER DEPOT — nilai yang sama boleh
+        // terdaftar di toko depot lain. IDN lain lagi: unik di SELURUH
+        // gudang (lihat PunyaPemilihFreezer::aturanIdn()).
         $depotId = DepotContext::currentOrFail()->id;
 
         // Sama seperti Master Toko: dilewatkan dari pengecekan Master
@@ -206,10 +211,7 @@ class LengkapiData extends Component
                 Rule::unique('tokos', 'nik_pemilik')->ignore($toko->id)->where('depot_id', $depotId),
             ],
             'alamat' => 'required|string',
-            'assetId' => [
-                ...$this->aturanIdn($depotId, $this->assetId ?: null, $assetIdSebelum, wajib: true),
-                Rule::unique('tokos', 'asset_id')->ignore($toko->id)->where('depot_id', $depotId),
-            ],
+            'assetId' => $this->aturanIdn($this->assetId ?: null, $assetIdSebelum, $toko->id, wajib: true),
             'telepon' => [
                 'required', 'string', 'max:30',
                 Rule::unique('tokos', 'telepon')->ignore($toko->id)->where('depot_id', $depotId),
@@ -224,7 +226,6 @@ class LengkapiData extends Component
             'nikPemilik.digits' => __('master.nik_tidak_valid'),
             'nikPemilik.unique' => __('toko.galat_nik_dipakai'),
             'assetId.exists' => __('toko.galat_idn_tidak_terdaftar'),
-            'assetId.unique' => __('toko.galat_freezer_dipakai'),
             'telepon.unique' => __('toko.galat_hp_dipakai'),
         ], [
             'namaPemilik' => __('master.atr_nama_pemilik'),

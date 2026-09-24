@@ -41,7 +41,8 @@
                         <th class="px-4 py-2 font-medium">{{ __('master.idn_freezer') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('master.tipe_freezer') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.keterangan') }}</th>
-                        <th class="px-4 py-2 text-right font-medium">{{ __('umum.toko') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('master.kolom_nama_toko') }}</th>
+                        <th class="px-4 py-2 font-medium">{{ __('master.kolom_gudang') }}</th>
                         <th class="px-4 py-2 font-medium">{{ __('umum.status') }}</th>
                         <th class="px-4 py-2 text-right font-medium">{{ __('umum.aksi') }}</th>
                     </tr>
@@ -52,9 +53,15 @@
                             <td class="whitespace-nowrap px-4 py-2 font-mono font-medium text-gray-900">{{ $f->idn }}</td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-800">{{ $f->tipe }}</td>
                             <td class="max-w-md truncate px-4 py-2 text-gray-600">{{ $f->keterangan ?? '—' }}</td>
-                            <td class="whitespace-nowrap px-4 py-2 text-right tabular-nums text-gray-600">
-                                {{ $f->tokos_count > 0 ? $f->tokos_count : '—' }}
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-800">
+                                @if ($f->toko)
+                                    {{ $f->toko->nama }}
+                                    <span class="ml-1 font-mono text-xs text-gray-500">{{ $f->toko->kode }}</span>
+                                @else
+                                    <span class="rounded bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">{{ __('master.freezer_belum_terpasang') }}</span>
+                                @endif
                             </td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $f->toko?->depot?->nama ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-2">
                                 @if ($f->aktif)
                                     <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('umum.aktif') }}</span>
@@ -69,8 +76,8 @@
                                         {{ __('umum.sunting') }}
                                     </button>
                                     <button type="button" wire:click="$set('konfirmasiHapus', {{ $f->id }})"
-                                            @disabled($f->tokos_count > 0)
-                                            title="{{ $f->tokos_count > 0 ? __('master.freezer_dipakai_toko') : '' }}"
+                                            @disabled($f->toko !== null)
+                                            title="{{ $f->toko !== null ? __('master.freezer_dipakai_toko') : '' }}"
                                             class="rounded-md border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400">
                                         {{ __('umum.hapus') }}
                                     </button>
@@ -79,7 +86,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <x-kosong ikon="cube" :judul="__('master.freezer_kosong')" :keterangan="__('master.freezer_kosong_ket')" />
                             </td>
                         </tr>

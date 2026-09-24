@@ -24,7 +24,7 @@ return [
     'hak_akses' => 'Hak Akses Management',
     'master' => 'Master',
     'master_toko' => 'Master Toko',
-    'master_freezer' => 'Master Freezer',
+    'master_freezer' => 'General Master Freezer',
     'master_produk' => 'Master Produk',
     'master_wilayah' => 'Master Wilayah',
     'master_promo' => 'Master Promo',

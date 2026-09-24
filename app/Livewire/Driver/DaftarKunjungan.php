@@ -21,7 +21,6 @@ use App\Support\DepotContext;
 use App\Support\KmlRuteBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -1020,8 +1019,6 @@ class DaftarKunjungan extends Component
             return;
         }
 
-        $depotId = DepotContext::currentOrFail()->id;
-
         // Dirapikan SEBELUM divalidasi (bukan sesudah) — supaya pengecekan
         // exists/unique terhadap Master Freezer membandingkan bentuk yang
         // sama-sama sudah rapi, bukan salah tolak gara-gara cuma beda
@@ -1033,10 +1030,7 @@ class DaftarKunjungan extends Component
             // NOO belum pernah punya asset_id sebelumnya (lihat
             // NooService::setujui()), jadi ini selalu pemasangan baru, tidak
             // ada nilai lama yang perlu dilewatkan dari pengecekan ini.
-            'assetIdNoo' => [
-                ...$this->aturanIdn($depotId, $this->assetIdNoo ?: null, null, wajib: true),
-                Rule::unique('tokos', 'asset_id')->ignore($stop->toko_id)->where('depot_id', $depotId),
-            ],
+            'assetIdNoo' => $this->aturanIdn($this->assetIdNoo ?: null, null, $stop->toko_id, wajib: true),
             'freezerTipeNoo' => 'nullable|string|max:40',
             'kelurahanNoo' => 'nullable|string|max:255',
             'kecamatanNoo' => 'nullable|string|max:255',
@@ -1045,7 +1039,6 @@ class DaftarKunjungan extends Component
             'kodePosNoo' => 'nullable|string|max:10',
         ], [
             'assetIdNoo.exists' => __('toko.galat_idn_tidak_terdaftar'),
-            'assetIdNoo.unique' => __('toko.galat_freezer_dipakai'),
         ], [
             'assetIdNoo' => __('noo.atr_idn'),
             'freezerTipeNoo' => __('noo.atr_freezer_tipe'),

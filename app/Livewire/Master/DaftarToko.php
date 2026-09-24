@@ -8,6 +8,7 @@ use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Livewire\Concerns\PunyaPemilihFreezer;
 use App\Models\Freezer;
 use App\Models\Pesanan;
+use App\Models\Scopes\DepotScope;
 use App\Models\Toko;
 use App\Models\Wilayah;
 use App\Services\Peta\NominatimGeocoder;
@@ -147,6 +148,9 @@ class DaftarToko extends Component
 
     public bool $sedangGeocodeMassal = false;
 
+    // --- Konfirmasi hapus ---
+    public ?int $konfirmasiHapus = null;
+
     public function updated(string $kolom): void
     {
         if (in_array($kolom, ['cari', 'filterWilayah', 'tanpaKoordinat', 'tanpaWilayah'], true)) {
@@ -269,6 +273,11 @@ class DaftarToko extends Component
         $this->freezerTipe = $this->freezerUntukIdn($nilai)?->tipe ?? '';
     }
 
+    protected function idnTersimpan(): ?string
+    {
+        return $this->tokoId !== null ? Toko::whereKey($this->tokoId)->value('asset_id') : null;
+    }
+
     /** Peringatan kalau IDN yang tersimpan tidak (lagi) terdaftar di Master Freezer — null kalau tidak ada masalah. */
     #[Computed]
     public function peringatanIdn(): ?string
@@ -276,6 +285,71 @@ class DaftarToko extends Component
         return $this->idnTidakDikenal($this->assetId)
             ? __('toko.idn_belum_terdaftar', ['idn' => $this->assetId])
             : null;
+    }
+
+    /**
+     * Alasan sebuah toko belum boleh dihapus, null kalau aman. Sama seperti
+     * foreign key di basis data (pesanan, kunjungan, stop rute, NOO semuanya
+     * RESTRICT) tapi dicek di sini supaya pesannya bisa dibaca pengguna,
+     * bukan galat SQL. Toko juga harus dinonaktifkan dulu — langkah sengaja
+     * yang memisahkan "berhenti dipakai" dari "dihapus permanen".
+     */
+    private function alasanTidakBisaDihapus(Toko $toko): ?string
+    {
+        if ($toko->aktif) {
+            return __('master.hapus_toko_masih_aktif');
+        }
+
+        $punyaRiwayat = DB::table('pesanans')->where('toko_id', $toko->id)->exists()
+            || DB::table('kunjungans')->where('toko_id', $toko->id)->exists()
+            || DB::table('kendaraan_stops')->where('toko_id', $toko->id)->exists()
+            || DB::table('noos')->where('toko_id', $toko->id)->exists();
+
+        return $punyaRiwayat ? __('master.hapus_toko_punya_riwayat') : null;
+    }
+
+    public function konfirmasiHapusToko(int $id): void
+    {
+        $toko = Toko::findOrFail($id);
+        $alasan = $this->alasanTidakBisaDihapus($toko);
+
+        if ($alasan !== null) {
+            $this->dispatch('notifikasi', pesan: $alasan, jenis: 'error');
+
+            return;
+        }
+
+        $this->konfirmasiHapus = $toko->id;
+    }
+
+    public function hapus(): void
+    {
+        if ($this->tolakJikaTidakTerkunci()) {
+            return;
+        }
+
+        $toko = $this->konfirmasiHapus !== null ? Toko::find($this->konfirmasiHapus) : null;
+        $this->konfirmasiHapus = null;
+
+        if ($toko === null) {
+            return;
+        }
+
+        // Dicek ulang saat eksekusi, bukan hanya saat modal dibuka — statusnya
+        // bisa berubah di antara dua klik itu.
+        $alasan = $this->alasanTidakBisaDihapus($toko);
+
+        if ($alasan !== null) {
+            $this->dispatch('notifikasi', pesan: $alasan, jenis: 'error');
+
+            return;
+        }
+
+        $nama = $toko->nama;
+        $toko->delete();
+
+        unset($this->tokos, $this->jumlahTanpaKoordinat, $this->jumlahTanpaWilayah);
+        $this->dispatch('notifikasi', pesan: __('master.sukses_hapus_toko', ['nama' => $nama]), jenis: 'sukses');
     }
 
     public function tutupForm(): void
@@ -395,11 +469,11 @@ class DaftarToko extends Component
             return;
         }
 
-        // kode & asset_id unik PER DEPOT (dua depot boleh sama-sama punya
-        // TK-0001, atau sama-sama mencatat nomor stiker freezer yang sama
-        // untuk toko yang memang sama secara operasional) — BUKAN unik
-        // global, Rule::unique polos akan salah menolak nilai yang
-        // kebetulan sudah dipakai toko di DEPOT LAIN.
+        // kode unik PER DEPOT (dua depot boleh sama-sama punya TK-0001) —
+        // BUKAN unik global, Rule::unique polos akan salah menolak nilai
+        // yang kebetulan sudah dipakai toko di DEPOT LAIN. Kebalikannya
+        // asset_id (IDN): satu IDN hanya untuk satu toko di SEMUA gudang,
+        // dijaga di PunyaPemilihFreezer::aturanIdn().
         $depotId = DepotContext::currentOrFail()->id;
 
         // Nilai yang SUDAH tersimpan (bukan properti komponen, yang sudah
@@ -421,10 +495,7 @@ class DaftarToko extends Component
                 'required', 'string', 'max:30',
                 Rule::unique('tokos', 'kode')->ignore($this->tokoId)->where('depot_id', $depotId),
             ],
-            'assetId' => [
-                ...$this->aturanIdn($depotId, $this->assetId ?: null, $assetIdSebelum),
-                Rule::unique('tokos', 'asset_id')->ignore($this->tokoId)->where('depot_id', $depotId),
-            ],
+            'assetId' => $this->aturanIdn($this->assetId ?: null, $assetIdSebelum, $this->tokoId),
             'freezerTipe' => 'nullable|string|max:40',
             'nama' => 'required|string|max:255',
             'kategori' => ['nullable', Rule::enum(KategoriToko::class)],
@@ -442,7 +513,6 @@ class DaftarToko extends Component
         ], [
             'nikPemilik.digits' => __('master.nik_tidak_valid'),
             'assetId.exists' => __('toko.galat_idn_tidak_terdaftar'),
-            'assetId.unique' => __('toko.galat_freezer_dipakai'),
         ], [
             'kode' => __('master.atr_kode_toko'),
             'assetId' => __('master.atr_asset_id'),
@@ -706,6 +776,14 @@ class DaftarToko extends Component
         // baris) supaya berkas beratus baris tetap ringan.
         $idnAktif = Freezer::aktif()->pluck('idn')->flip();
 
+        // Pemegang IDN di SEMUA gudang (idn => id toko): satu IDN hanya boleh
+        // dipasang di satu toko di seluruh sistem, jadi $tokoPerAssetId di
+        // atas (yang hanya berisi toko gudang ini) tidak cukup untuk menahan
+        // baris yang memakai IDN milik toko gudang lain.
+        $idnDipegang = Toko::query()->withoutGlobalScope(DepotScope::class)
+            ->whereNotNull('asset_id')->pluck('id', 'asset_id')
+            ->map(fn ($id) => (int) $id)->all();
+
         $tokoIdPesananAktif = Pesanan::query()
             ->whereIn('status', StatusPesanan::aktif())
             ->distinct()
@@ -727,7 +805,7 @@ class DaftarToko extends Component
 
         DB::transaction(function () use (
             $batch, $judul, $wilayahPerNama, $wilayahPerKode, $idnAktif,
-            &$tokoPerKode, &$tokoPerAssetId, $tokoIdPesananAktif, &$kodeTerakhirAngka,
+            &$tokoPerKode, &$tokoPerAssetId, &$idnDipegang, $tokoIdPesananAktif, &$kodeTerakhirAngka,
             &$baru, &$diperbarui, &$dilewati, &$catatan, &$nomor,
         ): void {
             foreach ($batch as $baris) {
@@ -834,6 +912,13 @@ class DaftarToko extends Component
 
                 $adaSebelumnya = $tokoLama !== null;
 
+                // IDN yang sah di Master Freezer tapi sudah dipasang di toko
+                // LAIN (gudang mana pun) diperlakukan sama seperti IDN tidak
+                // terdaftar: baris tetap tersimpan, kolom IDN-nya saja yang
+                // dilewati dan dicatat.
+                $idnDipakaiLain = $assetId !== null && ! $idnTidakTerdaftar
+                    && isset($idnDipegang[$assetId]) && $idnDipegang[$assetId] !== $tokoLama?->id;
+
                 // Toko yang masih punya pesanan berjalan tidak boleh diseret
                 // wilayah/nomor asetnya lewat impor massal — itu bisa mengacaukan
                 // routing atau pengenalan QR di tengah transaksi. Baris tetap
@@ -863,7 +948,7 @@ class DaftarToko extends Component
                     // ditulis — persis seperti kategori yang tidak dikenal,
                     // biar kolom yang sudah benar (kalau ada) tidak ikut
                     // tertimpa nilai yang salah.
-                    'asset_id' => $idnTidakTerdaftar ? null : $assetId,
+                    'asset_id' => ($idnTidakTerdaftar || $idnDipakaiLain) ? null : $assetId,
                     'kelurahan' => $this->teksAtauNull($data['kelurahan'] ?? null),
                     'kecamatan' => $this->teksAtauNull($data['kecamatan'] ?? null),
                     'kota' => $this->teksAtauNull($data['kota'] ?? null),
@@ -928,6 +1013,7 @@ class DaftarToko extends Component
 
                 if ($tokoTersimpan->asset_id !== null) {
                     $tokoPerAssetId[$tokoTersimpan->asset_id] = $tokoTersimpan;
+                    $idnDipegang[$tokoTersimpan->asset_id] = $tokoTersimpan->id;
                 }
 
                 if ($kolomTerkunci !== []) {
@@ -962,6 +1048,14 @@ class DaftarToko extends Component
 
                 if ($idnTidakTerdaftar) {
                     $catatan[] = __('master.catatan_idn_tidak_terdaftar', [
+                        'nomor' => $nomor,
+                        'kode' => $kodeAkhir,
+                        'nilai' => $assetId,
+                    ]);
+                }
+
+                if ($idnDipakaiLain) {
+                    $catatan[] = __('master.catatan_idn_dipakai_toko_lain', [
                         'nomor' => $nomor,
                         'kode' => $kodeAkhir,
                         'nilai' => $assetId,

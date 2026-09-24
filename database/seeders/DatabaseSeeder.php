@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
 use App\Models\Depot;
+use App\Models\Freezer;
 use App\Models\Produk;
 use App\Models\StokMutasi;
 use App\Models\Toko;
@@ -206,6 +207,14 @@ class DatabaseSeeder extends Seeder
                 // Sebagian kecil dibiarkan kosong, meniru freezer yang belum
                 // terpasang, supaya peringatan di layar penugasan ikut teruji.
                 $adaFreezer = mt_rand(1, 100) > 6;
+
+                // IDN wajib ada di Master Freezer (katalog semua gudang).
+                if ($adaFreezer) {
+                    Freezer::updateOrCreate(
+                        ['idn' => sprintf('IDNAH2025280%05d', $nomor)],
+                        ['tipe' => 'SD-280', 'keterangan' => 'Data contoh seeder'],
+                    );
+                }
 
                 Toko::updateOrCreate(['kode' => sprintf('TK-%04d', $nomor)], [
                     'asset_id' => $adaFreezer ? sprintf('IDNAH2025280%05d', $nomor) : null,

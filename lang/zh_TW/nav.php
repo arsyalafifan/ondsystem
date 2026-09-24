@@ -24,7 +24,7 @@ return [
     'hak_akses' => '權限管理',
     'master' => '主檔',
     'master_toko' => '商店主檔',
-    'master_freezer' => '冰櫃主檔',
+    'master_freezer' => '通用冷櫃主檔',
     'master_produk' => '產品主檔',
     'master_wilayah' => '區域主檔',
     'master_promo' => '促銷主檔',

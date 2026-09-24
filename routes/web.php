@@ -83,9 +83,14 @@ Route::middleware('guest')->group(function () {
 // Terbuka untuk tamu maupun pengguna yang sudah masuk, karena pemilih bahasa
 // juga ada di halaman masuk.
 Route::post('/bahasa', function (Request $request) {
-    Bahasa::pakai((string) $request->input('kode'), $request->user());
+    $kode = (string) $request->input('kode');
+    Bahasa::pakai($kode, $request->user());
+    session([config('bahasa.kunci_sesi') => $kode]);
+    session()->save();
 
-    return back()->with('sukses', __('umum.bahasa_diubah', [
+    $tujuan = $request->header('Referer') ?: route('masuk');
+
+    return redirect()->to($tujuan)->with('sukses', __('umum.bahasa_diubah', [
         'bahasa' => Bahasa::info()['nama'],
     ]));
 })->name('bahasa.ubah');

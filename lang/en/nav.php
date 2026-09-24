@@ -24,7 +24,7 @@ return [
     'hak_akses' => 'Access Management',
     'master' => 'Master Data',
     'master_toko' => 'Stores',
-    'master_freezer' => 'Freezers',
+    'master_freezer' => 'General Master Freezer',
     'master_produk' => 'Products',
     'master_wilayah' => 'Regions',
     'master_promo' => 'Promos',

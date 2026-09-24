@@ -22,7 +22,6 @@ use App\Models\Wilayah;
 use App\Services\Noo\BuktiNooService;
 use App\Services\Noo\NooService;
 use App\Services\RoutingService;
-use App\Support\DepotContext;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -85,7 +84,7 @@ function daftarkanFreezerNoo(string $idn): void
     $rapi = mb_strtoupper(preg_replace('/\s+/', '', $idn));
 
     if (! Freezer::where('idn', $rapi)->exists()) {
-        Freezer::create(['depot_id' => DepotContext::currentOrFail()->id, 'idn' => $rapi, 'tipe' => 'SD-200']);
+        Freezer::create(['idn' => $rapi, 'tipe' => 'SD-200']);
     }
 }
 
