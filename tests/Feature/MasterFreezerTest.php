@@ -2,8 +2,12 @@
 
 use App\Enums\PeranPengguna;
 use App\Livewire\Master\DaftarFreezer;
+use App\Models\Depot;
 use App\Models\Freezer;
+use App\Models\Toko;
 use App\Models\User;
+use App\Models\Wilayah;
+use App\Support\DepotContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -29,7 +33,7 @@ it('halaman master freezer hanya bisa dibuka pengguna yang berhak', function () 
         ->assertDontSee('umum.semua_status');
 });
 
-it('bisa menambah freezer baru dan menolak idn duplikat dalam depot yang sama', function () {
+it('bisa menambah freezer baru dan menolak idn duplikat', function () {
     Livewire::actingAs($this->admin)
         ->test(DaftarFreezer::class)
         ->call('buatBaru')
@@ -54,7 +58,6 @@ it('bisa menambah freezer baru dan menolak idn duplikat dalam depot yang sama', 
 
 it('bisa mengedit data freezer yang ada', function () {
     $freezer = Freezer::create([
-        'depot_id' => $this->depot->id,
         'idn' => 'IDN-EDIT',
         'tipe' => 'Tipe Lama',
         'keterangan' => 'Catatan Lama',
@@ -78,7 +81,6 @@ it('bisa mengedit data freezer yang ada', function () {
 
 it('bisa menghapus freezer', function () {
     $freezer = Freezer::create([
-        'depot_id' => $this->depot->id,
         'idn' => 'IDN-DEL',
         'tipe' => 'SD-100',
     ]);
@@ -93,7 +95,6 @@ it('bisa menghapus freezer', function () {
 
 it('bisa mengunduh berkas contoh dan ekspor excel', function () {
     Freezer::create([
-        'depot_id' => $this->depot->id,
         'idn' => 'IDN-EXP-1',
         'tipe' => 'SD-200',
     ]);
@@ -167,8 +168,8 @@ it('melewati baris dengan idn duplikat di dalam berkas impor yang sama', functio
 });
 
 it('bisa mencari freezer dan memfilter berdasarkan status', function () {
-    Freezer::create(['depot_id' => $this->depot->id, 'idn' => 'IDN-ALPHA', 'tipe' => 'SD-100', 'aktif' => true]);
-    Freezer::create(['depot_id' => $this->depot->id, 'idn' => 'IDN-BETA', 'tipe' => 'CF-200', 'aktif' => false]);
+    Freezer::create(['idn' => 'IDN-ALPHA', 'tipe' => 'SD-100', 'aktif' => true]);
+    Freezer::create(['idn' => 'IDN-BETA', 'tipe' => 'CF-200', 'aktif' => false]);
 
     Livewire::actingAs($this->admin)
         ->test(DaftarFreezer::class)
@@ -179,4 +180,79 @@ it('bisa mencari freezer dan memfilter berdasarkan status', function () {
         ->set('filterStatus', '0')
         ->assertSee('IDN-BETA')
         ->assertDontSee('IDN-ALPHA');
+});
+
+/** Toko di gudang lain yang memegang IDN tertentu. */
+function tokoDiGudangLain(string $namaGudang, string $idn, string $namaToko = 'Toko Seberang'): Toko
+{
+    $depotLain = Depot::factory()->create(['kode' => strtoupper('G-'.substr(md5($namaGudang), 0, 6)), 'nama' => $namaGudang]);
+    $wilayah = DepotContext::jalankanSebagai($depotLain, fn () => Wilayah::create(['kode' => 'WX', 'nama' => 'Wilayah X']));
+
+    return DepotContext::jalankanSebagai($depotLain, fn () => Toko::create([
+        'kode' => 'TK-SEB1', 'nama' => $namaToko, 'wilayah_id' => $wilayah->id,
+        'alamat' => 'Jl. Seberang', 'asset_id' => $idn,
+    ]));
+}
+
+it('menampilkan freezer lintas gudang beserta nama toko dan gudang pemegangnya', function () {
+    Freezer::create(['idn' => 'IDN-GLB-1', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-GLB-2', 'tipe' => 'SD-200']);
+    tokoDiGudangLain('Gudang Seberang', 'IDN-GLB-1', 'Toko Seberang Jaya');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarFreezer::class)
+        ->assertSee('IDN-GLB-1')
+        ->assertSee('Toko Seberang Jaya')
+        ->assertSee('Gudang Seberang')
+        ->assertSee('IDN-GLB-2')
+        ->assertSee(__('master.freezer_belum_terpasang'));
+});
+
+it('mencari freezer lewat nama toko pemegangnya', function () {
+    Freezer::create(['idn' => 'IDN-CARI-1', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-CARI-2', 'tipe' => 'SD-200']);
+    tokoDiGudangLain('Gudang Seberang', 'IDN-CARI-1', 'Toko Makmur Sentosa');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarFreezer::class)
+        ->set('cari', 'Makmur')
+        ->assertSee('IDN-CARI-1')
+        ->assertDontSee('IDN-CARI-2');
+});
+
+it('menolak idn yang sama walau dibuat dari gudang yang berbeda', function () {
+    $depotLain = Depot::factory()->create(['kode' => 'G-LAIN']);
+    $adminLain = User::factory()->create(['role' => PeranPengguna::Admin, 'depot_id' => $depotLain->id]);
+
+    Freezer::create(['idn' => 'IDN-SAMA', 'tipe' => 'SD-200']);
+
+    Livewire::actingAs($adminLain)
+        ->test(DaftarFreezer::class)
+        ->call('buatBaru')
+        ->set('idn', 'IDN-SAMA')
+        ->set('tipe', 'CF-300')
+        ->call('simpan')
+        ->assertHasErrors(['idn']);
+});
+
+it('tidak menghapus freezer yang masih terpasang di toko gudang mana pun', function () {
+    $freezer = Freezer::create(['idn' => 'IDN-TERPASANG', 'tipe' => 'SD-200']);
+    tokoDiGudangLain('Gudang Seberang', 'IDN-TERPASANG');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarFreezer::class)
+        ->call('hapus', $freezer->id)
+        ->assertDispatched('notifikasi', jenis: 'error');
+
+    expect(Freezer::find($freezer->id))->not->toBeNull();
+});
+
+it('menyertakan nama toko dan gudang pada berkas ekspor', function () {
+    Freezer::create(['idn' => 'IDN-EXP-2', 'tipe' => 'SD-200']);
+    tokoDiGudangLain('Gudang Seberang', 'IDN-EXP-2');
+
+    Livewire::actingAs($this->admin)
+        ->test(DaftarFreezer::class)
+        ->call('unduhExcel')
+        ->assertFileDownloaded('freezer-'.now()->format('Y-m-d').'.xlsx');
 });

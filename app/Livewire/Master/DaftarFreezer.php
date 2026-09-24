@@ -2,9 +2,7 @@
 
 namespace App\Livewire\Master;
 
-use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\Freezer;
-use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -21,7 +19,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class DaftarFreezer extends Component
 {
-    use MembutuhkanDepotTerkunci;
     use WithFileUploads;
     use WithPagination;
 
@@ -84,7 +81,10 @@ class DaftarFreezer extends Component
     public function freezers()
     {
         return Freezer::query()
-            ->withCount('tokos')
+            ->with([
+                'toko' => fn ($q) => $q->select('id', 'kode', 'nama', 'asset_id', 'depot_id'),
+                'toko.depot:id,nama',
+            ])
             ->cari($this->cari)
             ->when($this->filterStatus !== '', fn ($q) => $q->where('aktif', (bool) $this->filterStatus))
             ->orderBy('idn')
@@ -97,10 +97,6 @@ class DaftarFreezer extends Component
 
     public function buatBaru(): void
     {
-        if ($this->tolakJikaTidakTerkunci()) {
-            return;
-        }
-
         $this->resetForm();
         $this->formTerbuka = true;
     }
@@ -132,18 +128,12 @@ class DaftarFreezer extends Component
 
     public function simpan(): void
     {
-        if ($this->tolakJikaTidakTerkunci()) {
-            return;
-        }
-
-        $depotId = DepotContext::currentOrFail()->id;
-
         $this->idn = mb_strtoupper(preg_replace('/\s+/', '', (string) $this->idn));
 
         $data = $this->validate([
             'idn' => [
                 'required', 'string', 'max:50',
-                Rule::unique('freezers', 'idn')->ignore($this->freezerId)->where('depot_id', $depotId),
+                Rule::unique('freezers', 'idn')->ignore($this->freezerId),
             ],
             'tipe' => 'required|string|max:100',
             'keterangan' => 'nullable|string|max:1000',
@@ -169,11 +159,15 @@ class DaftarFreezer extends Component
 
     public function hapus(int $id): void
     {
-        if ($this->tolakJikaTidakTerkunci()) {
+        $freezer = Freezer::findOrFail($id);
+
+        if ($freezer->toko()->exists()) {
+            $this->konfirmasiHapus = null;
+            $this->dispatch('notifikasi', pesan: __('master.freezer_dipakai_toko'), jenis: 'error');
+
             return;
         }
 
-        $freezer = Freezer::findOrFail($id);
         $freezer->delete();
 
         $this->konfirmasiHapus = null;
@@ -186,16 +180,14 @@ class DaftarFreezer extends Component
 
     public function unduhExcel()
     {
-        if ($this->tolakJikaTidakTerkunci()) {
-            return;
-        }
-
-        $freezers = Freezer::query()->orderBy('idn')->get();
+        $freezers = Freezer::query()->with('toko.depot:id,nama')->orderBy('idn')->get();
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
-        $sheet->fromArray(['idn', 'tipe', 'keterangan', 'status'], null, 'A1');
+        // nama_toko & gudang cuma informasi (siapa memegang IDN ini) — tidak
+        // dibaca saat impor, jadi berkas ekspor tetap bisa diimpor ulang.
+        $sheet->fromArray(['idn', 'tipe', 'keterangan', 'status', 'nama_toko', 'gudang'], null, 'A1');
 
         $baris = 2;
         foreach ($freezers as $freezer) {
@@ -204,6 +196,8 @@ class DaftarFreezer extends Component
                 $freezer->tipe,
                 $freezer->keterangan,
                 $freezer->aktif ? 'aktif' : 'nonaktif',
+                $freezer->toko?->nama,
+                $freezer->toko?->depot?->nama,
             ], null, "A{$baris}");
 
             $sheet->setCellValueExplicit("A{$baris}", (string) $freezer->idn, DataType::TYPE_STRING);
@@ -213,7 +207,7 @@ class DaftarFreezer extends Component
         $barisTerakhir = max(1, $baris - 1);
         $sheet->getStyle("A1:A{$barisTerakhir}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
-        foreach (range('A', 'D') as $kolom) {
+        foreach (range('A', 'F') as $kolom) {
             $sheet->getColumnDimension($kolom)->setAutoSize(true);
         }
 
@@ -252,10 +246,6 @@ class DaftarFreezer extends Component
 
     public function mulaiImporCsv(): void
     {
-        if ($this->tolakJikaTidakTerkunci()) {
-            return;
-        }
-
         $this->validate([
             'berkasCsv' => 'required|file|mimes:csv,txt,xlsx,xls|max:20480',
         ], [
@@ -356,8 +346,7 @@ class DaftarFreezer extends Component
             return;
         }
 
-        $depotId = DepotContext::currentOrFail()->id;
-        $freezerSemua = Freezer::query()->select(['id', 'depot_id', 'idn', 'tipe', 'keterangan', 'aktif'])->get();
+        $freezerSemua = Freezer::query()->select(['id', 'idn', 'tipe', 'keterangan', 'aktif'])->get();
         $freezerPerIdn = $freezerSemua->keyBy('idn');
 
         $baru = 0;
@@ -367,7 +356,7 @@ class DaftarFreezer extends Component
         $nomor = $this->imporOffset + 1;
 
         DB::transaction(function () use (
-            $batch, $judul, &$idnDilihat, &$freezerPerIdn, $depotId,
+            $batch, $judul, &$idnDilihat, &$freezerPerIdn,
             &$baru, &$diperbarui, &$dilewati, &$catatan, &$nomor,
         ): void {
             foreach ($batch as $baris) {
@@ -449,7 +438,6 @@ class DaftarFreezer extends Component
                     $diperbarui++;
                 } else {
                     $freezerBaru = Freezer::create([
-                        'depot_id' => $depotId,
                         'idn' => $idn,
                         'tipe' => $tipe,
                         'keterangan' => $keterangan ?: null,

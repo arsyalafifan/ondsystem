@@ -13,7 +13,7 @@ return [
     'galat_toko_tidak_valid' => 'Store not found, or is not one of your assigned stores.',
     'galat_nik_dipakai' => 'This NIK is already used by another store.',
     'galat_hp_dipakai' => 'This phone number is already used by another store.',
-    'galat_freezer_dipakai' => 'This freezer number is already used by another store.',
+    'galat_freezer_dipakai' => 'This IDN is already used by store :toko (:gudang). One IDN can only be installed in one store.',
     'galat_idn_tidak_terdaftar' => 'This IDN is not registered in Master Freezer, or is no longer active.',
     'idn_belum_terdaftar' => 'Currently stored IDN: :idn — not found in Master Freezer. Register this IDN in Master Freezer, or pick a different one above.',
     'notif_tersimpan' => 'Store data for :nama saved.',

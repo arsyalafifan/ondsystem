@@ -4,11 +4,13 @@ use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
 use App\Livewire\Master\DaftarToko;
 use App\Livewire\Toko\LengkapiData;
+use App\Models\Depot;
 use App\Models\Freezer;
 use App\Models\PenugasanToko;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
+use App\Support\DepotContext;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
@@ -24,7 +26,7 @@ beforeEach(function () {
 });
 
 it('Master Toko menerima IDN yang terdaftar di Master Freezer, dan tipenya ikut otomatis', function () {
-    Freezer::create(['depot_id' => $this->depot->id, 'idn' => 'IDN-OK-1', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-OK-1', 'tipe' => 'SD-200']);
 
     Livewire::actingAs($this->admin)
         ->test(DaftarToko::class)
@@ -81,7 +83,7 @@ it('Master Toko membiarkan IDN lama yang sudah tidak terdaftar tetap tersimpan k
 });
 
 it('Lengkapi Data Toko menerima IDN terdaftar dan menolak yang tidak terdaftar', function () {
-    Freezer::create(['depot_id' => $this->depot->id, 'idn' => 'IDN-SALES-1', 'tipe' => 'CF-300']);
+    Freezer::create(['idn' => 'IDN-SALES-1', 'tipe' => 'CF-300']);
 
     $toko = Toko::create([
         'kode' => 'TK-IDN-D', 'nama' => 'Toko Sales', 'wilayah_id' => $this->wilayah->id,
@@ -130,7 +132,7 @@ function importBarisIdn(string $idnMentah): array
 }
 
 it('impor mengenali IDN yang sudah terdaftar di Master Freezer', function () {
-    Freezer::create(['depot_id' => $this->depot->id, 'idn' => 'IDN-IMP-OK', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-IMP-OK', 'tipe' => 'SD-200']);
 
     [$toko, $hasil] = importBarisIdn('IDN-IMP-OK');
 
@@ -145,4 +147,74 @@ it('impor membiarkan baris tetap tersimpan meski IDN-nya tidak terdaftar, dan me
         ->and($toko->nama)->toBe('Toko Impor IDN')
         ->and($hasil['catatan'])->toHaveCount(1)
         ->and($hasil['catatan'][0])->toContain('IDN-TIDAK-TERDAFTAR');
+});
+
+/** Toko di gudang lain yang memegang IDN tertentu. */
+function pasangIdnDiGudangLain(string $idn): void
+{
+    $depotLain = Depot::factory()->create(['kode' => 'G-SEB', 'nama' => 'Gudang Seberang']);
+
+    DepotContext::jalankanSebagai($depotLain, function () use ($idn) {
+        $wilayah = Wilayah::create(['kode' => 'WS', 'nama' => 'Wilayah Seberang']);
+        Toko::create([
+            'kode' => 'TK-SEB', 'nama' => 'Toko Seberang', 'wilayah_id' => $wilayah->id,
+            'alamat' => 'Jl. Seberang', 'asset_id' => $idn,
+        ]);
+    });
+}
+
+it('Master Toko menolak IDN yang sudah terpasang di toko gudang lain', function () {
+    Freezer::create(['idn' => 'IDN-GLOBAL', 'tipe' => 'SD-200']);
+    pasangIdnDiGudangLain('IDN-GLOBAL');
+
+    $komponen = Livewire::actingAs($this->admin)
+        ->test(DaftarToko::class)
+        ->call('buatBaru')
+        ->set('kode', 'TK-IDN-E')
+        ->set('nama', 'Toko IDN E')
+        ->set('alamat', 'Jl. Uji')
+        ->set('wilayahId', $this->wilayah->id)
+        ->set('assetId', 'IDN-GLOBAL')
+        ->call('simpan')
+        ->assertHasErrors('assetId');
+
+    expect($komponen->errors()->first('assetId'))->toContain('Toko Seberang')->toContain('Gudang Seberang')
+        ->and(Toko::where('kode', 'TK-IDN-E')->exists())->toBeFalse();
+});
+
+it('pemilih IDN hanya menawarkan freezer yang masih kosong, ditambah milik toko itu sendiri', function () {
+    Freezer::create(['idn' => 'IDN-KOSONG', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-DIPAKAI-LAIN', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-MILIKKU', 'tipe' => 'SD-200']);
+    Freezer::create(['idn' => 'IDN-NONAKTIF', 'tipe' => 'SD-200', 'aktif' => false]);
+    pasangIdnDiGudangLain('IDN-DIPAKAI-LAIN');
+
+    $toko = Toko::create([
+        'kode' => 'TK-IDN-F', 'nama' => 'Toko Saya', 'wilayah_id' => $this->wilayah->id,
+        'alamat' => 'Jl. Saya', 'asset_id' => 'IDN-MILIKKU',
+    ]);
+
+    $tawaran = fn ($komponen) => collect($komponen->instance()->opsiFreezer)->pluck('value')->all();
+
+    $baru = Livewire::actingAs($this->admin)->test(DaftarToko::class)->call('buatBaru');
+    expect($tawaran($baru))->toContain('IDN-KOSONG')
+        ->not->toContain('IDN-DIPAKAI-LAIN')
+        ->not->toContain('IDN-MILIKKU')
+        ->not->toContain('IDN-NONAKTIF');
+
+    $sunting = Livewire::actingAs($this->admin)->test(DaftarToko::class)->call('sunting', $toko->id);
+    expect($tawaran($sunting))->toContain('IDN-KOSONG')->toContain('IDN-MILIKKU')
+        ->not->toContain('IDN-DIPAKAI-LAIN');
+});
+
+it('impor melewati IDN yang sudah terpasang di toko gudang lain, tapi tetap menyimpan barisnya', function () {
+    Freezer::create(['idn' => 'IDN-IMP-LAIN', 'tipe' => 'SD-200']);
+    pasangIdnDiGudangLain('IDN-IMP-LAIN');
+
+    [$toko, $hasil] = importBarisIdn('IDN-IMP-LAIN');
+
+    expect($toko->asset_id)->toBeNull()
+        ->and($toko->nama)->toBe('Toko Impor IDN')
+        ->and($hasil['catatan'])->toHaveCount(1)
+        ->and($hasil['catatan'][0])->toContain('IDN-IMP-LAIN');
 });

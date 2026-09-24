@@ -24,7 +24,7 @@ return [
     'hak_akses' => '权限管理',
     'master' => '主数据',
     'master_toko' => '商店主数据',
-    'master_freezer' => '冰柜主数据',
+    'master_freezer' => '通用冷柜主数据',
     'master_produk' => '产品主数据',
     'master_wilayah' => '区域主数据',
     'master_promo' => '促销主数据',

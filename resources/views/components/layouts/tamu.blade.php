@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? __('auth.judul') }} — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -18,7 +19,7 @@
         window.addEventListener('load', () => window.bersihkanCacheHalaman?.());
     </script>
 </head>
-<body class="grid h-full place-items-center bg-slate-900 p-4 font-sans text-gray-900 antialiased">
+<body class="grid min-h-full place-items-center bg-slate-900 p-4 font-sans text-gray-900 antialiased">
     <div class="w-full max-w-sm">
         {{ $slot }}
 

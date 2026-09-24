@@ -137,10 +137,18 @@
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-right">
+                                <div class="flex justify-end gap-1">
                                 <button type="button" wire:click="sunting({{ $toko->id }})"
                                         class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
                                     {{ __('umum.sunting') }}
                                 </button>
+                                <button type="button" wire:click="konfirmasiHapusToko({{ $toko->id }})"
+                                        @disabled($toko->aktif)
+                                        title="{{ $toko->aktif ? __('master.hapus_toko_masih_aktif') : '' }}"
+                                        class="rounded-md border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400">
+                                    {{ __('umum.hapus') }}
+                                </button>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -502,4 +510,20 @@
         });
     </script>
     @endscript
+    {{-- Modal Konfirmasi Hapus --}}
+    @if ($konfirmasiHapus)
+        <x-modal :judul="__('master.judul_hapus_toko')" tutup="$set('konfirmasiHapus', null)">
+            <p class="p-5 text-sm text-gray-600">{{ __('master.ket_hapus_toko') }}</p>
+            <x-slot:aksi>
+                <button type="button" wire:click="$set('konfirmasiHapus', null)"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.batal') }}
+                </button>
+                <button type="button" wire:click="hapus"
+                        class="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                    {{ __('umum.hapus') }}
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
 </div>

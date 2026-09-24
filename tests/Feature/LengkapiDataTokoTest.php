@@ -59,7 +59,7 @@ function daftarkanFreezer(string $idn): void
     $rapi = mb_strtoupper(preg_replace('/\s+/', '', $idn));
 
     if (! Freezer::where('idn', $rapi)->exists()) {
-        Freezer::create(['depot_id' => DepotContext::currentOrFail()->id, 'idn' => $rapi, 'tipe' => 'SD-200']);
+        Freezer::create(['idn' => $rapi, 'tipe' => 'SD-200']);
     }
 }
 
@@ -352,15 +352,13 @@ describe('keunikan NIK, nomor HP, dan nomor freezer antar toko', function () {
  * Bukti perbaikan bug nyata: NIK/nomor HP pemilik toko di Perawang
  * tadinya juga menolak toko yang sama sekali berbeda di Dumai, padahal
  * itu toko yang sepenuhnya lain — cuma kebetulan sama-sama tercatat NIK
- * pemilik yang sama. asset_id (stiker QR freezer fisik) awalnya dibuat
- * TETAP unik global dengan alasan "satu barang fisik tidak mungkin ada
- * di 2 depot" — ternyata premis itu salah di lapangan: toko yang sama
- * BOLEH tercatat di dua depot (mis. wilayah perbatasan), dan freezer
- * fisiknya pun ikut sama, jadi nomor stikernya SAH berulang lintas
- * depot juga (lihat migrasi asset_id_toko_unik_per_depot). Yang tetap
- * dijaga: DALAM satu depot, ketiganya tetap harus unik.
+ * pemilik yang sama. asset_id (IDN, stiker QR freezer fisik) sempat dilonggarkan jadi
+ * unik per depot juga, tapi kini dikembalikan ke unik di SELURUH gudang
+ * (lihat migrasi jadikan_master_freezer_dan_idn_toko_global): satu IDN
+ * adalah satu freezer fisik, jadi hanya boleh melekat di satu toko. NIK
+ * dan nomor HP tetap unik per depot.
  */
-describe('NIK/HP/asset_id boleh sama lintas depot, tapi tetap unik dalam satu depot', function () {
+describe('NIK/HP boleh sama lintas depot, tapi IDN unik di seluruh gudang', function () {
     it('mengizinkan NIK yang sama dipakai toko di depot lain', function () {
         $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD']);
 
@@ -397,8 +395,8 @@ describe('NIK/HP/asset_id boleh sama lintas depot, tapi tetap unik dalam satu de
             ->assertHasNoErrors();
     });
 
-    it('mengizinkan nomor freezer yang sama dipakai toko di depot lain', function () {
-        $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD3']);
+    it('menolak nomor freezer yang sudah dipakai toko di depot lain, dan menyebut toko serta gudangnya', function () {
+        $depotLain = Depot::factory()->create(['kode' => 'DEPOTLD3', 'nama' => 'Gudang Seberang']);
 
         DepotContext::jalankanSebagai($depotLain, function () {
             buatTokoLengkapi('Toko Depot Lain', ['asset_id' => 'IDNAH999999999']);
@@ -407,12 +405,17 @@ describe('NIK/HP/asset_id boleh sama lintas depot, tapi tetap unik dalam satu de
         $toko = buatTokoLengkapi();
         tugaskanKeSales($toko, $this->sales);
 
-        Livewire::actingAs($this->sales)
+        $komponen = Livewire::actingAs($this->sales)
             ->test(LengkapiData::class)
             ->call('pilihToko', $toko->id)
             ->set(dataProfilValid(['assetId' => 'IDNAH999999999']))
             ->call('simpan')
-            ->assertHasNoErrors('assetId');
+            ->assertHasErrors('assetId');
+
+        expect($komponen->errors()->first('assetId'))
+            ->toContain('Toko Depot Lain')
+            ->toContain('Gudang Seberang')
+            ->and($toko->fresh()->asset_id)->toBeNull();
     });
 });
 

@@ -13,7 +13,7 @@ return [
     'galat_toko_tidak_valid' => '找不到该门店，或该门店不属于您负责的门店。',
     'galat_nik_dipakai' => '此身份证号已被其他门店使用。',
     'galat_hp_dipakai' => '此手机号已被其他门店使用。',
-    'galat_freezer_dipakai' => '此冰柜编号已被其他门店使用。',
+    'galat_freezer_dipakai' => '此 IDN 已被门店 :toko（:gudang）使用。一个 IDN 只能安装在一家门店。',
     'galat_idn_tidak_terdaftar' => '此 IDN 未在冰柜主档中登记，或已停用。',
     'idn_belum_terdaftar' => '目前储存的 IDN：:idn ——在冰柜主档中找不到。请先在冰柜主档登记此 IDN，或在上方选择其他 IDN。',
     'notif_tersimpan' => '门店 :nama 的资料已保存。',
