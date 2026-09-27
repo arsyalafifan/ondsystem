@@ -52,6 +52,7 @@ return [
     'semua_status' => 'Semua status',
     'kolom_kode' => 'Kode',
     'kolom_pengaju' => 'Diajukan oleh',
+    'semua_pengaju' => 'Semua pengaju',
     'kosong' => 'Belum ada pengajuan NOO',
     'ket_kosong' => 'Pengajuan yang dibuat akan muncul di sini.',
 

@@ -182,6 +182,10 @@ function paritasMenuAdmin(): array
         paritasTautan('nav.noo_persetujuan', 'noo.persetujuan'),
         paritasTautan('nav.noo_routing', 'noo.routing'),
         paritasTautan('nav.noo_paket', 'noo.paket'),
+        '# '.__('nav.tarik_freezer'),
+        paritasTautan('nav.tarik_freezer_daftar', 'tarik-freezer.daftar'),
+        paritasTautan('nav.tarik_freezer_persetujuan', 'tarik-freezer.persetujuan'),
+        paritasTautan('nav.tarik_freezer_routing', 'tarik-freezer.routing'),
         '# '.__('nav.pembayaran'),
         paritasTautan('nav.pelunasan', 'pembayaran.pelunasan'),
         paritasTautan('nav.belum_lunas', 'pembayaran.belum-lunas'),
@@ -252,6 +256,8 @@ function paritasMenuSales(): array
         paritasTautan('nav.riwayat_pesanan', 'pesanan.daftar'),
         '# '.__('nav.noo'),
         paritasTautan('nav.noo_daftar', 'noo.daftar'),
+        '# '.__('nav.tarik_freezer'),
+        paritasTautan('nav.tarik_freezer_daftar', 'tarik-freezer.daftar'),
     ];
 }
 

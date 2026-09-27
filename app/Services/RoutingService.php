@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Enums\JenisRouting;
 use App\Enums\StatusNoo;
 use App\Enums\StatusPesanan;
+use App\Enums\StatusTarikFreezer;
 use App\Models\Kendaraan;
 use App\Models\KendaraanStop;
 use App\Models\Noo;
 use App\Models\Pesanan;
 use App\Models\RoutingBatch;
+use App\Models\TarikFreezer;
 use App\Models\User;
 use App\Services\Peta\Koordinat;
 use App\Services\Routing\HasilRouting;
@@ -174,6 +176,79 @@ class RoutingService
         return $this->simpan($hasil, $admin, $maks, $maks, $tanggalKeberangkatan, JenisRouting::Noo);
     }
 
+    /**
+     * Tarik Freezer yang sudah disetujui dan belum masuk rute pengambilan.
+     *
+     * @param  array<int, int>  $tarikIds  kosong berarti semua yang siap
+     * @return Collection<int, TarikFreezer>
+     */
+    public function tarikSiapRouting(array $tarikIds = []): Collection
+    {
+        return TarikFreezer::query()
+            ->where('status', StatusTarikFreezer::Process)
+            ->whereDoesntHave('stop')
+            ->when($tarikIds !== [], fn ($q) => $q->whereIn('id', $tarikIds))
+            ->with('toko:id,kode,nama,alamat,latitude,longitude,wilayah_id')
+            ->orderBy('disetujui_at')
+            ->get();
+    }
+
+    /**
+     * Menyusun rute PENGAMBILAN freezer dari toko yang berhenti jadi mitra —
+     * kebalikan dari generateNoo(), kapasitas mobil dan cara menyimpannya
+     * sama persis. Koordinat diambil dari tokonya langsung (bukan disalin
+     * ulang seperti NOO) karena tidak ada survei baru: toko ini sudah lama
+     * berdiri dan titiknya sudah tercatat.
+     *
+     * Toko tanpa koordinat dilewati dari rute (bukan menggagalkan seluruh
+     * proses) dan dilaporkan sebagai peringatan, sama seperti generate()
+     * pesanan reguler.
+     *
+     * @param  array<int, int>  $tarikIds
+     *
+     * @throws RuntimeException bila tidak ada Tarik Freezer yang siap dirutekan
+     */
+    public function generateTarik(User $admin, array $tarikIds = [], ?CarbonImmutable $tanggalKeberangkatan = null): RoutingBatch
+    {
+        $tanggalKeberangkatan ??= CarbonImmutable::today();
+        $maks = (int) config('ond.noo.maks_freezer_per_mobil');
+
+        $tariks = $this->tarikSiapRouting($tarikIds);
+
+        if ($tariks->isEmpty()) {
+            throw new RuntimeException(__('tarik_freezer.galat_tidak_ada_siap_routing'));
+        }
+
+        [$layak, $tanpaKoordinat] = $tariks->partition(
+            fn (TarikFreezer $t) => $t->toko->latitude !== null && $t->toko->longitude !== null
+        );
+
+        if ($layak->isEmpty()) {
+            throw new RuntimeException(__('routing.galat_semua_tanpa_koordinat'));
+        }
+
+        $titik = $layak->map(fn (TarikFreezer $t) => new TitikPengiriman(
+            rujukanId: $t->id,
+            tokoId: (int) $t->toko_id,
+            wilayahId: (int) $t->toko->wilayah_id,
+            namaToko: $t->toko->nama,
+            alamat: $t->toko->alamat,
+            dus: 1,
+            koordinat: new Koordinat((float) $t->toko->latitude, (float) $t->toko->longitude),
+        ))->all();
+
+        $hasil = $this->mesin->susun($titik, $this->depot(), $maks, $maks, pisahPerWilayah: true);
+
+        foreach ($tanpaKoordinat as $t) {
+            $hasil->peringatan[] = __('routing.peringatan_dilewati', [
+                'kode' => $t->kode,
+                'toko' => $t->toko->nama,
+            ]);
+        }
+
+        return $this->simpan($hasil, $admin, $maks, $maks, $tanggalKeberangkatan, JenisRouting::Tarik);
+    }
+
     private function simpan(
         HasilRouting $hasil,
         User $admin,
@@ -248,8 +323,6 @@ class RoutingService
 
     private function simpanStops(Kendaraan $kendaraan, RuteKendaraan $rute, CarbonImmutable $jamBerangkat, JenisRouting $jenis): void
     {
-        $noo = $jenis === JenisRouting::Noo;
-
         $waktu = $jamBerangkat;
         $bongkarMenit = DepotContext::currentOrFail()->service_minutes;
 
@@ -260,11 +333,16 @@ class RoutingService
             $waktu = $waktu->addSeconds((int) round($leg['durasi_s']));
 
             $kendaraan->stops()->create([
-                // Satu dari keduanya SELALU kosong: stop freezer belum punya
-                // pesanan apa pun, dan stop reguler tidak berasal dari NOO.
-                'pesanan_id' => $noo ? null : $titik->rujukanId,
-                'noo_id' => $noo ? $titik->rujukanId : null,
-                'jenis' => $noo ? 'noo' : 'rute',
+                // Tepat satu dari ketiganya terisi, tergantung $jenis: stop
+                // freezer (NOO maupun Tarik) tidak pernah punya pesanan.
+                'pesanan_id' => $jenis === JenisRouting::Reguler ? $titik->rujukanId : null,
+                'noo_id' => $jenis === JenisRouting::Noo ? $titik->rujukanId : null,
+                'tarik_freezer_id' => $jenis === JenisRouting::Tarik ? $titik->rujukanId : null,
+                'jenis' => match ($jenis) {
+                    JenisRouting::Reguler => 'rute',
+                    JenisRouting::Noo => 'noo',
+                    JenisRouting::Tarik => 'tarik',
+                },
                 'toko_id' => $titik->tokoId,
                 'urutan' => $i + 1,
                 'total_dus' => $titik->dus,
@@ -292,18 +370,21 @@ class RoutingService
         DB::transaction(function () use ($batch, $admin): void {
             $stops = KendaraanStop::query()->whereIn('kendaraan_id', $batch->kendaraans()->select('id'));
 
-            if ($batch->jenis === JenisRouting::Noo) {
-                Noo::whereIn('id', (clone $stops)->pluck('noo_id'))->update([
+            match ($batch->jenis) {
+                JenisRouting::Noo => Noo::whereIn('id', (clone $stops)->pluck('noo_id'))->update([
                     'status' => StatusNoo::Delivery->value,
                     'updated_at' => now(),
-                ]);
-            } else {
-                Pesanan::whereIn('id', (clone $stops)->pluck('pesanan_id'))->update([
+                ]),
+                JenisRouting::Tarik => TarikFreezer::whereIn('id', (clone $stops)->pluck('tarik_freezer_id'))->update([
+                    'status' => StatusTarikFreezer::Delivery->value,
+                    'updated_at' => now(),
+                ]),
+                JenisRouting::Reguler => Pesanan::whereIn('id', (clone $stops)->pluck('pesanan_id'))->update([
                     'status' => StatusPesanan::Delivery->value,
                     'dikirim_at' => now(),
                     'updated_at' => now(),
-                ]);
-            }
+                ]),
+            };
 
             // Muatan saat berangkat disalin ke target_dus dan tidak pernah
             // berubah lagi. Ia menjadi penyebut persentase pengiriman, supaya

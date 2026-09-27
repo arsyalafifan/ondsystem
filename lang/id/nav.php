@@ -62,4 +62,8 @@ return [
     'noo_persetujuan' => 'Persetujuan NOO',
     'noo_routing' => 'Routing Freezer',
     'noo_paket' => 'Default Pesanan NOO',
+    'tarik_freezer' => 'Tarik Freezer',
+    'tarik_freezer_daftar' => 'Pengajuan Tarik Freezer',
+    'tarik_freezer_persetujuan' => 'Persetujuan Tarik Freezer',
+    'tarik_freezer_routing' => 'Routing Tarik Freezer',
 ];

@@ -1,8 +1,12 @@
 @php
-    // Rute freezer NOO memakai satuan unit, bukan dus — angkanya menumpang
-    // kolom yang sama, jadi yang berbeda cuma sebutannya.
-    $satuan = $this->ruteNoo ? __('noo.satuan_freezer') : __('umum.satuan_dus');
-    $kunciProgres = $this->ruteNoo ? 'noo.progres_freezer' : 'driver.progres';
+    // Rute freezer NOO/Tarik Freezer memakai satuan unit, bukan dus —
+    // angkanya menumpang kolom yang sama, jadi yang berbeda cuma sebutannya.
+    $satuan = ($this->ruteNoo || $this->ruteTarik) ? __('noo.satuan_freezer') : __('umum.satuan_dus');
+    $kunciProgres = match (true) {
+        $this->ruteNoo => 'noo.progres_freezer',
+        $this->ruteTarik => 'tarik_freezer.progres_pengambilan',
+        default => 'driver.progres',
+    };
 @endphp
 <div x-data="{ kameraTerbuka: false, kameraSlot: null }">
     @php $p = $this->progres; @endphp
@@ -148,6 +152,11 @@
                                 class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
                             {{ __('noo.tombol_pasang_freezer') }}
                         </button>
+                    @elseif ($this->berikutnya->isTarik())
+                        <button type="button" wire:click="bukaKonfirmasiTarik({{ $this->berikutnya->id }})"
+                                class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                            {{ __('tarik_freezer.tombol_ambil_freezer') }}
+                        </button>
                     @else
                         <button type="button" wire:click="bukaKonfirmasi({{ $this->berikutnya->id }})"
                                 class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
@@ -198,6 +207,11 @@
                                     {{ __('noo.label_noo') }}
                                 </span>
                             @endif
+                            @if ($stop->isTarik())
+                                <span class="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-medium text-rose-800">
+                                    {{ __('tarik_freezer.label_tarik') }}
+                                </span>
+                            @endif
                             @if ($stop->pesanan?->kurang_kirim)
                                 <span class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-800">
                                     {{ __('pengiriman.kurang_kirim') }}
@@ -213,6 +227,9 @@
                                 @if ($stop->noo?->paket)
                                     <span><x-heroicon-o-gift class="size-4 inline" /> {{ $stop->noo->paket->nama }}</span>
                                 @endif
+                            @elseif ($stop->isTarik())
+                                <span><x-heroicon-o-arrow-uturn-left class="size-4 inline" /> {{ $stop->tarikFreezer?->kode }}</span>
+                                <span><x-heroicon-o-cube class="size-4 inline" /> {{ __('noo.satu_freezer') }}</span>
                             @else
                                 <span>
                                     <x-heroicon-o-cube class="size-4 inline" /> @angka($stop->total_dus_terkirim)/@angka($stop->total_dus) {{ __('umum.satuan_dus') }}
@@ -233,7 +250,7 @@
                             </p>
                         @endif
 
-                        @unless ($stop->isNoo())
+                        @unless ($stop->isNoo() || $stop->isTarik())
                         <details class="mt-2">
                             <summary class="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-900">
                                 {{ __('driver.rincian_barang') }}
@@ -284,6 +301,10 @@
                                 <button type="button" wire:click="bukaKonfirmasiNoo({{ $stop->id }})"
                                         title="{{ __('noo.tombol_pasang_freezer') }}"
                                         class="rounded-lg bg-violet-600 px-2.5 py-1.5 text-sm text-white hover:bg-violet-700"><x-heroicon-o-camera class="size-4 inline" /></button>
+                            @elseif ($stop->isTarik())
+                                <button type="button" wire:click="bukaKonfirmasiTarik({{ $stop->id }})"
+                                        title="{{ __('tarik_freezer.tombol_ambil_freezer') }}"
+                                        class="rounded-lg bg-rose-600 px-2.5 py-1.5 text-sm text-white hover:bg-rose-700"><x-heroicon-o-camera class="size-4 inline" /></button>
                             @else
                                 <button type="button" wire:click="bukaKonfirmasi({{ $stop->id }})"
                                         title="{{ __('driver.upload_nota') }}"
@@ -635,6 +656,61 @@
         </x-modal>
     @endif
 
+    {{-- ============ Pengambilan freezer Tarik Freezer ============ --}}
+    @if ($stopTarikKonfirmasi)
+        @php $stopTarik = $this->stops->firstWhere('id', $stopTarikKonfirmasi); @endphp
+        <x-modal :judul="__('tarik_freezer.judul_ambil', ['toko' => $stopTarik?->toko->nama])" tutup="tutupKonfirmasiTarik" lebar="max-w-lg">
+            <div class="space-y-4 p-5">
+                <p class="rounded-lg bg-rose-50 p-3 text-sm text-rose-900">{{ __('tarik_freezer.ket_ambil') }}</p>
+
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('tarik_freezer.judul_bukti_pengambilan') }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ __('tarik_freezer.ket_foto_wajib') }}</p>
+
+                    <div class="mt-2 grid grid-cols-2 gap-3">
+                        @foreach (\App\Enums\JenisBuktiTarikFreezer::wajibDriver() as $jenisTarik)
+                            @php $gambarTarik = $buktiTarik[$jenisTarik->value] ?? null; @endphp
+                            <div class="rounded-lg border border-gray-200 p-2 text-center" wire:key="bukti-tarik-{{ $jenisTarik->value }}">
+                                <p class="truncate text-xs font-medium text-gray-700" title="{{ $jenisTarik->petunjuk() }}">{{ $jenisTarik->label() }}</p>
+
+                                @if ($gambarTarik)
+                                    <img src="{{ $gambarTarik }}" alt="{{ $jenisTarik->label() }}" class="mx-auto mt-1.5 h-24 w-full rounded-md object-cover">
+                                    <button type="button" wire:click="hapusBuktiTarik('{{ $jenisTarik->value }}')"
+                                            class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50">
+                                        {{ __('noo.ambil_ulang') }}
+                                    </button>
+                                @else
+                                    <button type="button"
+                                            @click="kameraSlot = '{{ $jenisTarik->value }}'; kameraTerbuka = true; $nextTick(() => window._kameraBuktiPengiriman?.nyalakan())"
+                                            class="mt-1.5 flex h-24 w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50">
+                                        <x-heroicon-o-camera class="size-5" />
+                                        <span class="text-xs">{{ __('noo.ambil_foto') }}</span>
+                                    </button>
+                                    <label class="mt-1 block cursor-pointer text-center text-xs font-medium text-blue-600 hover:underline">
+                                        <x-heroicon-o-arrow-up-tray class="size-3 inline" /> {{ __('kunjungan.unggah_foto') }}
+                                        <input type="file" accept="image/*" class="hidden"
+                                               onchange="window.unggahBuktiPengiriman('{{ $jenisTarik->value }}', this)">
+                                    </label>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="tutupKonfirmasiTarik"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
+                <button type="button" wire:click="simpanKonfirmasiTarik" wire:loading.attr="disabled" wire:target="simpanKonfirmasiTarik"
+                        @disabled(! $this->semuaBuktiTarikLengkap)
+                        class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+                    <span wire:loading.remove wire:target="simpanKonfirmasiTarik">{{ __('tarik_freezer.tombol_selesaikan_ambil') }}</span>
+                    <span wire:loading wire:target="simpanKonfirmasiTarik">{{ __('umum.menyimpan') }}</span>
+                </button>
+            </x-slot:aksi>
+        </x-modal>
+    @endif
+
     {{-- ============ Jendela kamera bukti pengiriman (satu, dipakai bergantian oleh semua slot) ============ --}}
     <div wire:ignore id="kamera-bukti-pengiriman" x-show="kameraTerbuka" x-cloak
          class="fixed inset-0 z-50 flex flex-col bg-black">
@@ -944,16 +1020,22 @@
         window._labelBuktiPengiriman = @js(collect(\App\Enums\JenisBuktiPengiriman::wajibFoto())
             ->push(\App\Enums\JenisBuktiPengiriman::FreezerDisusun)
             ->concat(\App\Enums\JenisBuktiNoo::wajibDriver())
+            ->concat(\App\Enums\JenisBuktiTarikFreezer::wajibDriver())
             ->mapWithKeys(fn ($j) => [$j->value => $j->label()]));
 
-        // Satu jendela kamera melayani dua alur yang berbeda di layar ini:
-        // bukti pengiriman pesanan dan bukti pemasangan freezer NOO. Slotnya
-        // dibedakan dari nama jenisnya, bukan dari jendela yang terpisah.
+        // Satu jendela kamera melayani TIGA alur berbeda di layar ini: bukti
+        // pengiriman pesanan, bukti pemasangan freezer NOO, dan bukti
+        // pengambilan freezer Tarik Freezer. Slotnya dibedakan dari nama
+        // jenisnya, bukan dari jendela yang terpisah.
         const jenisNoo = @js(collect(\App\Enums\JenisBuktiNoo::wajibDriver())->map(fn ($j) => $j->value));
+        const jenisTarik = @js(collect(\App\Enums\JenisBuktiTarikFreezer::wajibDriver())->map(fn ($j) => $j->value));
 
-        const kirimBukti = (jenis, gambar) => jenisNoo.includes(jenis)
-            ? $wire.terimaBuktiNoo(jenis, gambar)
-            : $wire.terimaBuktiFoto(jenis, gambar);
+        const kirimBukti = (jenis, gambar) => {
+            if (jenisNoo.includes(jenis)) return $wire.terimaBuktiNoo(jenis, gambar);
+            if (jenisTarik.includes(jenis)) return $wire.terimaBuktiTarik(jenis, gambar);
+
+            return $wire.terimaBuktiFoto(jenis, gambar);
+        };
 
         const kameraBukti = window.pasangKamera('kamera-bukti-pengiriman', {
             pesan: @js([

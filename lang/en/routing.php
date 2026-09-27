@@ -96,4 +96,5 @@ return [
     'galat_driver_sedang_bertugas' => ':nama is already driving another vehicle departing on the same date (:tanggal).',
     'jenis_reguler' => 'Orders',
     'jenis_noo' => 'NOO Freezer',
+    'jenis_tarik' => 'Freezer Pickup',
 ];

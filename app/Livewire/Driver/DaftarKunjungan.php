@@ -4,6 +4,7 @@ namespace App\Livewire\Driver;
 
 use App\Enums\JenisBuktiNoo;
 use App\Enums\JenisBuktiPengiriman;
+use App\Enums\JenisBuktiTarikFreezer;
 use App\Enums\JenisRouting;
 use App\Enums\StatusStop;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
@@ -16,6 +17,7 @@ use App\Services\Noo\NooService;
 use App\Services\Pengiriman\BuktiPengirimanService;
 use App\Services\PengirimanService;
 use App\Services\PesananService;
+use App\Services\TarikFreezer\TarikFreezerService;
 use App\Support\Bahasa;
 use App\Support\DepotContext;
 use App\Support\KmlRuteBuilder;
@@ -126,6 +128,12 @@ class DaftarKunjungan extends Component
     /** @var array<string, ?string> */
     public array $buktiNoo = [];
 
+    // --- Pengambilan freezer Tarik Freezer (lihat bukaKonfirmasiTarik()) ---
+    public ?int $stopTarikKonfirmasi = null;
+
+    /** @var array<string, ?string> */
+    public array $buktiTarik = [];
+
     // --- Kampas ---
     public bool $kampasTerbuka = false;
 
@@ -213,6 +221,9 @@ class DaftarKunjungan extends Component
             // yang harus dibaca layar ini justru NOO-nya.
             ->with('noo:id,kode,nama,nama_pemilik,telepon,alamat,freezer_tipe,paket_noo_id')
             ->with('noo.paket:id,nama')
+            // Stop pengambilan freezer Tarik Freezer juga tidak punya
+            // pesanan — yang harus dibaca layar ini justru toko & kodenya.
+            ->with('tarikFreezer:id,kode,toko_id')
             ->orderBy('urutan')
             ->get();
     }
@@ -408,7 +419,9 @@ class DaftarKunjungan extends Component
         // Pembatalan di lapangan mengembalikan dus dan membatalkan pesanan —
         // dua-duanya tidak ada pada pengantaran freezer. Kalau memang urung,
         // admin yang membuang rutenya, bukan driver dari sini.
-        if ($this->stopMilikMobil($stopId)->isNoo()) {
+        $stop = $this->stopMilikMobil($stopId);
+
+        if ($stop->isNoo() || $stop->isTarik()) {
             return;
         }
 
@@ -460,7 +473,7 @@ class DaftarKunjungan extends Component
         // di bukaKonfirmasiNoo(). Dijaga di sini, bukan cuma disembunyikan
         // di tampilan, supaya id yang dikirim langsung dari klien pun tidak
         // bisa menyeretnya ke alur yang salah.
-        if ($stop->isNoo()) {
+        if ($stop->isNoo() || $stop->isTarik()) {
             return;
         }
 
@@ -893,7 +906,7 @@ class DaftarKunjungan extends Component
     /** Memastikan kunjungan memang milik mobil yang sedang dibawa driver ini. */
     private function stopMilikMobil(?int $stopId): KendaraanStop
     {
-        $stop = KendaraanStop::with(['pesanan.items.produk', 'toko'])->findOrFail($stopId);
+        $stop = KendaraanStop::with(['pesanan.items.produk', 'toko', 'tarikFreezer'])->findOrFail($stopId);
 
         abort_unless($stop->kendaraan_id === $this->kendaraan->id, 403);
 
@@ -933,6 +946,13 @@ class DaftarKunjungan extends Component
     public function ruteNoo(): bool
     {
         return $this->kendaraan->batch->jenis === JenisRouting::Noo;
+    }
+
+    /** Mobil ini membawa PULANG freezer Tarik Freezer, bukan dus es krim. */
+    #[Computed]
+    public function ruteTarik(): bool
+    {
+        return $this->kendaraan->batch->jenis === JenisRouting::Tarik;
     }
 
     /**
@@ -1072,6 +1092,95 @@ class DaftarKunjungan extends Component
         $this->segarkan();
 
         $this->dispatch('notifikasi', pesan: __('noo.notif_terpasang', ['kode' => $kode]));
+    }
+
+    // ------------------------------------------------------------------
+    // Pengambilan freezer Tarik Freezer
+    // ------------------------------------------------------------------
+
+    /**
+     * Menuntaskan stop Tarik Freezer jauh lebih ringkas dari stop NOO: tidak
+     * ada data toko untuk dilengkapi (tokonya sudah lama berdiri) dan tidak
+     * ada IDN untuk dipilih (freezernya justru sedang DIAMBIL, bukan
+     * dipasang) — driver tinggal memotret dua bukti pengambilan.
+     */
+    public function bukaKonfirmasiTarik(int $stopId): void
+    {
+        $this->pastikanBisaBertindak();
+
+        $stop = $this->stopMilikMobil($stopId);
+
+        if (! $stop->isTarik()) {
+            return;
+        }
+
+        $this->stopTarikKonfirmasi = $stopId;
+        $this->buktiTarik = [];
+        $this->resetValidation();
+    }
+
+    public function tutupKonfirmasiTarik(): void
+    {
+        $this->reset(['stopTarikKonfirmasi', 'buktiTarik']);
+        $this->resetValidation();
+    }
+
+    public function terimaBuktiTarik(string $jenis, string $gambar): void
+    {
+        if (in_array(JenisBuktiTarikFreezer::tryFrom($jenis), JenisBuktiTarikFreezer::wajibDriver(), true)) {
+            $this->buktiTarik[$jenis] = $gambar;
+        }
+    }
+
+    public function hapusBuktiTarik(string $jenis): void
+    {
+        $this->buktiTarik[$jenis] = null;
+    }
+
+    /** Kedua bukti pengambilan sudah difoto. */
+    #[Computed]
+    public function semuaBuktiTarikLengkap(): bool
+    {
+        foreach (JenisBuktiTarikFreezer::wajibDriver() as $jenis) {
+            if (empty($this->buktiTarik[$jenis->value])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function simpanKonfirmasiTarik(TarikFreezerService $service): void
+    {
+        $this->pastikanBisaBertindak();
+
+        $stop = $this->stopMilikMobil((int) $this->stopTarikKonfirmasi);
+        $tarik = $stop->tarikFreezer;
+
+        if ($tarik === null) {
+            return;
+        }
+
+        if (! $this->semuaBuktiTarikLengkap) {
+            $this->dispatch('notifikasi', pesan: __('tarik_freezer.galat_bukti_belum_lengkap'), jenis: 'error');
+
+            return;
+        }
+
+        try {
+            $service->selesaikan($tarik, $this->buktiTarik, auth()->user());
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+
+            return;
+        }
+
+        $kode = $tarik->kode;
+
+        $this->tutupKonfirmasiTarik();
+        $this->segarkan();
+
+        $this->dispatch('notifikasi', pesan: __('tarik_freezer.notif_diambil', ['kode' => $kode]));
     }
 
     public function render()

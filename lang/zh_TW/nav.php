@@ -62,4 +62,8 @@ return [
     'noo_persetujuan' => 'NOO 審核',
     'noo_routing' => '冰櫃排線',
     'noo_paket' => 'NOO 預設訂單',
+    'tarik_freezer' => '冷櫃回收',
+    'tarik_freezer_daftar' => '冷櫃回收申請',
+    'tarik_freezer_persetujuan' => '冷櫃回收審核',
+    'tarik_freezer_routing' => '冷櫃回收路線',
 ];
