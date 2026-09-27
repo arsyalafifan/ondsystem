@@ -197,6 +197,7 @@ function paritasMenuAdmin(): array
         '# '.__('nav.master'),
         paritasTautan('nav.master_toko', 'master.toko'),
         paritasTautan('nav.master_freezer', 'master.freezer'),
+        paritasTautan('nav.master_armada', 'master.armada'),
         paritasTautan('nav.master_produk', 'master.produk'),
         paritasTautan('nav.master_wilayah', 'master.wilayah'),
         paritasTautan('nav.master_promo', 'master.promo'),

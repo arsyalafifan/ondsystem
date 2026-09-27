@@ -90,6 +90,7 @@ final class DaftarAkses
 
         'ond.master_toko' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.toko', 'label' => 'nav.master_toko', 'ikon' => 'building-storefront', 'peran' => ['admin']],
         'ond.master_freezer' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.freezer', 'label' => 'nav.master_freezer', 'ikon' => 'cube-transparent', 'peran' => ['admin']],
+        'ond.master_armada' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.armada', 'label' => 'nav.master_armada', 'ikon' => 'truck', 'peran' => ['admin']],
         'ond.master_produk' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.produk', 'label' => 'nav.master_produk', 'ikon' => 'cube', 'peran' => ['admin']],
         'ond.master_wilayah' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.wilayah', 'label' => 'nav.master_wilayah', 'ikon' => 'map-pin', 'peran' => ['admin']],
         'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],
