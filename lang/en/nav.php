@@ -25,6 +25,7 @@ return [
     'master' => 'Master Data',
     'master_toko' => 'Stores',
     'master_freezer' => 'General Master Freezer',
+    'master_armada' => 'Vehicle Master',
     'master_produk' => 'Products',
     'master_wilayah' => 'Regions',
     'master_promo' => 'Promos',
@@ -61,4 +62,8 @@ return [
     'noo_persetujuan' => 'NOO Approval',
     'noo_routing' => 'Freezer Routing',
     'noo_paket' => 'NOO Default Order',
+    'tarik_freezer' => 'Freezer Pickup',
+    'tarik_freezer_daftar' => 'Freezer Pickup Requests',
+    'tarik_freezer_persetujuan' => 'Freezer Pickup Approval',
+    'tarik_freezer_routing' => 'Freezer Pickup Routing',
 ];

@@ -25,6 +25,7 @@ return [
     'master' => '主数据',
     'master_toko' => '商店主数据',
     'master_freezer' => '通用冷柜主数据',
+    'master_armada' => '车辆主数据',
     'master_produk' => '产品主数据',
     'master_wilayah' => '区域主数据',
     'master_promo' => '促销主数据',
@@ -61,4 +62,8 @@ return [
     'noo_persetujuan' => 'NOO 审批',
     'noo_routing' => '冰柜排线',
     'noo_paket' => 'NOO 默认订单',
+    'tarik_freezer' => '冷柜回收',
+    'tarik_freezer_daftar' => '冷柜回收申请',
+    'tarik_freezer_persetujuan' => '冷柜回收审批',
+    'tarik_freezer_routing' => '冷柜回收路线',
 ];

@@ -97,4 +97,11 @@ class RoutingBatch extends Model
     {
         $query->where('jenis', JenisRouting::Noo);
     }
+
+    /** Rute pengambilan freezer dari toko yang berhenti jadi mitra. */
+    #[Scope]
+    protected function tarik(Builder $query): void
+    {
+        $query->where('jenis', JenisRouting::Tarik);
+    }
 }

@@ -53,6 +53,7 @@ return [
     'semua_status' => 'All statuses',
     'kolom_kode' => 'Code',
     'kolom_pengaju' => 'Submitted by',
+    'semua_pengaju' => 'All submitters',
     'kosong' => 'No NOO submissions yet',
     'ket_kosong' => 'Submissions will appear here.',
 

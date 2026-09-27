@@ -96,4 +96,5 @@ return [
     'galat_driver_sedang_bertugas' => ':nama sedang membawa kendaraan lain yang berangkat di tanggal yang sama (:tanggal).',
     'jenis_reguler' => 'Pesanan',
     'jenis_noo' => 'Freezer NOO',
+    'jenis_tarik' => 'Tarik Freezer',
 ];

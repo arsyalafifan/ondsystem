@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
-    'kendaraan_id', 'pesanan_id', 'noo_id', 'toko_id', 'urutan', 'jenis', 'total_dus',
+    'kendaraan_id', 'pesanan_id', 'noo_id', 'tarik_freezer_id', 'toko_id', 'urutan', 'jenis', 'total_dus',
     'total_dus_terkirim', 'jarak_dari_sebelumnya_m', 'durasi_dari_sebelumnya_s',
     'eta', 'status', 'foto_nota', 'catatan_driver', 'alasan_batal',
     'catatan_batal', 'dibatalkan_at', 'selesai_at',
@@ -69,6 +69,17 @@ class KendaraanStop extends Model
         return $this->belongsTo(Noo::class);
     }
 
+    /**
+     * Terisi HANYA untuk stop pengambilan freezer Tarik Freezer — kebalikan
+     * dari noo(), lihat isTarik().
+     *
+     * @return BelongsTo<TarikFreezer, $this>
+     */
+    public function tarikFreezer(): BelongsTo
+    {
+        return $this->belongsTo(TarikFreezer::class);
+    }
+
     /** @return BelongsTo<Toko, $this> */
     public function toko(): BelongsTo
     {
@@ -97,6 +108,16 @@ class KendaraanStop extends Model
     public function isNoo(): bool
     {
         return $this->jenis === 'noo';
+    }
+
+    /**
+     * Stop pengambilan freezer Tarik Freezer. Penting diperiksa SEBELUM
+     * menyentuh `pesanan`: stop seperti ini juga tidak punya pesanan sama
+     * sekali, persis seperti isNoo().
+     */
+    public function isTarik(): bool
+    {
+        return $this->jenis === 'tarik';
     }
 
     /** Dus yang tidak jadi terkirim, entah karena dibatalkan atau notanya dicoret. */

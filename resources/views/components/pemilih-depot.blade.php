@@ -1,11 +1,11 @@
 @props(['gaya' => 'gelap'])
 
 @php
-    // Superadmin: semua gudang + "Semua". Pengguna lain: hanya gudang yang
-    // diizinkan untuknya (layout hanya memasang komponen ini kalau jumlahnya
-    // lebih dari satu).
+    // Superadmin & akun ber-akses_semua_depot: semua gudang + "Semua".
+    // Pengguna lain: hanya gudang yang diizinkan untuknya (layout hanya
+    // memasang komponen ini kalau jumlahnya lebih dari satu).
     $pengguna = auth()->user();
-    $bisaSemua = $pengguna->isSuperadmin();
+    $bisaSemua = $pengguna->bisaAksesSemuaDepot();
     $daftar = $pengguna->depotYangBisaDiakses();
     $modeAktif = \App\Support\DepotContext::mode();
     $depotAktif = \App\Support\DepotContext::current();

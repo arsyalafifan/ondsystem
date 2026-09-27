@@ -33,6 +33,7 @@ use App\Livewire\Kunjungan\DetailPeriode;
 use App\Livewire\Kunjungan\Kunjungi;
 use App\Livewire\Kunjungan\Penugasan;
 use App\Livewire\Kunjungan\TugasSaya;
+use App\Livewire\Master\DaftarArmada;
 use App\Livewire\Master\DaftarFreezer;
 use App\Livewire\Master\DaftarProduk;
 use App\Livewire\Master\DaftarPromo;
@@ -58,12 +59,17 @@ use App\Livewire\Statistik\DusPulangDriver;
 use App\Livewire\Statistik\DusTerjualDriver;
 use App\Livewire\Statistik\FormPembelianProduk;
 use App\Livewire\Statistik\RepeatOrderSales;
+use App\Livewire\TarikFreezer\DaftarTarikFreezer;
+use App\Livewire\TarikFreezer\Persetujuan as PersetujuanTarikFreezer;
+use App\Livewire\TarikFreezer\RoutingTarikFreezer;
 use App\Livewire\Toko\LengkapiData;
 use App\Models\Depot;
 use App\Models\NooFoto;
 use App\Models\PengajuanIzin;
+use App\Models\TarikFreezerFoto;
 use App\Services\Izin\PengajuanIzinService;
 use App\Services\Noo\BuktiNooService;
+use App\Services\TarikFreezer\BuktiTarikFreezerService;
 use App\Support\Bahasa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -126,7 +132,7 @@ Route::middleware('auth')->group(function () {
         $pilihan = $request->input('depot_id');
 
         if ($pilihan === 'semua') {
-            abort_unless($pengguna->isSuperadmin(), 403);
+            abort_unless($pengguna->bisaAksesSemuaDepot(), 403);
         } else {
             abort_unless(is_numeric($pilihan), 422);
             abort_unless($pengguna->depotYangBisaDiakses()->contains('id', (int) $pilihan), 403);
@@ -178,6 +184,21 @@ Route::middleware('auth')->group(function () {
         return Storage::disk(BuktiNooService::DISK)->response($foto->path);
     })->name('noo.foto');
 
+    Route::get('/tarik-freezer', DaftarTarikFreezer::class)->name('tarik-freezer.daftar')->middleware('akses:ond.tarik_freezer_daftar');
+    Route::get('/tarik-freezer/persetujuan', PersetujuanTarikFreezer::class)->name('tarik-freezer.persetujuan')->middleware('akses:ond.tarik_freezer_persetujuan');
+    Route::get('/tarik-freezer/routing', RoutingTarikFreezer::class)->name('tarik-freezer.routing')->middleware('akses:ond.tarik_freezer_routing');
+
+    // Foto Tarik Freezer: disk privat, gerbang yang sama seperti foto NOO —
+    // lihat komentar di atas.
+    Route::get('/tarik-freezer/foto/{foto}', function (Request $request, TarikFreezerFoto $foto) {
+        $pengguna = $request->user();
+
+        abort_unless($foto->tarikFreezer->diajukan_oleh === $pengguna->id || $pengguna->isAdmin(), 403);
+        abort_unless(Storage::disk(BuktiTarikFreezerService::DISK)->exists($foto->path), 404);
+
+        return Storage::disk(BuktiTarikFreezerService::DISK)->response($foto->path);
+    })->name('tarik-freezer.foto');
+
     Route::get('/pembayaran/pelunasan', Pelunasan::class)->name('pembayaran.pelunasan')->middleware('akses:ond.pelunasan');
     Route::get('/pembayaran/belum-lunas', BelumLunas::class)->name('pembayaran.belum-lunas')->middleware('akses:ond.belum_lunas');
     Route::get('/pembayaran/pendapatan', Pendapatan::class)->name('pembayaran.pendapatan')->middleware('akses:ond.pendapatan');
@@ -194,6 +215,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
     Route::get('/master/freezer', DaftarFreezer::class)->name('master.freezer')->middleware('akses:ond.master_freezer');
+    Route::get('/master/armada', DaftarArmada::class)->name('master.armada')->middleware('akses:ond.master_armada');
     Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
     Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');
     Route::get('/master/promo', DaftarPromo::class)->name('master.promo')->middleware('akses:ond.master_promo');

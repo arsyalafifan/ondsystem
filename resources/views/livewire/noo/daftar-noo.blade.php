@@ -11,6 +11,22 @@
     @if ($depotBelumDipilih)
         <x-butuh-depot-terkunci />
     @else
+        {{-- Ringkasan status, sekaligus tombol saring cepat --}}
+        <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            @foreach ($this->statusCases as $s)
+                <button type="button"
+                        wire:click="$set('filterStatus', '{{ $filterStatus === $s->value ? '' : $s->value }}')"
+                        @class([
+                            'rounded-xl border bg-white p-3 text-left transition hover:border-gray-300',
+                            'border-blue-500 ring-1 ring-blue-500' => $filterStatus === $s->value,
+                            'border-gray-200' => $filterStatus !== $s->value,
+                        ])>
+                    <x-badge-status :status="$s" />
+                    <p class="mt-1.5 text-2xl font-semibold tabular-nums text-gray-900">{{ $this->ringkasan[$s->value] }}</p>
+                </button>
+            @endforeach
+        </div>
+
         <x-kartu>
             <div class="flex flex-wrap items-end gap-3 border-b border-gray-100 p-4">
                 <div class="min-w-56 flex-1">
@@ -19,15 +35,34 @@
                            class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600">{{ __('umum.status') }}</label>
-                    <select wire:model.live="filterStatus"
-                            class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                        <option value="">{{ __('noo.semua_status') }}</option>
-                        @foreach ($this->statusCases as $status)
-                            <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('umum.wilayah') }}</label>
+                    <select wire:model.live="filterWilayah"
+                            class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">{{ __('umum.semua_wilayah') }}</option>
+                        @foreach ($this->wilayahs as $w)
+                            <option value="{{ $w->id }}">{{ $w->nama }}</option>
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('umum.tanggal') }}</label>
+                    <input type="date" wire:model.live="filterTanggal"
+                           class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600">{{ __('noo.kolom_pengaju') }}</label>
+                    <select wire:model.live="filterPengaju"
+                            class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">{{ __('noo.semua_pengaju') }}</option>
+                        @foreach ($this->pengajus as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button type="button" wire:click="bersihkanFilter"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    {{ __('umum.bersihkan') }}
+                </button>
             </div>
 
             <div class="overflow-x-auto">

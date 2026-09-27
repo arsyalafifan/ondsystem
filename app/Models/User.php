@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp', 'depot_id'])]
+#[Fillable(['name', 'email', 'password', 'role', 'aktif', 'locale', 'no_hp', 'depot_id', 'akses_semua_depot'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements DisaringDepotSendiri
 {
@@ -35,7 +35,7 @@ class User extends Authenticatable implements DisaringDepotSendiri
     protected static function booted(): void
     {
         static::created(function (User $pengguna): void {
-            if ($pengguna->depot_id !== null && ! $pengguna->isSuperadmin()) {
+            if ($pengguna->depot_id !== null && ! $pengguna->bisaAksesSemuaDepot()) {
                 $pengguna->depots()->syncWithoutDetaching([$pengguna->depot_id]);
             }
         });
@@ -62,16 +62,29 @@ class User extends Authenticatable implements DisaringDepotSendiri
     }
 
     /**
+     * Boleh melihat/berpindah ke SEMUA gudang, seperti superadmin — baik
+     * karena memang superadmin, atau karena diberi akses lintas-gudang
+     * eksplisit (kolom `akses_semua_depot`, diatur lewat Manajemen
+     * Pengguna). SENGAJA tidak memberi akses menu "User Admin" (Kelola
+     * Pengguna, Kelola Depot, Hak Akses) — itu tetap murni isSuperadmin(),
+     * lihat App\Akses\DaftarAkses.
+     */
+    public function bisaAksesSemuaDepot(): bool
+    {
+        return $this->isSuperadmin() || (bool) $this->akses_semua_depot;
+    }
+
+    /**
      * Gudang aktif yang boleh dimasuki pengguna ini, urut nomor urut depot.
-     * Superadmin: semua gudang aktif. Pengguna tanpa akses sama sekali
-     * jatuh ke gudang urutan pertama — sesuai aturan "depot nomor pertama
-     * menjadi default kalau pengguna tidak diset akses".
+     * Superadmin & akun ber-akses_semua_depot: semua gudang aktif. Pengguna
+     * tanpa akses sama sekali jatuh ke gudang urutan pertama — sesuai aturan
+     * "depot nomor pertama menjadi default kalau pengguna tidak diset akses".
      *
      * @return Collection<int, Depot>
      */
     public function depotYangBisaDiakses(): Collection
     {
-        if ($this->isSuperadmin()) {
+        if ($this->bisaAksesSemuaDepot()) {
             return Depot::query()->aktif()->berurutan()->get();
         }
 
@@ -102,6 +115,7 @@ class User extends Authenticatable implements DisaringDepotSendiri
     protected $attributes = [
         'locale' => null,
         'aktif' => true,
+        'akses_semua_depot' => false,
     ];
 
     /**
@@ -116,6 +130,7 @@ class User extends Authenticatable implements DisaringDepotSendiri
             'password' => 'hashed',
             'role' => PeranPengguna::class,
             'aktif' => 'boolean',
+            'akses_semua_depot' => 'boolean',
         ];
     }
 

@@ -213,3 +213,53 @@ it('menutup foto NOO dari sales lain, tapi membukanya untuk pengaju dan admin', 
     $this->actingAs($this->sales)->get(route('noo.foto', $foto))->assertOk();
     $this->actingAs($this->admin)->get(route('noo.foto', $foto))->assertOk();
 });
+
+describe('ringkasan status dan penyaring lengkap', function () {
+    it('menghitung ringkasan per status, mengikuti filter lain tapi bukan status itu sendiri', function () {
+        $wilayahLain = Wilayah::create(['kode' => 'W2', 'nama' => 'Wilayah Dua']);
+
+        $komponen = Livewire::actingAs($this->sales)->test(DaftarNoo::class)->call('buatBaru');
+        isiFormulirNoo($komponen, $this->wilayah->id, $this->paket->id)->call('simpan');
+
+        $komponen2 = Livewire::actingAs($this->sales)->test(DaftarNoo::class)->call('buatBaru');
+        isiFormulirNoo($komponen2, $wilayahLain->id, $this->paket->id)
+            ->set('nikPemilik', '3201234567890124')
+            ->set('telepon', '081234567891')
+            ->call('simpan');
+
+        $layar = Livewire::actingAs($this->admin)->test(DaftarNoo::class);
+        expect($layar->instance()->ringkasan['order'])->toBe(2);
+
+        $layar->set('filterWilayah', $this->wilayah->id);
+        expect($layar->instance()->ringkasan['order'])->toBe(1);
+    });
+
+    it('menyaring berdasarkan wilayah, tanggal, dan pengaju sekaligus', function () {
+        $komponen = Livewire::actingAs($this->sales)->test(DaftarNoo::class)->call('buatBaru');
+        isiFormulirNoo($komponen, $this->wilayah->id, $this->paket->id)->call('simpan');
+
+        $noo = Noo::firstOrFail();
+
+        $layar = Livewire::actingAs($this->admin)->test(DaftarNoo::class);
+
+        expect($layar->set('filterWilayah', $this->wilayah->id)->instance()->noos->pluck('id')->all())->toBe([$noo->id])
+            ->and($layar->set('filterWilayah', '')->set('filterPengaju', $this->sales->id)->instance()->noos->pluck('id')->all())->toBe([$noo->id])
+            ->and($layar->set('filterPengaju', $this->salesLain->id)->instance()->noos->pluck('id')->all())->toBe([]);
+
+        $layar->set('filterPengaju', '')->set('filterTanggal', $noo->diajukan_at->toDateString());
+        expect($layar->instance()->noos->pluck('id')->all())->toBe([$noo->id]);
+
+        $layar->set('filterTanggal', $noo->diajukan_at->addDay()->toDateString());
+        expect($layar->instance()->noos->pluck('id')->all())->toBe([]);
+    });
+
+    it('bersihkanFilter mengembalikan seluruh penyaring ke bawaan', function () {
+        $layar = Livewire::actingAs($this->admin)->test(DaftarNoo::class)
+            ->set('cari', 'x')->set('filterStatus', 'order')->set('filterWilayah', (string) $this->wilayah->id)
+            ->set('filterTanggal', '2026-01-01')->set('filterPengaju', (string) $this->sales->id)
+            ->call('bersihkanFilter');
+
+        $layar->assertSet('cari', '')->assertSet('filterStatus', '')->assertSet('filterWilayah', '')
+            ->assertSet('filterTanggal', '')->assertSet('filterPengaju', '');
+    });
+});

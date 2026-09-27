@@ -96,4 +96,5 @@ return [
     'galat_driver_sedang_bertugas' => ':nama 已在同一天（:tanggal）驾驶另一辆车。',
     'jenis_reguler' => '订单',
     'jenis_noo' => 'NOO 冰柜',
+    'jenis_tarik' => '冷柜回收',
 ];

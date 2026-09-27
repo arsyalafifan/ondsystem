@@ -49,6 +49,7 @@ final class DaftarAkses
         'ond.pengiriman' => ['label' => 'nav.pengiriman', 'ikon' => 'truck'],
         'ond.monitoring' => ['label' => 'nav.monitoring', 'ikon' => 'chart-bar-square'],
         'ond.noo' => ['label' => 'nav.noo', 'ikon' => 'sparkles'],
+        'ond.tarik_freezer' => ['label' => 'nav.tarik_freezer', 'ikon' => 'arrow-uturn-left'],
         'hr.master' => ['label' => 'nav.master', 'ikon' => 'archive-box'],
     ];
 
@@ -76,6 +77,10 @@ final class DaftarAkses
         'ond.noo_routing' => ['aplikasi' => 'ond', 'grup' => 'ond.noo', 'rute' => 'noo.routing', 'label' => 'nav.noo_routing', 'ikon' => 'map', 'peran' => ['admin']],
         'ond.setting_paket_noo' => ['aplikasi' => 'ond', 'grup' => 'ond.noo', 'rute' => 'noo.paket', 'label' => 'nav.noo_paket', 'ikon' => 'adjustments-horizontal', 'peran' => ['admin']],
 
+        'ond.tarik_freezer_daftar' => ['aplikasi' => 'ond', 'grup' => 'ond.tarik_freezer', 'rute' => 'tarik-freezer.daftar', 'label' => 'nav.tarik_freezer_daftar', 'ikon' => 'arrow-uturn-left', 'peran' => ['admin', 'sales']],
+        'ond.tarik_freezer_persetujuan' => ['aplikasi' => 'ond', 'grup' => 'ond.tarik_freezer', 'rute' => 'tarik-freezer.persetujuan', 'label' => 'nav.tarik_freezer_persetujuan', 'ikon' => 'check-badge', 'peran' => ['admin']],
+        'ond.tarik_freezer_routing' => ['aplikasi' => 'ond', 'grup' => 'ond.tarik_freezer', 'rute' => 'tarik-freezer.routing', 'label' => 'nav.tarik_freezer_routing', 'ikon' => 'map', 'peran' => ['admin']],
+
         'ond.pelunasan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pelunasan', 'label' => 'nav.pelunasan', 'ikon' => 'check-circle', 'peran' => ['admin']],
         'ond.belum_lunas' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.belum-lunas', 'label' => 'nav.belum_lunas', 'ikon' => 'exclamation-circle', 'peran' => ['admin']],
         'ond.pendapatan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pendapatan', 'label' => 'nav.pendapatan', 'ikon' => 'chart-bar', 'peran' => ['admin']],
@@ -90,6 +95,7 @@ final class DaftarAkses
 
         'ond.master_toko' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.toko', 'label' => 'nav.master_toko', 'ikon' => 'building-storefront', 'peran' => ['admin']],
         'ond.master_freezer' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.freezer', 'label' => 'nav.master_freezer', 'ikon' => 'cube-transparent', 'peran' => ['admin']],
+        'ond.master_armada' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.armada', 'label' => 'nav.master_armada', 'ikon' => 'truck', 'peran' => ['admin']],
         'ond.master_produk' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.produk', 'label' => 'nav.master_produk', 'ikon' => 'cube', 'peran' => ['admin']],
         'ond.master_wilayah' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.wilayah', 'label' => 'nav.master_wilayah', 'ikon' => 'map-pin', 'peran' => ['admin']],
         'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],

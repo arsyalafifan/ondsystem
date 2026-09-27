@@ -133,6 +133,12 @@ class Toko extends Model
         return $this->hasMany(Kunjungan::class);
     }
 
+    /** @return HasMany<TarikFreezer, $this> */
+    public function tarikFreezers(): HasMany
+    {
+        return $this->hasMany(TarikFreezer::class);
+    }
+
     /**
      * Apakah toko ini masih wajib dikunjungi PADA PERIODE YANG SEDANG
      * DIMUAT ke relasi `kunjungans` — belum ada kunjungan sama sekali, ATAU

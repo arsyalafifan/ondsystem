@@ -7,9 +7,11 @@ use App\Enums\StatusNoo;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Livewire\Noo\Concerns\PunyaFormNoo;
 use App\Models\Noo;
+use App\Models\User;
 use App\Services\Noo\NooService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -41,6 +43,15 @@ class DaftarNoo extends Component
     #[Url]
     public string $filterStatus = '';
 
+    #[Url(as: 'wilayah')]
+    public string $filterWilayah = '';
+
+    #[Url(as: 'tgl')]
+    public string $filterTanggal = '';
+
+    #[Url(as: 'pengaju')]
+    public string $filterPengaju = '';
+
     public ?int $nooDilihat = null;
 
     public bool $formTerbuka = false;
@@ -64,7 +75,18 @@ class DaftarNoo extends Component
     private function dasarKueri(): Builder
     {
         return Noo::query()
-            ->when(auth()->user()->isSales(), fn (Builder $q) => $q->where('diajukan_oleh', auth()->id()));
+            ->when(auth()->user()->isSales(), fn (Builder $q) => $q->where('diajukan_oleh', auth()->id()))
+            ->when($this->filterWilayah !== '', fn (Builder $q) => $q->where('wilayah_id', $this->filterWilayah))
+            ->when($this->filterTanggal !== '', fn (Builder $q) => $q->whereDate('diajukan_at', $this->filterTanggal))
+            ->when($this->filterPengaju !== '', fn (Builder $q) => $q->where('diajukan_oleh', $this->filterPengaju))
+            ->when(trim($this->cari) !== '', function (Builder $q): void {
+                $kata = trim($this->cari);
+
+                $q->where(fn (Builder $s) => $s
+                    ->where('kode', 'like', "%{$kata}%")
+                    ->orWhere('nama', 'like', "%{$kata}%")
+                    ->orWhere('nama_pemilik', 'like', "%{$kata}%"));
+            });
     }
 
     /** @return LengthAwarePaginator<int, Noo> */
@@ -74,16 +96,38 @@ class DaftarNoo extends Component
         return $this->dasarKueri()
             ->with(['paket:id,nama', 'wilayah:id,nama', 'pengaju:id,name', 'toko:id,kode,nama'])
             ->when($this->filterStatus !== '', fn (Builder $q) => $q->where('status', $this->filterStatus))
-            ->when(trim($this->cari) !== '', function (Builder $q): void {
-                $kata = trim($this->cari);
-
-                $q->where(fn (Builder $s) => $s
-                    ->where('kode', 'like', "%{$kata}%")
-                    ->orWhere('nama', 'like', "%{$kata}%")
-                    ->orWhere('nama_pemilik', 'like', "%{$kata}%"));
-            })
             ->latest('diajukan_at')
             ->paginate(15);
+    }
+
+    /** Hitungan per status, mengikuti filter lain yang aktif kecuali status itu sendiri — dasar tab ringkasan. */
+    #[Computed]
+    public function ringkasan(): array
+    {
+        $hitung = $this->dasarKueri()
+            ->selectRaw('status, count(*) as jumlah')
+            ->groupBy('status')
+            ->pluck('jumlah', 'status');
+
+        return collect(StatusNoo::cases())
+            ->mapWithKeys(fn (StatusNoo $s) => [$s->value => (int) ($hitung[$s->value] ?? 0)])
+            ->all();
+    }
+
+    /** Pengaju untuk pilihan penyaring — hanya yang PERNAH mengajukan NOO. */
+    #[Computed]
+    public function pengajus(): Collection
+    {
+        return User::query()
+            ->whereIn('id', $this->dasarKueri()->select('diajukan_oleh')->distinct())
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    public function bersihkanFilter(): void
+    {
+        $this->reset(['filterStatus', 'filterWilayah', 'filterTanggal', 'filterPengaju', 'cari']);
+        $this->resetPage();
     }
 
     #[Computed]
@@ -102,6 +146,21 @@ class DaftarNoo extends Component
     }
 
     public function updatedFilterStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterWilayah(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterTanggal(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterPengaju(): void
     {
         $this->resetPage();
     }

@@ -52,6 +52,7 @@ return [
     'semua_status' => '所有状态',
     'kolom_kode' => '编号',
     'kolom_pengaju' => '提交人',
+    'semua_pengaju' => '所有提交人',
     'kosong' => '暂无 NOO 申请',
     'ket_kosong' => '提交的申请会显示在这里。',
 
