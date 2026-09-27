@@ -77,7 +77,7 @@ final class DepotContext
     {
         $pilihan = $session->get('depot_aktif');
 
-        if ($pilihan === 'semua' && $pengguna->isSuperadmin()) {
+        if ($pilihan === 'semua' && $pengguna->bisaAksesSemuaDepot()) {
             self::pakaiSemuaDepot();
 
             return;

@@ -232,3 +232,60 @@ it('filter depot pada daftar pengguna hanya menampilkan akun depot itu', functio
         ->assertSee($this->admin->name)
         ->assertDontSee('Pengguna Depot Lain');
 });
+
+describe('akses semua gudang', function () {
+    it('menyimpan akun dengan akses semua gudang tanpa baris depot_user, dan bisa memilih gudang default', function () {
+        $depotB = Depot::factory()->create(['kode' => 'DEPOTB', 'urutan' => 2]);
+
+        Livewire::actingAs($this->superadmin)
+            ->test(DaftarPengguna::class)
+            ->set('name', 'Admin Lintas Gudang')
+            ->set('email', 'lintas-gudang@ondsystem.test')
+            ->set('role', PeranPengguna::Admin->value)
+            ->set('aksesSemuaGudang', true)
+            ->set('depotDefault', (string) $depotB->id)
+            ->call('simpan')
+            ->assertHasNoErrors();
+
+        $pengguna = User::withoutGlobalScope(DepotScope::class)->where('email', 'lintas-gudang@ondsystem.test')->firstOrFail();
+
+        expect($pengguna->akses_semua_depot)->toBeTrue()
+            ->and($pengguna->depots()->count())->toBe(0)
+            ->and($pengguna->depot_id)->toBe($depotB->id)
+            ->and($pengguna->depotYangBisaDiakses()->pluck('id')->all())
+            ->toBe(Depot::query()->aktif()->berurutan()->pluck('id')->all());
+    });
+
+    it('mematikan akses semua gudang mengembalikan ke daftar centang biasa', function () {
+        $pengguna = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => true]);
+
+        Livewire::actingAs($this->superadmin)
+            ->test(DaftarPengguna::class)
+            ->call('sunting', $pengguna->id)
+            ->assertSet('aksesSemuaGudang', true)
+            ->set('aksesSemuaGudang', false)
+            ->set('depotAkses', [(string) $this->depot->id])
+            ->call('simpan')
+            ->assertHasNoErrors();
+
+        $segar = $pengguna->fresh();
+
+        expect($segar->akses_semua_depot)->toBeFalse()
+            ->and($segar->depots()->pluck('depots.id')->all())->toBe([$this->depot->id]);
+    });
+
+    it('tidak pernah menyimpan akses semua gudang untuk peran superadmin', function () {
+        Livewire::actingAs($this->superadmin)
+            ->test(DaftarPengguna::class)
+            ->set('name', 'Superadmin Baru')
+            ->set('email', 'superadmin-baru@ondsystem.test')
+            ->set('role', PeranPengguna::Superadmin->value)
+            ->set('aksesSemuaGudang', true)
+            ->call('simpan')
+            ->assertHasNoErrors();
+
+        $pengguna = User::withoutGlobalScope(DepotScope::class)->where('email', 'superadmin-baru@ondsystem.test')->firstOrFail();
+
+        expect($pengguna->akses_semua_depot)->toBeFalse();
+    });
+});

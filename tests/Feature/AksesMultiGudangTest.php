@@ -233,3 +233,41 @@ it('perintah gabung akun ganda hanya menampilkan rencana tanpa --jalankan', func
     $this->artisan('pengguna:gabung-akun-ganda --jalankan')->assertSuccessful();
     expect(DB::table('users')->where('email', 'kembar@ond.test')->count())->toBe(1);
 });
+
+/**
+ * Akun non-superadmin bisa diberi akses ke SEMUA gudang (kolom
+ * `akses_semua_depot`, diatur lewat Manajemen Pengguna) — perilaku depotnya
+ * sama seperti superadmin, tapi TIDAK ikut membuka menu "User Admin".
+ */
+describe('akses semua gudang (non-superadmin)', function () {
+    it('bisa melihat dan berpindah ke semua gudang tanpa baris di depot_user', function () {
+        $admin = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => true]);
+
+        expect($admin->depots()->count())->toBe(0)
+            ->and($admin->depotYangBisaDiakses()->pluck('id')->all())
+            ->toBe(Depot::query()->aktif()->berurutan()->pluck('id')->all());
+
+        masukSebagai($admin);
+
+        $this->get(route('master.toko'))->assertSee('Toko Alpha')->assertSee(__('umum.semua_depot'));
+
+        $this->post(route('depot.ganti'), ['depot_id' => 'semua'])->assertRedirect();
+        $this->get(route('master.toko'))->assertSee('Toko Alpha')->assertSee('Toko Beta');
+
+        $this->post(route('depot.ganti'), ['depot_id' => $this->depotB->id])->assertRedirect();
+        $this->get(route('master.toko'))->assertSee('Toko Beta')->assertDontSee('Toko Alpha');
+    });
+
+    it('tetap ditolak dari menu User Admin walau bisa akses semua gudang', function () {
+        $admin = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => true]);
+
+        $this->actingAs($admin)->get(route('pengguna.daftar'))->assertForbidden();
+        $this->actingAs($admin)->get(route('depot.daftar'))->assertForbidden();
+    });
+
+    it('tanpa akses_semua_depot tetap ditolak pindah ke semua gudang', function () {
+        $admin = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => false]);
+
+        $this->actingAs($admin)->post(route('depot.ganti'), ['depot_id' => 'semua'])->assertForbidden();
+    });
+});

@@ -29,7 +29,7 @@ return [
     'master_wilayah' => 'Master Wilayah',
     'master_promo' => 'Master Promo',
     'manage_pengguna' => 'Manajemen Pengguna',
-    'manage_depot' => 'Kelola Depot',
+    'manage_depot' => 'Kelola Gudang',
     'hr_karyawan' => 'Karyawan',
     'hr_department' => 'Department',
     'hr_jabatan' => 'Jabatan',

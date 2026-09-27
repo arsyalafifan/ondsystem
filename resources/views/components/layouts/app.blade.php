@@ -64,6 +64,16 @@
             </button>
         </div>
 
+        {{-- Di atas menu (bukan di bawahnya) dan di LUAR <nav> yang
+             disembunyikan di mobile lewat `buka` — supaya berpindah gudang
+             tidak perlu membuka hamburger dulu, terutama untuk akun yang
+             mengakses banyak gudang sekaligus. --}}
+        @if (auth()->user()->bisaAksesSemuaDepot() || auth()->user()->depotYangBisaDiakses()->count() > 1)
+            <div class="px-4 pb-4 lg:w-72">
+                <x-pemilih-depot gaya="terang" />
+            </div>
+        @endif
+
         <nav :class="buka ? 'block' : 'hidden'" class="px-4 pb-6 lg:!flex lg:flex-1 lg:flex-col lg:w-72 overflow-y-auto">
             {{-- Hanya untuk yang punya lebih dari satu aplikasi — pengguna
                  dengan satu aplikasi saja tidak punya tujuan untuk pindah. --}}
@@ -117,10 +127,6 @@
             </div>
 
             <div class="mt-8 space-y-2 border-t border-slate-100 pt-6">
-                @if ($peran === \App\Enums\PeranPengguna::Superadmin || auth()->user()->depotYangBisaDiakses()->count() > 1)
-                    <x-pemilih-depot />
-                @endif
-
                 <x-pemilih-bahasa />
 
                 <a href="{{ route('akun.kata-sandi') }}" wire:navigate

@@ -126,7 +126,7 @@ Route::middleware('auth')->group(function () {
         $pilihan = $request->input('depot_id');
 
         if ($pilihan === 'semua') {
-            abort_unless($pengguna->isSuperadmin(), 403);
+            abort_unless($pengguna->bisaAksesSemuaDepot(), 403);
         } else {
             abort_unless(is_numeric($pilihan), 422);
             abort_unless($pengguna->depotYangBisaDiakses()->contains('id', (int) $pilihan), 403);

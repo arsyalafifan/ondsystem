@@ -54,6 +54,16 @@ class DaftarPengguna extends Component
     /** Gudang tujuan setelah login; '' = otomatis gudang pertama menurut nomor urut. */
     public string $depotDefault = '';
 
+    /**
+     * Seperti superadmin dari sisi akses gudang (bisa ke gudang mana pun,
+     * termasuk yang dibuat belakangan) — tapi TIDAK ikut membuka menu "User
+     * Admin" (Kelola Pengguna, Kelola Depot, Hak Akses), yang tetap murni
+     * dicek lewat isSuperadmin() di App\Akses\DaftarAkses. Kalau aktif,
+     * akun ini tidak butuh baris di tabel depot_user sama sekali — lihat
+     * User::depotYangBisaDiakses().
+     */
+    public bool $aksesSemuaGudang = false;
+
     public bool $aktif = true;
 
     public ?int $konfirmasiReset = null;
@@ -71,6 +81,28 @@ class DaftarPengguna extends Component
         if (! in_array($this->depotDefault, $this->depotAkses, true)) {
             $this->depotDefault = '';
         }
+    }
+
+    /** Toggle akses-semua-gudang mengganti pilihan default yang sah — cek ulang. */
+    public function updatedAksesSemuaGudang(): void
+    {
+        if (! in_array($this->depotDefault, $this->depotAksesTerbuka(), true)) {
+            $this->depotDefault = '';
+        }
+    }
+
+    /**
+     * Id gudang (string) yang boleh dipilih sebagai "gudang default" saat
+     * ini — SEMUA gudang aktif kalau $aksesSemuaGudang, selain itu hanya
+     * yang dicentang di $depotAkses.
+     *
+     * @return array<int, string>
+     */
+    private function depotAksesTerbuka(): array
+    {
+        return $this->aksesSemuaGudang
+            ? $this->depotAktif->pluck('id')->map(fn ($id) => (string) $id)->all()
+            : $this->depotAkses;
     }
 
     #[Computed]
@@ -127,7 +159,8 @@ class DaftarPengguna extends Component
         $this->role = $u->role->value;
         $this->no_hp = $u->no_hp ?? '';
         $this->depotAkses = $u->depots()->pluck('depots.id')->map(fn ($id) => (string) $id)->all();
-        $this->depotDefault = $u->depot_id !== null && in_array((string) $u->depot_id, $this->depotAkses, true)
+        $this->aksesSemuaGudang = (bool) $u->akses_semua_depot;
+        $this->depotDefault = $u->depot_id !== null && in_array((string) $u->depot_id, $this->depotAksesTerbuka())
             ? (string) $u->depot_id
             : '';
         $this->aktif = $u->aktif;
@@ -143,7 +176,7 @@ class DaftarPengguna extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['penggunaId', 'name', 'email', 'no_hp', 'depotAkses', 'depotDefault']);
+        $this->reset(['penggunaId', 'name', 'email', 'no_hp', 'depotAkses', 'depotDefault', 'aksesSemuaGudang']);
         $this->role = 'sales';
         $this->aktif = true;
         $this->resetValidation();
@@ -157,6 +190,7 @@ class DaftarPengguna extends Component
 
         $peranDipilih = PeranPengguna::from($this->role);
         $butuhDepot = $peranDipilih !== PeranPengguna::Superadmin;
+        $aksesSemuaGudang = $butuhDepot && $this->aksesSemuaGudang;
 
         // Email unik global: satu orang = satu akun, akses ke banyak gudang
         // diatur lewat daftar gudang di bawah (bukan akun ganda per gudang).
@@ -165,9 +199,10 @@ class DaftarPengguna extends Component
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->penggunaId)],
             'role' => ['required', Rule::enum(PeranPengguna::class)],
             'no_hp' => 'nullable|string|max:20',
+            'aksesSemuaGudang' => 'boolean',
             'depotAkses' => 'array',
             'depotAkses.*' => ['integer', Rule::exists('depots', 'id')],
-            'depotDefault' => ['nullable', Rule::in($this->depotAkses)],
+            'depotDefault' => ['nullable', Rule::in($this->depotAksesTerbuka())],
         ], [
             'depotDefault.in' => __('pengguna.default_harus_diakses'),
         ], [
@@ -180,7 +215,11 @@ class DaftarPengguna extends Component
 
         $akses = [];
 
-        if ($butuhDepot) {
+        // Akses-semua-gudang tidak butuh baris di depot_user sama sekali —
+        // aksesnya datang dari kolom akses_semua_depot, dan otomatis ikut
+        // gudang baru yang dibuat belakangan tanpa perlu disentuh lagi di
+        // sini. Sama seperti superadmin, hanya beda kolom penandanya.
+        if ($butuhDepot && ! $aksesSemuaGudang) {
             $akses = array_values(array_unique(array_map('intval', $data['depotAkses'] ?? [])));
 
             // Tidak dicentang satu pun → gudang nomor urut pertama.
@@ -205,6 +244,7 @@ class DaftarPengguna extends Component
             'role' => $data['role'],
             'no_hp' => $this->no_hp ?: null,
             'aktif' => $this->aktif,
+            'akses_semua_depot' => $aksesSemuaGudang,
             // Disebut eksplisit (termasuk null) supaya BerDepot tidak mengisi
             // depot_id dari gudang yang sedang aktif di sesi superadmin.
             // null = otomatis gudang pertama yang diizinkan.
@@ -216,7 +256,8 @@ class DaftarPengguna extends Component
                 ? User::withoutGlobalScope(DepotScope::class)->create([...$atribut, 'password' => Hash::make('password')])
                 : tap(User::withoutGlobalScope(DepotScope::class)->findOrFail($this->penggunaId))->update($atribut);
 
-            // Superadmin selalu bisa ke semua gudang — tidak butuh baris akses.
+            // Superadmin & akun akses-semua-gudang selalu bisa ke semua
+            // gudang — tidak butuh baris akses, $akses sengaja kosong.
             $pengguna->depots()->sync($akses);
         });
 
