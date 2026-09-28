@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => 'Freezer to Depot',
+    'ket' => 'Record which depot holds a freezer that is not installed in any store: scan its QR, review the details, pick the depot, save.',
+    'cara_pindai' => 'Scan QR',
+    'cara_ketik' => 'Type IDN',
+    'placeholder_ketik' => 'Type the freezer IDN...',
+    'tombol_cari' => 'Search',
+    'ket_pindai' => 'Point the camera at the QR code on the freezer body.',
+    'judul_info' => 'Freezer Info',
+    'status_di_toko' => 'Installed at store :toko',
+    'ket_terpasang_toko' => 'An installed freezer\'s depot follows its store\'s depot, so nothing needs recording here. If the store ends its partnership, request it via Freezer Pickup — the depot is recorded automatically once the freezer is back.',
+    'tombol_pindai_lagi' => 'Scan another freezer',
+    'status_di_gudang' => 'Stored at :gudang',
+    'dicatat_oleh' => 'Recorded by :nama · :waktu',
+    'status_belum_diketahui' => 'Location unknown',
+    'ket_belum_diketahui' => 'This freezer is not installed in any store and has never been recorded as stored in a depot.',
+    'atr_gudang' => 'Stored at depot',
+    'pilih_gudang' => '— Select depot —',
+    'tombol_simpan' => 'Save',
+    'notif_tersimpan' => 'Freezer :idn recorded at :gudang.',
+    'galat_tidak_terdaftar' => 'IDN :idn is not registered in the General Freezer Master. Register it there first.',
+    'galat_masih_di_toko' => 'Freezer :idn is still installed at store :toko, so its depot cannot be recorded here.',
+    'galat_gudang_tidak_aktif' => 'The selected depot is not active.',
+    'kembali' => '← General Freezer Master',
+];

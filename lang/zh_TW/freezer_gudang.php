@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => '冷櫃入倉',
+    'ket' => '記錄未安裝在門市的冷櫃存放在哪個倉庫：掃描 QR 碼、查看資訊、選擇倉庫、儲存。',
+    'cara_pindai' => '掃描 QR 碼',
+    'cara_ketik' => '輸入 IDN',
+    'placeholder_ketik' => '輸入冷櫃 IDN...',
+    'tombol_cari' => '搜尋',
+    'ket_pindai' => '將相機對準冷櫃機身上的 QR 碼。',
+    'judul_info' => '冷櫃資訊',
+    'status_di_toko' => '已安裝在門市 :toko',
+    'ket_terpasang_toko' => '已安裝冷櫃的倉庫跟隨其門市所在倉庫，無需在此記錄。若門市終止合作，請透過「冷櫃回收」申請——冷櫃回到倉庫後會自動記錄。',
+    'tombol_pindai_lagi' => '掃描其他冷櫃',
+    'status_di_gudang' => '存放於 :gudang',
+    'dicatat_oleh' => '由 :nama 記錄 · :waktu',
+    'status_belum_diketahui' => '位置未知',
+    'ket_belum_diketahui' => '此冷櫃未安裝在任何門市，也從未記錄存放於任何倉庫。',
+    'atr_gudang' => '存放倉庫',
+    'pilih_gudang' => '— 選擇倉庫 —',
+    'tombol_simpan' => '儲存',
+    'notif_tersimpan' => '冷櫃 :idn 已記錄在 :gudang。',
+    'galat_tidak_terdaftar' => 'IDN :idn 尚未登記在通用冷櫃主資料中，請先在那裡登記。',
+    'galat_masih_di_toko' => '冷櫃 :idn 仍安裝在門市 :toko，因此無法在此記錄倉庫。',
+    'galat_gudang_tidak_aktif' => '所選倉庫未啟用。',
+    'kembali' => '← 通用冷櫃主檔',
+];

@@ -118,10 +118,16 @@ final class HakAkses
     /**
      * Apakah menu ditampilkan di sidebar & pemilih aplikasi. Sama dengan
      * boleh(), kecuali menu bertanda `tanpa_superadmin` tidak ditampilkan
-     * untuk superadmin (walau rutenya tetap boleh ia buka).
+     * untuk superadmin (walau rutenya tetap boleh ia buka), dan menu
+     * bertanda `tanpa_sidebar` tidak pernah ditampilkan (dibuka lewat
+     * tombol di layar lain, tapi hak aksesnya tetap diatur seperti biasa).
      */
     public function tampil(User $pengguna, string $menu): bool
     {
+        if (DaftarAkses::menu($menu)['tanpa_sidebar'] ?? false) {
+            return false;
+        }
+
         if ($pengguna->role === PeranPengguna::Superadmin && (DaftarAkses::menu($menu)['tanpa_superadmin'] ?? false)) {
             return false;
         }

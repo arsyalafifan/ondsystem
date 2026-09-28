@@ -25,6 +25,7 @@ return [
     'master' => 'Master',
     'master_toko' => 'Master Toko',
     'master_freezer' => 'General Master Freezer',
+    'freezer_gudang' => 'Freezer ke Gudang',
     'master_armada' => 'Master Kendaraan',
     'master_produk' => 'Master Produk',
     'master_wilayah' => 'Master Wilayah',

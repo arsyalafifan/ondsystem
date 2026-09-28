@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Master;
 
+use App\Models\Depot;
 use App\Models\Freezer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +26,12 @@ class DaftarFreezer extends Component
     public string $cari = '';
 
     public string $filterStatus = '';
+
+    /** '' | 'toko' | 'tanpa_toko' | 'gudang' | 'belum' — di mana freezer berada saat ini. */
+    public string $filterPenempatan = '';
+
+    /** Id gudang (menurut COALESCE toko → gudang simpan); '' = semua. */
+    public string $filterGudang = '';
 
     // --- Formulir Tambah / Edit ---
     public bool $formTerbuka = false;
@@ -77,6 +84,59 @@ class DaftarFreezer extends Component
         $this->resetPage();
     }
 
+    public function updatedFilterPenempatan(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterGudang(): void
+    {
+        $this->resetPage();
+    }
+
+    /**
+     * Angka ringkasan di atas tabel — seluruh freezer, tidak mengikuti
+     * penyaring di bawahnya (kartunya sendiri yang menjadi penyaring cepat).
+     *
+     * @return array<string, int>
+     */
+    #[Computed]
+    public function ringkasan(): array
+    {
+        $total = Freezer::query()->count();
+        $punyaToko = Freezer::query()->whereHas('toko')->count();
+        $diGudang = Freezer::query()->whereDoesntHave('toko')->whereNotNull('depot_simpan_id')->count();
+        $tanpaToko = $total - $punyaToko;
+
+        return [
+            'total' => $total,
+            'toko' => $punyaToko,
+            'tanpa_toko' => $tanpaToko,
+            'gudang' => $diGudang,
+            'belum' => $tanpaToko - $diGudang,
+            'nonaktif' => Freezer::query()->where('aktif', false)->count(),
+        ];
+    }
+
+    /** Kartu ringkasan menyaring cepat; kartu yang sedang aktif diklik lagi untuk membersihkan. */
+    public function saringKartu(string $kartu): void
+    {
+        $penempatan = in_array($kartu, ['toko', 'tanpa_toko', 'gudang', 'belum'], true) ? $kartu : '';
+        $status = $kartu === 'nonaktif' ? '0' : '';
+
+        $sudahAktif = $penempatan === $this->filterPenempatan && $status === $this->filterStatus;
+
+        $this->filterPenempatan = $sudahAktif ? '' : $penempatan;
+        $this->filterStatus = $sudahAktif ? '' : $status;
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function opsiGudang()
+    {
+        return Depot::query()->berurutan()->get(['id', 'nama']);
+    }
+
     #[Computed]
     public function freezers()
     {
@@ -84,9 +144,15 @@ class DaftarFreezer extends Component
             ->with([
                 'toko' => fn ($q) => $q->select('id', 'kode', 'nama', 'asset_id', 'depot_id'),
                 'toko.depot:id,nama',
+                'depotSimpan:id,nama',
             ])
             ->cari($this->cari)
             ->when($this->filterStatus !== '', fn ($q) => $q->where('aktif', (bool) $this->filterStatus))
+            ->when($this->filterPenempatan === 'toko', fn ($q) => $q->whereHas('toko'))
+            ->when($this->filterPenempatan === 'tanpa_toko', fn ($q) => $q->whereDoesntHave('toko'))
+            ->when($this->filterPenempatan === 'gudang', fn ($q) => $q->whereDoesntHave('toko')->whereNotNull('depot_simpan_id'))
+            ->when($this->filterPenempatan === 'belum', fn ($q) => $q->whereDoesntHave('toko')->whereNull('depot_simpan_id'))
+            ->when($this->filterGudang !== '', fn ($q) => $q->digudang((int) $this->filterGudang))
             ->orderBy('idn')
             ->paginate(25);
     }
@@ -180,7 +246,7 @@ class DaftarFreezer extends Component
 
     public function unduhExcel()
     {
-        $freezers = Freezer::query()->with('toko.depot:id,nama')->orderBy('idn')->get();
+        $freezers = Freezer::query()->with(['toko.depot:id,nama', 'depotSimpan:id,nama'])->orderBy('idn')->get();
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
@@ -197,7 +263,7 @@ class DaftarFreezer extends Component
                 $freezer->keterangan,
                 $freezer->aktif ? 'aktif' : 'nonaktif',
                 $freezer->toko?->nama,
-                $freezer->toko?->depot?->nama,
+                $freezer->gudang_saat_ini?->nama,
             ], null, "A{$baris}");
 
             $sheet->setCellValueExplicit("A{$baris}", (string) $freezer->idn, DataType::TYPE_STRING);

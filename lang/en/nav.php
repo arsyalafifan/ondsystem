@@ -25,6 +25,7 @@ return [
     'master' => 'Master Data',
     'master_toko' => 'Stores',
     'master_freezer' => 'General Master Freezer',
+    'freezer_gudang' => 'Freezer to Depot',
     'master_armada' => 'Vehicle Master',
     'master_produk' => 'Products',
     'master_wilayah' => 'Regions',

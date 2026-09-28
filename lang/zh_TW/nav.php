@@ -25,6 +25,7 @@ return [
     'master' => '主檔',
     'master_toko' => '商店主檔',
     'master_freezer' => '通用冷櫃主檔',
+    'freezer_gudang' => '冷櫃入倉',
     'master_armada' => '車輛主資料',
     'master_produk' => '產品主檔',
     'master_wilayah' => '區域主檔',

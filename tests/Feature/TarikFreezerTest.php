@@ -330,8 +330,12 @@ describe('pengambilan oleh driver', function () {
             ->and($tarikSegar->stop->fresh()->status)->toBe(StatusStop::Selesai)
             ->and($tarikSegar->fotos->pluck('jenis')->all())->toBe(JenisBuktiTarikFreezer::wajibDriver());
 
-        // IDN-nya kembali tersedia untuk dipasang di toko lain.
-        expect(Freezer::where('idn', 'IDNAH-TARIK-001')->first()->toko)->toBeNull();
+        // IDN-nya kembali tersedia untuk dipasang di toko lain, dan langsung
+        // tercatat disimpan di gudang rute penarikannya.
+        $freezer = Freezer::where('idn', 'IDNAH-TARIK-001')->first();
+        expect($freezer->toko)->toBeNull()
+            ->and($freezer->depot_simpan_id)->toBe($this->depot->id)
+            ->and($freezer->gudang_dicatat_oleh)->toBe($this->driver->id);
     });
 
     it('menolak menyelesaikan pengambilan sebelum kedua fotonya lengkap', function () {

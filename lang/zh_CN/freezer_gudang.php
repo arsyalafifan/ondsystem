@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => '冷柜入仓',
+    'ket' => '记录未安装在门店的冷柜存放在哪个仓库：扫描二维码、查看信息、选择仓库、保存。',
+    'cara_pindai' => '扫描二维码',
+    'cara_ketik' => '输入 IDN',
+    'placeholder_ketik' => '输入冷柜 IDN...',
+    'tombol_cari' => '搜索',
+    'ket_pindai' => '将相机对准冷柜机身上的二维码。',
+    'judul_info' => '冷柜信息',
+    'status_di_toko' => '已安装在门店 :toko',
+    'ket_terpasang_toko' => '已安装冷柜的仓库跟随其门店所在仓库，无需在此记录。若门店终止合作，请通过“冷柜回收”申请——冷柜回到仓库后会自动记录。',
+    'tombol_pindai_lagi' => '扫描其他冷柜',
+    'status_di_gudang' => '存放于 :gudang',
+    'dicatat_oleh' => '由 :nama 记录 · :waktu',
+    'status_belum_diketahui' => '位置未知',
+    'ket_belum_diketahui' => '此冷柜未安装在任何门店，也从未记录存放于任何仓库。',
+    'atr_gudang' => '存放仓库',
+    'pilih_gudang' => '— 选择仓库 —',
+    'tombol_simpan' => '保存',
+    'notif_tersimpan' => '冷柜 :idn 已记录在 :gudang。',
+    'galat_tidak_terdaftar' => 'IDN :idn 尚未登记在通用冷柜主数据中，请先在那里登记。',
+    'galat_masih_di_toko' => '冷柜 :idn 仍安装在门店 :toko，因此无法在此记录仓库。',
+    'galat_gudang_tidak_aktif' => '所选仓库未启用。',
+    'kembali' => '← 通用冷柜主数据',
+];
