@@ -2,13 +2,16 @@
 
 use App\Enums\HariKunjungan;
 use App\Enums\PeranPengguna;
+use App\Enums\StatusPesanan;
 use App\Livewire\Auth\Login;
 use App\Livewire\Depot\DaftarDepot;
 use App\Models\Depot;
 use App\Models\PenugasanToko;
+use App\Models\Pesanan;
 use App\Models\Scopes\DepotScope;
 use App\Models\Toko;
 use App\Models\User;
+use App\Models\Wilayah;
 use App\Services\Pengguna\GabungAkunGanda;
 use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
@@ -269,5 +272,52 @@ describe('akses semua gudang (non-superadmin)', function () {
         $admin = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => false]);
 
         $this->actingAs($admin)->post(route('depot.ganti'), ['depot_id' => 'semua'])->assertForbidden();
+    });
+});
+
+/**
+ * Regresi: akun yang boleh ke SEMUA gudang (superadmin / akses_semua_depot)
+ * sengaja tidak punya baris depot_user. Dulu DepotScope menyaring user hanya
+ * lewat depot_user, sehingga akun seperti ini lenyap di setiap gudang yang
+ * terkunci — kolom "Update By" jadi "-", findOrFail() gagal, dan sales-nya
+ * terlewat saat periode kunjungan dibuat.
+ */
+describe('akun semua gudang tetap terlihat di gudang yang terkunci', function () {
+    it('relasi pembuat pesanan tetap terbaca untuk akun akses semua gudang dan superadmin', function () {
+        $wilayah = Wilayah::create(['kode' => 'WR', 'nama' => 'Wilayah R']);
+        $toko = Toko::create(['kode' => 'TK-R1', 'nama' => 'Toko R', 'alamat' => 'Jl. R', 'wilayah_id' => $wilayah->id]);
+        $semua = User::factory()->create(['role' => PeranPengguna::Admin, 'akses_semua_depot' => true]);
+        $superadmin = User::factory()->superadmin()->create();
+
+        foreach ([$semua, $superadmin] as $i => $pengguna) {
+            $pesanan = Pesanan::create([
+                'kode' => "PSN-R{$i}", 'toko_id' => $toko->id, 'wilayah_id' => $wilayah->id,
+                'dibuat_oleh' => $pengguna->id, 'status' => StatusPesanan::Order, 'jenis' => 'normal',
+                'tanggal' => today(), 'total_dus' => 1, 'total_nilai' => 1,
+            ]);
+
+            expect($pesanan->fresh()->pembuat?->id)->toBe($pengguna->id);
+        }
+    });
+
+    it('driver dan sales akses semua gudang tetap muncul di daftar peran gudang mana pun', function () {
+        $driver = User::factory()->create(['role' => PeranPengguna::Driver, 'akses_semua_depot' => true]);
+        $sales = User::factory()->create(['role' => PeranPengguna::Sales, 'akses_semua_depot' => true]);
+
+        foreach ([$this->depot, $this->depotB] as $depot) {
+            DepotContext::jalankanSebagai($depot, function () use ($driver, $sales) {
+                expect(User::driver()->pluck('id'))->toContain($driver->id)
+                    ->and(User::sales()->pluck('id'))->toContain($sales->id)
+                    ->and(User::find($driver->id))->not->toBeNull();
+            });
+        }
+    });
+
+    it('akun biasa tetap hanya terlihat di gudang yang diizinkan', function () {
+        $admin = User::factory()->create(['role' => PeranPengguna::Admin]);
+
+        DepotContext::jalankanSebagai($this->depotB, function () use ($admin) {
+            expect(User::find($admin->id))->toBeNull();
+        });
     });
 });

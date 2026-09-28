@@ -1,6 +1,13 @@
 <div>
     <x-judul-halaman :judul="__('master.judul_freezer')" :keterangan="__('master.ket_freezer')">
         <x-slot:aksi>
+            @if (app(\App\Akses\HakAkses::class)->boleh(auth()->user(), 'ond.freezer_gudang'))
+                <a href="{{ route('freezer.gudang') }}" wire:navigate
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
+                    <x-heroicon-o-qr-code class="size-4" />
+                    {{ __('freezer_gudang.judul') }}
+                </a>
+            @endif
             <button type="button" wire:click="unduhExcel"
                     class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">
                 {{ __('master.ekspor_excel') }}
@@ -16,6 +23,31 @@
         </x-slot:aksi>
     </x-judul-halaman>
 
+    {{-- Ringkasan, sekaligus penyaring cepat --}}
+    @php
+        $kartu = [
+            ['total', __('master.stat_total'), 'text-gray-900', fn () => $filterPenempatan === '' && $filterStatus === ''],
+            ['toko', __('master.stat_punya_toko'), 'text-sky-700', fn () => $filterPenempatan === 'toko'],
+            ['tanpa_toko', __('master.stat_belum_toko'), 'text-violet-700', fn () => $filterPenempatan === 'tanpa_toko'],
+            ['gudang', __('master.stat_di_gudang'), 'text-emerald-700', fn () => $filterPenempatan === 'gudang'],
+            ['belum', __('master.stat_belum_diketahui'), 'text-amber-700', fn () => $filterPenempatan === 'belum'],
+            ['nonaktif', __('master.stat_nonaktif'), 'text-gray-500', fn () => $filterStatus === '0' && $filterPenempatan === ''],
+        ];
+    @endphp
+    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        @foreach ($kartu as [$kunci, $label, $warna, $aktif])
+            <button type="button" wire:click="saringKartu('{{ $kunci === 'total' ? '' : $kunci }}')"
+                    @class([
+                        'rounded-xl border bg-white p-3 text-left transition hover:border-gray-300',
+                        'border-blue-500 ring-1 ring-blue-500' => $aktif(),
+                        'border-gray-200' => ! $aktif(),
+                    ])>
+                <p class="text-xs font-medium text-gray-500">{{ $label }}</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums {{ $warna }}">{{ $this->ringkasan[$kunci] }}</p>
+            </button>
+        @endforeach
+    </div>
+
     <x-kartu>
         <div class="flex flex-wrap items-end gap-3 border-b border-gray-200 p-4">
             <div class="min-w-56 flex-1">
@@ -30,6 +62,27 @@
                     <option value="">{{ __('umum.semua_status') }}</option>
                     <option value="1">{{ __('umum.aktif') }}</option>
                     <option value="0">{{ __('umum.nonaktif') }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('master.filter_penempatan') }}</label>
+                <select wire:model.live="filterPenempatan"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">{{ __('master.penempatan_semua') }}</option>
+                    <option value="toko">{{ __('master.penempatan_toko') }}</option>
+                    <option value="tanpa_toko">{{ __('master.penempatan_tanpa_toko') }}</option>
+                    <option value="gudang">{{ __('master.penempatan_gudang') }}</option>
+                    <option value="belum">{{ __('master.penempatan_belum') }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600">{{ __('master.kolom_gudang') }}</label>
+                <select wire:model.live="filterGudang"
+                        class="mt-1 block rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">{{ __('umum.semua_depot') }}</option>
+                    @foreach ($this->opsiGudang as $g)
+                        <option value="{{ $g->id }}">{{ $g->nama }}</option>
+                    @endforeach
                 </select>
             </div>
         </div>
@@ -57,11 +110,19 @@
                                 @if ($f->toko)
                                     {{ $f->toko->nama }}
                                     <span class="ml-1 font-mono text-xs text-gray-500">{{ $f->toko->kode }}</span>
+                                @elseif ($f->depotSimpan)
+                                    <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{{ __('master.freezer_di_gudang') }}</span>
                                 @else
                                     <span class="rounded bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">{{ __('master.freezer_belum_terpasang') }}</span>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $f->toko?->depot?->nama ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-4 py-2 text-gray-600">
+                                @if ($f->gudang_saat_ini)
+                                    {{ $f->gudang_saat_ini->nama }}
+                                @else
+                                    <span class="text-xs text-amber-700">{{ __('master.freezer_belum_diketahui') }}</span>
+                                @endif
+                            </td>
                             <td class="whitespace-nowrap px-4 py-2">
                                 @if ($f->aktif)
                                     <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('umum.aktif') }}</span>

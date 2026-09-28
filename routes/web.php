@@ -12,6 +12,7 @@ use App\Livewire\Depot\DaftarDepot;
 use App\Livewire\Driver\CekKendaraan;
 use App\Livewire\Driver\DaftarKunjungan;
 use App\Livewire\Driver\PilihMobil;
+use App\Livewire\Freezer\FreezerKeGudang;
 use App\Livewire\HakAkses\KelolaHakAkses;
 use App\Livewire\Hr\Absensi as HrAbsensi;
 use App\Livewire\Hr\AjukanIzin;
@@ -215,6 +216,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
     Route::get('/master/freezer', DaftarFreezer::class)->name('master.freezer')->middleware('akses:ond.master_freezer');
+    Route::get('/freezer/gudang', FreezerKeGudang::class)->name('freezer.gudang')->middleware('akses:ond.freezer_gudang');
     Route::get('/master/armada', DaftarArmada::class)->name('master.armada')->middleware('akses:ond.master_armada');
     Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
     Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');

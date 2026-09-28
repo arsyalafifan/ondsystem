@@ -6,11 +6,14 @@ use App\Enums\JenisBuktiTarikFreezer;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
 use App\Enums\StatusTarikFreezer;
+use App\Models\Depot;
+use App\Models\Freezer;
 use App\Models\PenugasanToko;
 use App\Models\Pesanan;
 use App\Models\TarikFreezer;
 use App\Models\Toko;
 use App\Models\User;
+use App\Services\Freezer\FreezerGudangService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -29,7 +32,10 @@ use Throwable;
  */
 class TarikFreezerService
 {
-    public function __construct(private readonly BuktiTarikFreezerService $bukti) {}
+    public function __construct(
+        private readonly BuktiTarikFreezerService $bukti,
+        private readonly FreezerGudangService $gudang,
+    ) {}
 
     /**
      * Toko yang boleh diajukan penarikan freezernya: aktif, punya freezer
@@ -136,6 +142,7 @@ class TarikFreezerService
         try {
             DB::transaction(function () use ($tarikFreezer, $gambar, $driver, &$tersimpan): void {
                 $toko = $tarikFreezer->toko()->lockForUpdate()->firstOrFail();
+                $idnDitarik = $toko->asset_id;
 
                 $toko->update([
                     'aktif' => false,
@@ -154,6 +161,16 @@ class TarikFreezerService
                     'total_dus_terkirim' => 1,
                     'selesai_at' => now(),
                 ]);
+
+                // Freezer yang sudah kembali langsung tercatat di gudang rute
+                // penarikannya — tanpa ini ia jadi "freezer tanpa toko yang
+                // tidak diketahui ada di mana" sampai ada yang memindainya.
+                $freezer = $idnDitarik === null ? null : Freezer::query()->where('idn', $idnDitarik)->first();
+                $depotRute = Depot::find($tarikFreezer->depot_id);
+
+                if ($freezer !== null && $depotRute?->aktif) {
+                    $this->gudang->catat($freezer, $depotRute, $driver);
+                }
 
                 $tarikFreezer->update([
                     'status' => StatusTarikFreezer::Selesai,

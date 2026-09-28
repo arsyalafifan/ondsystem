@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'judul' => 'Freezer ke Gudang',
+    'ket' => 'Catat di gudang mana freezer yang belum terpasang di toko sedang disimpan: pindai QR-nya, lihat infonya, pilih gudang, simpan.',
+    'cara_pindai' => 'Pindai QR',
+    'cara_ketik' => 'Ketik IDN',
+    'placeholder_ketik' => 'Ketik nomor IDN freezer...',
+    'tombol_cari' => 'Cari',
+    'ket_pindai' => 'Arahkan kamera ke QR code di badan freezer.',
+    'judul_info' => 'Info Freezer',
+    'status_di_toko' => 'Terpasang di toko :toko',
+    'ket_terpasang_toko' => 'Gudang freezer yang terpasang mengikuti gudang tokonya, jadi tidak perlu dicatat di sini. Kalau tokonya berhenti jadi mitra, ajukan lewat menu Tarik Freezer — gudangnya tercatat otomatis begitu freezer sampai kembali.',
+    'tombol_pindai_lagi' => 'Pindai freezer lain',
+    'status_di_gudang' => 'Disimpan di :gudang',
+    'dicatat_oleh' => 'Dicatat oleh :nama · :waktu',
+    'status_belum_diketahui' => 'Lokasi belum diketahui',
+    'ket_belum_diketahui' => 'Freezer ini belum terpasang di toko mana pun dan belum pernah dicatat disimpan di gudang.',
+    'atr_gudang' => 'Disimpan di gudang',
+    'pilih_gudang' => '— Pilih gudang —',
+    'tombol_simpan' => 'Simpan',
+    'notif_tersimpan' => 'Freezer :idn dicatat di :gudang.',
+    'galat_tidak_terdaftar' => 'IDN :idn belum terdaftar di General Master Freezer. Daftarkan dulu di sana.',
+    'galat_masih_di_toko' => 'Freezer :idn masih terpasang di toko :toko, jadi gudangnya tidak bisa dicatat di sini.',
+    'galat_gudang_tidak_aktif' => 'Gudang yang dipilih tidak aktif.',
+    'kembali' => '← General Master Freezer',
+];

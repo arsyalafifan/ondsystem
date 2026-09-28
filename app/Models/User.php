@@ -43,16 +43,22 @@ class User extends Authenticatable implements DisaringDepotSendiri
 
     /**
      * Dipanggil DepotScope: pengguna "milik" sebuah gudang kalau punya akses
-     * ke gudang itu (tabel depot_user), bukan kalau depot_id-nya sama.
-     * Superadmin (tanpa baris akses) tetap tidak ikut terlihat di daftar
-     * pengguna per gudang, sama seperti sebelumnya.
+     * ke gudang itu — lewat baris depot_user, ATAU karena memang boleh ke
+     * semua gudang (superadmin / akses_semua_depot, yang sengaja tanpa baris
+     * depot_user). Tanpa pengecualian kedua itu, akun seperti ini lenyap di
+     * setiap gudang yang terkunci: relasi pembuat/pemroses/driver/sales jadi
+     * null ("-" di layar, 500 di kode yang tidak null-safe), findOrFail()
+     * gagal, dan PeriodeKunjunganService melewatkan sales-nya.
      */
     public function saringDepot(Builder $query, int $depotId): void
     {
-        $query->whereExists(fn ($q) => $q->selectRaw('1')
-            ->from('depot_user')
-            ->whereColumn('depot_user.user_id', $this->qualifyColumn('id'))
-            ->where('depot_user.depot_id', $depotId));
+        $query->where(fn (Builder $q) => $q
+            ->where($this->qualifyColumn('akses_semua_depot'), true)
+            ->orWhere($this->qualifyColumn('role'), PeranPengguna::Superadmin->value)
+            ->orWhereExists(fn ($s) => $s->selectRaw('1')
+                ->from('depot_user')
+                ->whereColumn('depot_user.user_id', $this->qualifyColumn('id'))
+                ->where('depot_user.depot_id', $depotId)));
     }
 
     /** @return BelongsToMany<Depot, $this> */
