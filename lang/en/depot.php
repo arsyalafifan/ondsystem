@@ -32,4 +32,6 @@ return [
     'atr_gudang_penyimpanan' => 'Storage warehouse',
     'ket_gudang_penyimpanan' => 'When enabled, this depot can send and receive stock transfers with other depots.',
     'label_gudang_penyimpanan' => 'Storage Warehouse',
+    'atr_radius_rider_km' => 'Rider Radius (km)',
+    'ket_radius_rider_km' => 'Stores within this radius of the depot can be delivered by rider (not vehicle route) when admin approves their order.',
 ];

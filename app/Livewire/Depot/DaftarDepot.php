@@ -35,6 +35,8 @@ class DaftarDepot extends Component
 
     public string $minDusPerToko = '5';
 
+    public string $radiusRiderKm = '13';
+
     public bool $aktif = true;
 
     public bool $gudangPenyimpanan = false;
@@ -66,6 +68,7 @@ class DaftarDepot extends Component
         $this->maxToko = (string) $depot->max_toko;
         $this->maxDus = (string) $depot->max_dus;
         $this->minDusPerToko = (string) $depot->min_dus_per_toko;
+        $this->radiusRiderKm = (string) $depot->radius_rider_km;
         $this->aktif = $depot->aktif;
         $this->gudangPenyimpanan = $depot->gudang_penyimpanan;
 
@@ -86,6 +89,7 @@ class DaftarDepot extends Component
         $this->maxToko = '25';
         $this->maxDus = '220';
         $this->minDusPerToko = '5';
+        $this->radiusRiderKm = '13';
         $this->aktif = true;
         $this->gudangPenyimpanan = false;
         $this->resetValidation();
@@ -108,6 +112,7 @@ class DaftarDepot extends Component
             'maxToko' => 'required|integer|min:1',
             'maxDus' => 'required|integer|min:1',
             'minDusPerToko' => 'required|integer|min:1',
+            'radiusRiderKm' => 'required|integer|min:0|max:999',
         ], [], [
             'kode' => __('depot.atr_kode'),
             'nama' => __('depot.atr_nama'),
@@ -119,6 +124,7 @@ class DaftarDepot extends Component
             'maxToko' => __('depot.atr_max_toko'),
             'maxDus' => __('depot.atr_max_dus'),
             'minDusPerToko' => __('depot.atr_min_dus_per_toko'),
+            'radiusRiderKm' => __('depot.atr_radius_rider_km'),
         ]);
 
         $atribut = [
@@ -131,6 +137,7 @@ class DaftarDepot extends Component
             'max_toko' => (int) $data['maxToko'],
             'max_dus' => (int) $data['maxDus'],
             'min_dus_per_toko' => (int) $data['minDusPerToko'],
+            'radius_rider_km' => (int) $data['radiusRiderKm'],
             'aktif' => $this->aktif,
             'gudang_penyimpanan' => $this->gudangPenyimpanan,
         ];

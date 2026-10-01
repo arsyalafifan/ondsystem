@@ -149,6 +149,12 @@ class Pesanan extends Model
         return $this->hasOne(KendaraanStop::class);
     }
 
+    /** @return HasOne<PengantaranRider, $this> */
+    public function pengantaranRider(): HasOne
+    {
+        return $this->hasOne(PengantaranRider::class);
+    }
+
     /**
      * Nilai yang benar-benar bisa ditagih ke toko.
      *

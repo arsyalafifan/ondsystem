@@ -32,4 +32,6 @@ return [
     'atr_gudang_penyimpanan' => 'Gudang penyimpanan',
     'ket_gudang_penyimpanan' => 'Jika diaktifkan, gudang ini bisa mengirim dan menerima transfer stok antar gudang.',
     'label_gudang_penyimpanan' => 'Gudang Penyimpanan',
+    'atr_radius_rider_km' => 'Radius Rider (km)',
+    'ket_radius_rider_km' => 'Toko dalam radius ini dari gudang bisa diantar rider (bukan rute kendaraan) saat admin menyetujui pesanannya.',
 ];

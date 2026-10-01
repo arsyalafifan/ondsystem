@@ -17,4 +17,5 @@ return [
     'peran_superadmin' => 'Superadmin',
     'peran_hr' => 'HR',
     'peran_supervisor' => 'Supervisor',
+    'peran_rider' => 'Rider',
 ];

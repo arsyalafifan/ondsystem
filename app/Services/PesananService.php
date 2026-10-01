@@ -6,6 +6,7 @@ use App\Enums\JenisBuktiPengiriman;
 use App\Enums\JenisPesanan;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusBayar;
+use App\Enums\StatusPengantaranRider;
 use App\Enums\StatusPesanan;
 use App\Enums\StatusStop;
 use App\Models\KendaraanStop;
@@ -501,6 +502,28 @@ class PesananService
     }
 
     /**
+     * ORDER langsung menjadi DELIVERY, dipakai saat admin memilih rider
+     * (bukan driver/routing) untuk toko yang masuk radius
+     * Depot::radius_rider_km — lihat
+     * App\Services\PengantaranRider\PengantaranRiderService::tandaiUntukRider().
+     * Tidak lewat Process sama sekali karena rider tidak pernah ikut
+     * routing kendaraan.
+     */
+    public function setujuiLangsungDelivery(Pesanan $pesanan, User $admin): void
+    {
+        if ($pesanan->status !== StatusPesanan::Order) {
+            throw new RuntimeException(__('pesanan.galat_bukan_order', ['kode' => $pesanan->kode]));
+        }
+
+        $pesanan->update([
+            'status' => StatusPesanan::Delivery,
+            'diproses_oleh' => $admin->id,
+            'diproses_at' => now(),
+            'dikirim_at' => now(),
+        ]);
+    }
+
+    /**
      * Menandai satu kunjungan selesai setelah driver mengunggah foto nota.
      * Stok fisik dipotong di sini, karena barangnya baru benar-benar keluar
      * gudang saat serah terima terjadi.
@@ -563,6 +586,80 @@ class PesananService
     }
 
     /**
+     * Penyelesaian pengiriman TANPA kendaraan/stop — dipakai rider (lihat
+     * App\Services\PengantaranRider\PengantaranRiderService::selesaikan()).
+     *
+     * Beda dari PengirimanService::coretNota(): kekurangan (jumlah dipesan
+     * dikurangi jumlah diterima) di sini LANGSUNG dilepas balik ke stok
+     * tersedia, bukan dibiarkan terkunci menunggu "kampas" — rider cuma
+     * membawa satu toko per perjalanan, tidak ada stop lain dalam rute yang
+     * sama untuk menampung sisanya.
+     *
+     * @param  array<int, int>  $jumlahDiterima  jumlah yang BENAR-BENAR diterima toko, dikunci pada id item pesanan
+     *
+     * @throws RuntimeException bila statusnya bukan Delivery, atau totalnya di bawah min_dus_per_toko gudang
+     */
+    public function selesaikanTanpaKendaraan(Pesanan $pesanan, array $jumlahDiterima, User $petugas): Pesanan
+    {
+        return DB::transaction(function () use ($pesanan, $jumlahDiterima, $petugas): Pesanan {
+            $pesanan = $pesanan->newQuery()->lockForUpdate()->findOrFail($pesanan->id);
+
+            if ($pesanan->status !== StatusPesanan::Delivery) {
+                throw new RuntimeException(__('pesanan.galat_bukan_delivery', ['kode' => $pesanan->kode]));
+            }
+
+            $items = $pesanan->items()->with('produk')->get();
+
+            $rapi = [];
+            $totalDiterima = 0;
+
+            foreach ($items as $item) {
+                $diterima = max(0, min((int) ($jumlahDiterima[$item->id] ?? $item->jumlah_dus), $item->jumlah_dus));
+                $rapi[$item->id] = $diterima;
+                $totalDiterima += $diterima;
+            }
+
+            $minDus = DepotContext::currentOrFail()->min_dus_per_toko;
+
+            // Di bawah batas minimal pesanan berarti toko itu sebenarnya
+            // menolak — yang tepat adalah membatalkan pesanannya, bukan
+            // "menyelesaikannya" dengan jumlah yang tidak masuk akal.
+            if ($totalDiterima < $minDus) {
+                throw new RuntimeException(__('pengantaran_rider.galat_di_bawah_minimal', [
+                    'min' => $minDus,
+                    'total' => $totalDiterima,
+                ]));
+            }
+
+            $kurangKirim = false;
+
+            foreach ($items as $item) {
+                $diterima = $rapi[$item->id];
+                $kekurangan = $item->jumlah_dus - $diterima;
+
+                if ($kekurangan > 0) {
+                    $item->update(['jumlah_dus_terkirim' => $diterima]);
+                    $kurangKirim = true;
+                }
+
+                $this->keluarkanStok($item->produk, $diterima, $pesanan, $petugas);
+
+                if ($kekurangan > 0) {
+                    $this->lepasKunciStok($item->produk, $kekurangan, $pesanan, $petugas);
+                }
+            }
+
+            $pesanan->update([
+                'status' => StatusPesanan::Selesai,
+                'kurang_kirim' => $kurangKirim,
+                'selesai_at' => now(),
+            ]);
+
+            return $pesanan;
+        });
+    }
+
+    /**
      * Membatalkan pesanan dan melepas kuncian stoknya.
      *
      * Pesanan yang notanya sudah diunggah tidak bisa dibatalkan lewat sini,
@@ -575,11 +672,16 @@ class PesananService
         }
 
         DB::transaction(function () use ($pesanan, $admin, $alasan, $catatan): void {
-            $pesanan->loadMissing('stop.kendaraan');
+            $pesanan->loadMissing('stop.kendaraan', 'pengantaranRider');
 
             $stop = $pesanan->stop;
+            $pengantaranRider = $pesanan->pengantaranRider;
 
             if ($stop !== null && $stop->status === StatusStop::Selesai) {
+                throw new RuntimeException(__('pesanan.galat_sudah_diterima'));
+            }
+
+            if ($pengantaranRider !== null && $pengantaranRider->status === StatusPengantaranRider::Selesai) {
                 throw new RuntimeException(__('pesanan.galat_sudah_diterima'));
             }
 
@@ -598,6 +700,11 @@ class PesananService
                     'total_dus' => (int) $kendaraan->stops()->sum('total_dus'),
                 ]);
             }
+
+            // Penandaan rider yang belum/sedang diambil dibuang juga, supaya
+            // tidak nyangkut di pool atau di layar rider untuk pesanan yang
+            // sudah batal.
+            $pengantaranRider?->delete();
 
             $pesanan->update([
                 'status' => StatusPesanan::Cancel,

@@ -32,4 +32,6 @@ return [
     'atr_gudang_penyimpanan' => '儲存倉庫',
     'ket_gudang_penyimpanan' => '啟用後，此倉庫可以與其他倉庫互相發送和接收調撥庫存。',
     'label_gudang_penyimpanan' => '儲存倉庫',
+    'atr_radius_rider_km' => '騎士配送半徑（公里）',
+    'ket_radius_rider_km' => '管理員核准訂單時，倉庫這個半徑範圍內的商店可以改由騎士配送（不走車輛路線）。',
 ];

@@ -48,6 +48,7 @@ use App\Livewire\Noo\RoutingFreezer;
 use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
+use App\Livewire\PengantaranRider\DaftarPengantaranRider;
 use App\Livewire\Pengguna\DaftarPengguna;
 use App\Livewire\Penjualan\BarangTerjual;
 use App\Livewire\Pesanan\BuatPesanan;
@@ -267,6 +268,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/driver/mobil/{kendaraan}/cek', CekKendaraan::class)->name('driver.cek-kendaraan');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
+
+    Route::get('/pengantaran-rider', DaftarPengantaranRider::class)->name('pengantaran-rider.daftar')->middleware('akses:ond.pengantaran_rider');
 
     // --- HR System ---
     Route::prefix('hr')->name('hr.')->group(function () {

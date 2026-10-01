@@ -68,4 +68,5 @@ return [
     'tarik_freezer_persetujuan' => 'Freezer Pickup Approval',
     'tarik_freezer_routing' => 'Freezer Pickup Routing',
     'transfer_stok' => 'Stock Transfer',
+    'pengantaran_rider' => 'Rider Delivery',
 ];

@@ -7,12 +7,14 @@ use App\Enums\CakupanData;
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Models\PengantaranRider;
 use App\Models\PenugasanToko;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
 use App\Models\User;
 use App\Models\Wilayah;
+use App\Services\PengantaranRider\PengantaranRiderService;
 use App\Services\PesananService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,6 +50,18 @@ class DaftarPesanan extends Component
     public array $terpilih = [];
 
     public bool $pilihSemua = false;
+
+    // --- Konfirmasi Rider/Driver (lihat bukaKonfirmasiRiderDriver()) ---
+    public bool $modalRiderDriverTerbuka = false;
+
+    /** @var array<int, int> id pesanan yang masuk radius rider, menunggu keputusan admin */
+    public array $pesananRadiusIds = [];
+
+    /** @var array<int, string> 'rider'|'driver', dikunci pada id pesanan, bawaan 'driver' */
+    public array $konfirmasiRiderDriver = [];
+
+    /** @var array<int, float> jarak (km) ke gudang, dikunci pada id pesanan — cuma untuk tampilan */
+    public array $pesananRadiusJarak = [];
 
     // --- Jendela pembatalan ---
     public ?int $pesananDibatalkan = null;
@@ -146,6 +160,7 @@ class DaftarPesanan extends Component
         return $this->kueriPesanan()
             ->with([
                 'toko:id,nama,kode,alamat,latitude,longitude', 'wilayah:id,nama', 'stop.kendaraan:id,nomor,nama',
+                'pengantaranRider:id,pesanan_id,status,rider_id',
                 // Keempatnya dimuat di depan untuk kolom "Update By | Date"
                 // (Pesanan::pembaruTerakhir()) — mode ketat model melempar
                 // galat kalau salah satunya diakses belum termuat.
@@ -249,14 +264,22 @@ class DaftarPesanan extends Component
         $this->terpilih = $nilai ? $this->idBisaDisetujui : [];
     }
 
-    public function setujui(int $id, PesananService $service): void
+    public function setujui(int $id, PesananService $service, PengantaranRiderService $riderService): void
     {
         if (! auth()->user()->isAdmin()) {
             abort(403);
         }
 
+        $pesanan = $this->kueriPesanan()->with('toko:id,nama,latitude,longitude')->findOrFail($id);
+
+        if ($riderService->dalamRadius($pesanan)) {
+            $this->bukaKonfirmasiRiderDriver([$pesanan->id], $riderService);
+
+            return;
+        }
+
         try {
-            $service->setujui($this->kueriPesanan()->findOrFail($id), auth()->user());
+            $service->setujui($pesanan, auth()->user());
             $this->dispatch('notifikasi', pesan: __('pesanan.notif_disetujui'));
         } catch (RuntimeException $e) {
             $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
@@ -265,19 +288,25 @@ class DaftarPesanan extends Component
         unset($this->pesanans, $this->ringkasan);
     }
 
-    public function setujuiTerpilih(PesananService $service): void
+    public function setujuiTerpilih(PesananService $service, PengantaranRiderService $riderService): void
     {
         if (! auth()->user()->isAdmin()) {
             abort(403);
         }
 
-        $berhasil = 0;
-        $gagal = 0;
-
         // whereNull('noo_id') diulang di query, bukan sekadar mengandalkan
         // idBisaDisetujui() yang cuma menyaring tampilan — daftar $terpilih
         // datang dari klien dan tidak pernah dipercaya begitu saja.
-        foreach ($this->kueriPesanan()->whereIn('id', $this->terpilih)->whereNull('noo_id')->get() as $pesanan) {
+        $pesanans = $this->kueriPesanan()->whereIn('id', $this->terpilih)->whereNull('noo_id')
+            ->with('toko:id,nama,latitude,longitude')->get();
+
+        $dalamRadius = $pesanans->filter(fn (Pesanan $p) => $riderService->dalamRadius($p));
+        $luarRadius = $pesanans->reject(fn (Pesanan $p) => $dalamRadius->contains('id', $p->id));
+
+        $berhasil = 0;
+        $gagal = 0;
+
+        foreach ($luarRadius as $pesanan) {
             try {
                 $service->setujui($pesanan, auth()->user());
                 $berhasil++;
@@ -290,6 +319,87 @@ class DaftarPesanan extends Component
         $this->pilihSemua = false;
         unset($this->pesanans, $this->ringkasan);
 
+        if ($dalamRadius->isNotEmpty()) {
+            $this->bukaKonfirmasiRiderDriver($dalamRadius->pluck('id')->all(), $riderService, $dalamRadius);
+        }
+
+        if ($berhasil > 0 || $gagal > 0) {
+            $pesan = __('pesanan.notif_disetujui_massal', ['jumlah' => $berhasil]);
+
+            if ($gagal > 0) {
+                $pesan .= ' '.__('pesanan.notif_dilewati', ['jumlah' => $gagal]);
+            }
+
+            $this->dispatch('notifikasi', pesan: $pesan, jenis: $gagal > 0 ? 'info' : 'sukses');
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Konfirmasi Rider/Driver — toko yang masuk Depot::radius_rider_km
+    // butuh keputusan sadar admin sebelum disetujui, baik dari setujui()
+    // satuan (satu baris) maupun setujuiTerpilih() (banyak baris sekaligus,
+    // satu modal untuk semuanya).
+    // ------------------------------------------------------------------
+
+    /** @param  array<int, int>  $ids */
+    private function bukaKonfirmasiRiderDriver(array $ids, PengantaranRiderService $riderService, ?Collection $pesanansTermuat = null): void
+    {
+        $pesanansTermuat ??= $this->kueriPesanan()->whereIn('id', $ids)->with('toko:id,nama,latitude,longitude')->get();
+
+        $this->pesananRadiusIds = $ids;
+        $this->konfirmasiRiderDriver = collect($ids)->mapWithKeys(fn (int $id) => [$id => 'driver'])->all();
+        $this->pesananRadiusJarak = $pesanansTermuat->mapWithKeys(
+            fn (Pesanan $p) => [$p->id => round(($riderService->jarakM($p) ?? 0) / 1000, 1)],
+        )->all();
+        $this->modalRiderDriverTerbuka = true;
+    }
+
+    public function tutupKonfirmasiRiderDriver(): void
+    {
+        $this->reset(['modalRiderDriverTerbuka', 'pesananRadiusIds', 'konfirmasiRiderDriver', 'pesananRadiusJarak']);
+    }
+
+    #[Computed]
+    public function pesananDalamRadiusModal(): Collection
+    {
+        if ($this->pesananRadiusIds === []) {
+            return collect();
+        }
+
+        return $this->kueriPesanan()->whereIn('id', $this->pesananRadiusIds)->with('toko:id,nama')->get();
+    }
+
+    public function submitKonfirmasiRiderDriver(PesananService $service, PengantaranRiderService $riderService): void
+    {
+        if (! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // Diquery ulang server-side (status harus masih Order) — jangan
+        // percaya begitu saja id/pilihan yang datang dari klien.
+        $pesanans = $this->kueriPesanan()->whereIn('id', $this->pesananRadiusIds)->where('status', StatusPesanan::Order)->get();
+
+        $berhasil = 0;
+        $gagal = 0;
+
+        foreach ($pesanans as $pesanan) {
+            $pilihan = $this->konfirmasiRiderDriver[$pesanan->id] ?? 'driver';
+
+            try {
+                if ($pilihan === 'rider') {
+                    $riderService->tandaiUntukRider($pesanan, auth()->user());
+                } else {
+                    $service->setujui($pesanan, auth()->user());
+                }
+                $berhasil++;
+            } catch (RuntimeException) {
+                $gagal++;
+            }
+        }
+
+        $this->tutupKonfirmasiRiderDriver();
+        unset($this->pesanans, $this->ringkasan);
+
         $pesan = __('pesanan.notif_disetujui_massal', ['jumlah' => $berhasil]);
 
         if ($gagal > 0) {
@@ -297,6 +407,22 @@ class DaftarPesanan extends Component
         }
 
         $this->dispatch('notifikasi', pesan: $pesan, jenis: $gagal > 0 ? 'info' : 'sukses');
+    }
+
+    public function alihkanKeDriver(int $pengantaranRiderId, PengantaranRiderService $riderService): void
+    {
+        if (! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        try {
+            $riderService->alihkanKeDriver(PengantaranRider::findOrFail($pengantaranRiderId), auth()->user());
+            $this->dispatch('notifikasi', pesan: __('pengantaran_rider.notif_dialihkan'));
+        } catch (RuntimeException $e) {
+            $this->dispatch('notifikasi', pesan: $e->getMessage(), jenis: 'error');
+        }
+
+        unset($this->pesanans, $this->ringkasan);
     }
 
     public function bukaPembatalan(int $id): void

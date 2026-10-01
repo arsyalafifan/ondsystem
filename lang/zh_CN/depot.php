@@ -32,4 +32,6 @@ return [
     'atr_gudang_penyimpanan' => '储存仓库',
     'ket_gudang_penyimpanan' => '启用后，此仓库可以与其他仓库互相发送和接收调拨库存。',
     'label_gudang_penyimpanan' => '储存仓库',
+    'atr_radius_rider_km' => '骑手配送半径（公里）',
+    'ket_radius_rider_km' => '管理员批准订单时，仓库这个半径范围内的商店可以改由骑手配送（不走车辆路线）。',
 ];

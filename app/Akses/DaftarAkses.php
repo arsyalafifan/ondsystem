@@ -105,6 +105,7 @@ final class DaftarAkses
         'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],
 
         'ond.pengiriman_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'driver.pilih-mobil', 'label' => 'nav.pengiriman_driver', 'ikon' => 'truck', 'peran' => ['driver', 'admin']],
+        'ond.pengantaran_rider' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'pengantaran-rider.daftar', 'label' => 'nav.pengantaran_rider', 'ikon' => 'map-pin', 'peran' => ['rider', 'admin']],
 
         'ond.monitoring_bbm' => ['aplikasi' => 'ond', 'grup' => 'ond.monitoring', 'rute' => 'monitoring.bahan-bakar', 'label' => 'nav.monitoring_bbm', 'ikon' => 'fire', 'peran' => ['admin']],
 

@@ -67,6 +67,7 @@ const PARITAS_RUTE = [
     'driver.pilih-mobil' => ['driver', 'admin'],
     'driver.kunjungan' => ['driver', 'admin'],
     'driver.cek-kendaraan' => ['driver', 'admin'],
+    'pengantaran-rider.daftar' => ['rider', 'admin'],
     'hr.dashboard' => ['admin', 'hr'],
     'hr.karyawan' => ['admin', 'hr'],
     'hr.department' => ['admin', 'hr'],
@@ -85,7 +86,7 @@ const PARITAS_RUTE = [
     'hr.setting-approval-izin' => ['hr'],
     'pengguna.daftar' => [],
     'depot.daftar' => [],
-    'akun.kata-sandi' => ['admin', 'sales', 'driver', 'hr', 'supervisor'],
+    'akun.kata-sandi' => ['admin', 'sales', 'driver', 'hr', 'supervisor', 'rider'],
 ];
 
 /**
@@ -208,6 +209,7 @@ function paritasMenuAdmin(): array
         paritasTautan('nav.master_promo', 'master.promo'),
         '# '.__('nav.pengiriman'),
         paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil'),
+        paritasTautan('nav.pengantaran_rider', 'pengantaran-rider.daftar'),
         '# '.__('nav.monitoring'),
         paritasTautan('nav.monitoring_bbm', 'monitoring.bahan-bakar'),
     ];
@@ -262,6 +264,14 @@ function paritasMenuSales(): array
     ];
 }
 
+function paritasMenuRider(): array
+{
+    return [
+        '# '.__('nav.pengiriman'),
+        paritasTautan('nav.pengantaran_rider', 'pengantaran-rider.daftar'),
+    ];
+}
+
 it('setiap peran boleh/ditolak di setiap rute persis seperti sebelumnya', function () {
     foreach (PARITAS_RUTE as $rute => $bolehUntuk) {
         foreach (PeranPengguna::cases() as $peran) {
@@ -289,6 +299,10 @@ it('menu sidebar dan pemilih aplikasi tiap peran sesuai bawaannya', function () 
         ['sales', 'akun.kata-sandi', paritasMenuSales(), $o],
         ['sales', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
         ['driver', 'driver.pilih-mobil', ['# '.__('nav.pengiriman'), paritasTautan('nav.pengiriman_driver', 'driver.pilih-mobil')], $o],
+        // Rider belum punya akses modul HR (Absensi dkk.) sama sekali, jadi
+        // cuma satu aplikasi (O&D) — pemilih aplikasi tidak tampil, beda
+        // dari driver/sales yang juga punya akses Absensi di HR System.
+        ['rider', 'pengantaran-rider.daftar', paritasMenuRider(), null],
         ['admin', 'monitoring.bahan-bakar', paritasMenuAdmin(), $o],
         ['driver', 'hr.absensi', paritasMenuAbsensiSaja(), $o],
         ['hr', 'hr.dashboard', paritasMenuHr(), null],
