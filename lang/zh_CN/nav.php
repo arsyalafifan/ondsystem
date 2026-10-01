@@ -67,4 +67,6 @@ return [
     'tarik_freezer_daftar' => '冷柜回收申请',
     'tarik_freezer_persetujuan' => '冷柜回收审批',
     'tarik_freezer_routing' => '冷柜回收路线',
+    'transfer_stok' => '库存调拨',
+    'pengantaran_rider' => '骑手配送',
 ];

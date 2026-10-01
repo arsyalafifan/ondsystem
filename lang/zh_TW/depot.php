@@ -29,4 +29,11 @@ return [
     'urutan_otomatis' => '自動',
     'label_default' => '預設',
     'ket_urutan' => '序號最小的倉庫將作為未設定倉庫的用戶的預設倉庫。',
+    'atr_gudang_penyimpanan' => '儲存倉庫',
+    'ket_gudang_penyimpanan' => '啟用後，此倉庫可以與其他倉庫互相發送和接收調撥庫存。',
+    'label_gudang_penyimpanan' => '儲存倉庫',
+    'atr_radius_rider_km' => '騎士配送半徑（公里）',
+    'ket_radius_rider_km' => '管理員核准訂單時，倉庫這個半徑範圍內的商店可以改由騎士配送（不走車輛路線）。',
+    'atr_tampilkan_header_nota' => '發票顯示公司抬頭',
+    'ket_tampilkan_header_nota' => '如果此倉庫的連續紙已經預印抬頭（名稱/地址/銀行），可關閉此項——發票將從「致」/發票號直接到商品表格，不顯示公司區塊。',
 ];

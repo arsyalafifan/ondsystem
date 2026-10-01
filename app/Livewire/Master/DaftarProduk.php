@@ -8,16 +8,21 @@ use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
 use App\Models\PesananItem;
 use App\Models\Produk;
 use App\Models\StokMutasi;
+use App\Services\Produk\FotoProduk;
 use App\Support\DepotContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use RuntimeException;
 
 class DaftarProduk extends Component
 {
     use MembutuhkanDepotTerkunci;
+    use WithFileUploads;
     use WithPagination;
 
     public string $cari = '';
@@ -40,6 +45,14 @@ class DaftarProduk extends Component
     public string $harga = '0';
 
     public bool $aktif = true;
+
+    /** Foto baru yang dipilih di formulir (belum tersimpan). */
+    public $foto;
+
+    /** URL foto yang sudah tersimpan untuk produk yang sedang disunting. */
+    public ?string $fotoUrlLama = null;
+
+    public bool $hapusFoto = false;
 
     // --- Penyesuaian stok ---
     public ?int $produkDisesuaikan = null;
@@ -116,8 +129,30 @@ class DaftarProduk extends Component
         $this->stok = $produk->stok;
         $this->harga = (string) $produk->harga;
         $this->aktif = $produk->aktif;
+        $this->fotoUrlLama = $produk->foto_url;
 
         $this->formTerbuka = true;
+    }
+
+    public function updatedFoto(): void
+    {
+        $this->hapusFoto = false;
+
+        try {
+            $this->validateOnly('foto', ['foto' => 'nullable|image|max:5120'], [], ['foto' => __('master.atr_foto_produk')]);
+        } catch (ValidationException $e) {
+            // Berkas yang ditolak langsung dibuang — pratinjaunya
+            // (temporaryUrl) akan meledak untuk berkas non-gambar seperti PDF.
+            $this->foto = null;
+
+            throw $e;
+        }
+    }
+
+    public function buangFoto(): void
+    {
+        $this->foto = null;
+        $this->hapusFoto = $this->fotoUrlLama !== null;
     }
 
     public function tutupForm(): void
@@ -128,7 +163,7 @@ class DaftarProduk extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['produkId', 'kode', 'barcode', 'nama', 'stok', 'harga']);
+        $this->reset(['produkId', 'kode', 'barcode', 'nama', 'stok', 'harga', 'foto', 'fotoUrlLama', 'hapusFoto']);
         $this->satuan = 'dus';
         $this->aktif = true;
         $this->resetValidation();
@@ -158,14 +193,29 @@ class DaftarProduk extends Component
             'satuan' => 'required|string|max:20',
             'stok' => 'required|integer|min:0',
             'harga' => 'required|numeric|min:0',
+            'foto' => 'nullable|image|max:5120',
         ], [], [
             'kode' => __('master.atr_kode_produk'),
             'barcode' => __('master.atr_barcode'),
             'nama' => __('master.atr_nama_produk'),
+            'foto' => __('master.atr_foto_produk'),
         ]);
 
         $produk = Produk::find($this->produkId);
         $stokLama = $produk?->stok ?? 0;
+        $fotoLama = $produk?->foto;
+        $fotoService = app(FotoProduk::class);
+        $fotoBaru = null;
+
+        if ($this->foto !== null) {
+            try {
+                $fotoBaru = $fotoService->simpan($this->foto);
+            } catch (RuntimeException $e) {
+                $this->addError('foto', $e->getMessage());
+
+                return;
+            }
+        }
 
         $atribut = [
             'kode' => $data['kode'],
@@ -177,6 +227,12 @@ class DaftarProduk extends Component
             'aktif' => $this->aktif,
         ];
 
+        if ($fotoBaru !== null) {
+            $atribut['foto'] = $fotoBaru;
+        } elseif ($this->hapusFoto) {
+            $atribut['foto'] = null;
+        }
+
         // updateOrCreate(['id' => $this->produkId], ...) tampak lebih
         // ringkas, tapi begitu produkId null ia jatuh ke firstOrNew([])
         // Eloquent yang mencoba fill(['id' => null, ...]) — 'id' bukan
@@ -187,6 +243,12 @@ class DaftarProduk extends Component
             $produk = Produk::create($atribut);
         } else {
             $produk->update($atribut);
+        }
+
+        // Berkas lama baru dibuang SESUDAH baris produk tersimpan, supaya
+        // kegagalan simpan tidak meninggalkan produk menunjuk berkas hilang.
+        if (array_key_exists('foto', $atribut) && $fotoLama !== null && $fotoLama !== $atribut['foto']) {
+            $fotoService->hapus($fotoLama);
         }
 
         // Perubahan stok lewat formulir tetap dicatat sebagai mutasi, supaya

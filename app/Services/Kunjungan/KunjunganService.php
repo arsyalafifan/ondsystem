@@ -334,11 +334,19 @@ class KunjunganService
             ->exists();
     }
 
-    /** @return Collection<int, int> */
+    /**
+     * Toko nonaktif tidak pernah ikut tanggungan (rute kunjungan sales),
+     * walau baris jadwalnya entah bagaimana masih tersisa — jadwalnya
+     * sendiri sudah dilepas otomatis saat toko dinonaktifkan (lihat
+     * PenugasanTokoService::lepasToko()), ini cuma lapisan pengaman.
+     *
+     * @return Collection<int, int>
+     */
     private function idTanggungan(User $sales, PeriodeKunjungan $periode)
     {
         return PenugasanToko::query()
             ->where('sales_id', $sales->id)
+            ->whereHas('toko', fn ($q) => $q->where('aktif', true))
             ->pluck('toko_id');
     }
 

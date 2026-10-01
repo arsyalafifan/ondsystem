@@ -46,11 +46,16 @@
                                 {{ __('depot.ringkasan_kapasitas', ['toko' => $d->max_toko, 'dus' => $d->max_dus]) }}
                             </td>
                             <td class="px-4 py-2">
-                                @if ($d->aktif)
-                                    <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('umum.aktif') }}</span>
-                                @else
-                                    <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ __('umum.nonaktif') }}</span>
-                                @endif
+                                <div class="flex flex-wrap gap-1">
+                                    @if ($d->aktif)
+                                        <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('umum.aktif') }}</span>
+                                    @else
+                                        <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ __('umum.nonaktif') }}</span>
+                                    @endif
+                                    @if ($d->gudang_penyimpanan)
+                                        <span class="rounded bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800">{{ __('depot.label_gudang_penyimpanan') }}</span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-right">
                                 <button type="button" wire:click="sunting({{ $d->id }})"
@@ -149,9 +154,33 @@
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('depot.atr_radius_rider_km') }}</label>
+                    <input type="number" min="0" wire:model="radiusRiderKm"
+                           class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    {{-- <p class="mt-1 text-xs text-gray-500">{{ __('depot.ket_radius_rider_km') }}</p> --}}
+                    @error('radiusRiderKm') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+
                 <label class="flex items-center gap-2 text-sm">
                     <input type="checkbox" wire:model="aktif" class="rounded text-blue-600 rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     {{ __('depot.depot_aktif') }}
+                </label>
+
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="checkbox" wire:model="gudangPenyimpanan" class="mt-0.5 rounded text-blue-600 border-gray-400 focus:ring-blue-500/20">
+                    <span>
+                        <span class="block">{{ __('depot.atr_gudang_penyimpanan') }}</span>
+                        {{-- <span class="block text-xs text-gray-500">{{ __('depot.ket_gudang_penyimpanan') }}</span> --}}
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="checkbox" wire:model="tampilkanHeaderNota" class="mt-0.5 rounded text-blue-600 border-gray-400 focus:ring-blue-500/20">
+                    <span>
+                        <span class="block">{{ __('depot.atr_tampilkan_header_nota') }}</span>
+                        {{-- <span class="block text-xs text-gray-500">{{ __('depot.ket_tampilkan_header_nota') }}</span> --}}
+                    </span>
                 </label>
 
                 @if (! $depotId)

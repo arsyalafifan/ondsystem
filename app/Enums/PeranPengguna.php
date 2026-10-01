@@ -10,6 +10,7 @@ enum PeranPengguna: string
     case Superadmin = 'superadmin';
     case Hr = 'hr';
     case Supervisor = 'supervisor';
+    case Rider = 'rider';
 
     public function label(): string
     {
@@ -29,6 +30,7 @@ enum PeranPengguna: string
             self::Hr => 'hr.dashboard',
             self::Sales => 'pesanan.buat',
             self::Driver => 'driver.pilih-mobil',
+            self::Rider => 'pengantaran-rider.daftar',
         };
     }
 }

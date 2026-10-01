@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => 'Out (Delivered)',
     'mutasi_masuk' => 'In',
     'mutasi_penyesuaian' => 'Manual Adjustment',
+    'mutasi_transfer_keluar' => 'Transfer Out',
+    'mutasi_transfer_masuk' => 'Transfer In',
     'judul_wilayah' => 'Regions',
     'ket_wilayah' => 'Regions decide how orders are grouped when routing: one vehicle serves one region.',
     'wilayah_baru' => '+ New Region',
@@ -288,4 +290,9 @@ return [
     'stat_belum_diketahui' => 'Location unknown',
     'stat_nonaktif' => 'Inactive',
     'penempatan_tanpa_toko' => 'No store yet',
+    'atr_foto_produk' => 'Product photo',
+    'unggah_foto' => 'Upload photo',
+    'ganti_foto' => 'Change photo',
+    'hapus_foto' => 'Remove photo',
+    'galat_foto_produk_rusak' => 'The photo file could not be read. Try another photo (JPG/PNG).',
 ];

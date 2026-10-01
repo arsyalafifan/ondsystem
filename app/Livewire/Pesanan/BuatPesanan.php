@@ -4,6 +4,7 @@ namespace App\Livewire\Pesanan;
 
 use App\Enums\StatusPesanan;
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Livewire\Concerns\PunyaPemilihProdukKartu;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Promo;
@@ -20,6 +21,7 @@ use Livewire\Component;
 class BuatPesanan extends Component
 {
     use MembutuhkanDepotTerkunci;
+    use PunyaPemilihProdukKartu;
 
     public string $cariToko = '';
 
@@ -84,6 +86,15 @@ class BuatPesanan extends Component
     public function bisaInputBonus(): bool
     {
         return auth()->user()->isAdmin();
+    }
+
+    protected function daftarKartuDiizinkan(): array
+    {
+        return [
+            'baris',
+            ...($this->bisaInputBonus() ? ['barisBonus'] : []),
+            ...($this->memenuhiSyaratPromo ? ['barisPromoBonus'] : []),
+        ];
     }
 
     public function tambahBaris(): void

@@ -241,13 +241,15 @@
 </head>
 <body>
     <div class="header">
-        <div class="perusahaan">
-            <p class="nama">{{ config('perusahaan.nama') }}</p>
-            <p>{{ config('perusahaan.tagline') }}</p>
-            <p>{{ config('perusahaan.alamat') }}</p>
-            <p>HP: {{ config('perusahaan.telepon') }} &middot; {{ config('perusahaan.email') }}</p>
-            <p>{{ config('perusahaan.bank') }}</p>
-        </div>
+        @if ($pesanan->depot->tampilkan_header_nota)
+            <div class="perusahaan">
+                <p class="nama">{{ config('perusahaan.nama') }}</p>
+                <p>{{ config('perusahaan.tagline') }}</p>
+                <p>{{ config('perusahaan.alamat') }}</p>
+                <p>HP: {{ config('perusahaan.telepon') }} &middot; {{ config('perusahaan.email') }}</p>
+                <p>{{ config('perusahaan.bank') }}</p>
+            </div>
+        @endif
         <div class="kepada">
             <table>
                 <tr>

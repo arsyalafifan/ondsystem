@@ -67,4 +67,6 @@ return [
     'tarik_freezer_daftar' => 'Pengajuan Tarik Freezer',
     'tarik_freezer_persetujuan' => 'Persetujuan Tarik Freezer',
     'tarik_freezer_routing' => 'Routing Tarik Freezer',
+    'transfer_stok' => 'Transfer Stok',
+    'pengantaran_rider' => 'Pengantaran Rider',
 ];

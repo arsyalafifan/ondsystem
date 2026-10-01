@@ -81,6 +81,8 @@ final class DaftarAkses
         'ond.tarik_freezer_persetujuan' => ['aplikasi' => 'ond', 'grup' => 'ond.tarik_freezer', 'rute' => 'tarik-freezer.persetujuan', 'label' => 'nav.tarik_freezer_persetujuan', 'ikon' => 'check-badge', 'peran' => ['admin']],
         'ond.tarik_freezer_routing' => ['aplikasi' => 'ond', 'grup' => 'ond.tarik_freezer', 'rute' => 'tarik-freezer.routing', 'label' => 'nav.tarik_freezer_routing', 'ikon' => 'map', 'peran' => ['admin']],
 
+        'ond.transfer_stok' => ['aplikasi' => 'ond', 'rute' => 'transfer-stok.daftar', 'label' => 'nav.transfer_stok', 'ikon' => 'arrows-right-left', 'peran' => ['admin']],
+
         'ond.pelunasan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pelunasan', 'label' => 'nav.pelunasan', 'ikon' => 'check-circle', 'peran' => ['admin']],
         'ond.belum_lunas' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.belum-lunas', 'label' => 'nav.belum_lunas', 'ikon' => 'exclamation-circle', 'peran' => ['admin']],
         'ond.pendapatan' => ['aplikasi' => 'ond', 'grup' => 'ond.pembayaran', 'rute' => 'pembayaran.pendapatan', 'label' => 'nav.pendapatan', 'ikon' => 'chart-bar', 'peran' => ['admin']],
@@ -103,6 +105,7 @@ final class DaftarAkses
         'ond.master_promo' => ['aplikasi' => 'ond', 'grup' => 'ond.master', 'rute' => 'master.promo', 'label' => 'nav.master_promo', 'ikon' => 'gift', 'peran' => ['admin']],
 
         'ond.pengiriman_driver' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'driver.pilih-mobil', 'label' => 'nav.pengiriman_driver', 'ikon' => 'truck', 'peran' => ['driver', 'admin']],
+        'ond.pengantaran_rider' => ['aplikasi' => 'ond', 'grup' => 'ond.pengiriman', 'rute' => 'pengantaran-rider.daftar', 'label' => 'nav.pengantaran_rider', 'ikon' => 'map-pin', 'peran' => ['rider', 'admin']],
 
         'ond.monitoring_bbm' => ['aplikasi' => 'ond', 'grup' => 'ond.monitoring', 'rute' => 'monitoring.bahan-bakar', 'label' => 'nav.monitoring_bbm', 'ikon' => 'fire', 'peran' => ['admin']],
 

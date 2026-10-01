@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => 'Keluar (Terkirim)',
     'mutasi_masuk' => 'Masuk',
     'mutasi_penyesuaian' => 'Penyesuaian Manual',
+    'mutasi_transfer_keluar' => 'Transfer Keluar',
+    'mutasi_transfer_masuk' => 'Transfer Masuk',
     'judul_wilayah' => 'Master Wilayah',
     'ket_wilayah' => 'Wilayah menentukan pengelompokan pesanan saat routing: satu mobil melayani satu wilayah.',
     'wilayah_baru' => '+ Wilayah Baru',
@@ -288,4 +290,9 @@ return [
     'stat_belum_diketahui' => 'Lokasi belum diketahui',
     'stat_nonaktif' => 'Nonaktif',
     'penempatan_tanpa_toko' => 'Belum ada toko',
+    'atr_foto_produk' => 'Foto produk',
+    'unggah_foto' => 'Unggah foto',
+    'ganti_foto' => 'Ganti foto',
+    'hapus_foto' => 'Hapus foto',
+    'galat_foto_produk_rusak' => 'Berkas foto tidak bisa dibaca. Coba foto lain (JPG/PNG).',
 ];

@@ -12,7 +12,7 @@
         </div>
     @endif
 
-    <div class="grid gap-5 lg:grid-cols-3">
+    <div class="grid gap-5 pb-24 lg:grid-cols-3 lg:pb-0">
         <div class="space-y-5 lg:col-span-2">
 
             {{-- Langkah 1: toko --}}
@@ -92,13 +92,6 @@
 
             {{-- Langkah 2: produk --}}
             <x-kartu :judul="__('pos.langkah_produk')">
-                <x-slot:aksi>
-                    <button type="button" wire:click="tambahBaris"
-                            class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
-                        {{ __('pesanan.tambah_baris') }}
-                    </button>
-                </x-slot:aksi>
-
                 {{-- Barcode: siap dipakai begitu produk sudah ditempeli kode
                      lewat Master Produk. Pemindai USB/Bluetooth bagi peramban
                      tidak beda dari mengetik cepat lalu Enter, jadi kolom ini
@@ -116,58 +109,11 @@
                     </form>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                                <th class="px-4 py-2 font-medium">{{ __('umum.produk') }}</th>
-                                <th class="w-32 px-4 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
-                                <th class="w-28 px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
-                                <th class="w-32 px-4 py-2 text-right font-medium">{{ __('umum.subtotal') }}</th>
-                                <th class="w-10 px-4 py-2"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @php
-                                $opsiProduk = $this->produks->map(fn ($p) => ['value' => $p->id, 'label' => $p->nama.' ('.$p->kode.')'])->all();
-                            @endphp
-                            @foreach ($baris as $i => $b)
-                                @php $produk = $this->produks->firstWhere('id', (int) $b['produk_id']); @endphp
-                                <tr wire:key="baris-{{ $i }}">
-                                    <td class="px-4 py-2">
-                                        <x-pilih-cari :opsi="$opsiProduk" :nilai="$b['produk_id']"
-                                                       set="baris.{{ $i }}.produk_id"
-                                                       placeholder="{{ __('pesanan.pilih_produk') }}" />
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <input type="number" min="1" wire:model.live.debounce.400ms="baris.{{ $i }}.jumlah_dus"
-                                               class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                                    </td>
-                                    <td class="px-4 py-2 text-right {{ $produk && (int) ($b['jumlah_dus'] ?: 0) > $produk->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
-                                        {{ $produk ? \App\Support\Bahasa::angka($produk->stok_tersedia) : '—' }}
-                                    </td>
-                                    <td class="px-4 py-2 text-right tabular-nums text-gray-700">
-                                        {{ $produk ? \App\Support\Bahasa::rupiah((float) $produk->harga * (int) ($b['jumlah_dus'] ?: 0)) : '—' }}
-                                    </td>
-                                    <td class="px-4 py-2 text-right">
-                                        <button type="button" wire:click="hapusBaris({{ $i }})"
-                                                class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
-                                            <x-heroicon-o-trash class="size-5" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot class="bg-gray-50 font-medium">
-                            <tr>
-                                <td class="px-4 py-2 text-right">{{ __('umum.total') }}</td>
-                                <td class="px-4 py-2 tabular-nums">@angka($this->totalDus) {{ __('umum.satuan_dus') }}</td>
-                                <td></td>
-                                <td class="px-4 py-2 text-right tabular-nums">@rupiah($this->totalNilai)</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <x-pilih-produk-kartu :produks="$this->produks" daftar="baris" :isi="$baris" />
+
+                <div class="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-medium">
+                    <span class="text-gray-600">{{ __('umum.total') }}</span>
+                    <span class="tabular-nums text-gray-900">@angka($this->totalDus) {{ __('umum.satuan_dus') }} · @rupiah($this->totalNilai)</span>
                 </div>
 
                 @error('baris') <p class="px-4 pb-3 text-sm text-red-600">{{ $message }}</p> @enderror
@@ -180,64 +126,11 @@
                  Toko" — keduanya sama saja. --}}
             @if ($this->bisaInputBonus())
                 <x-kartu :judul="__('pesanan.langkah_bonus')">
-                    <x-slot:aksi>
-                        <button type="button" wire:click="tambahBarisBonus"
-                                class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50">
-                            {{ __('pesanan.tambah_baris_bonus') }}
-                        </button>
-                    </x-slot:aksi>
+                    <x-pilih-produk-kartu :produks="$this->produks" daftar="barisBonus" :isi="$barisBonus" gratis />
 
-                    <p class="px-4 pt-3 text-xs text-gray-500">{{ __('pesanan.ket_bonus') }}</p>
-
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                                <tr>
-                                    <th class="px-4 py-2 font-medium">{{ __('umum.produk') }}</th>
-                                    <th class="w-32 px-4 py-2 font-medium">{{ __('pesanan.jumlah_dus') }}</th>
-                                    <th class="w-28 px-4 py-2 text-right font-medium">{{ __('master.stok_fisik') }}</th>
-                                    <th class="w-32 px-4 py-2 text-right font-medium">{{ __('umum.subtotal') }}</th>
-                                    <th class="w-10 px-4 py-2"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @foreach ($barisBonus as $i => $b)
-                                    @php $produkBonus = $this->produks->firstWhere('id', (int) $b['produk_id']); @endphp
-                                    <tr wire:key="baris-bonus-{{ $i }}">
-                                        <td class="px-4 py-2">
-                                            <x-pilih-cari :opsi="$opsiProduk" :nilai="$b['produk_id']"
-                                                           set="barisBonus.{{ $i }}.produk_id"
-                                                           placeholder="{{ __('pesanan.pilih_produk') }}" />
-                                        </td>
-                                        <td class="px-4 py-2">
-                                            <input type="number" min="1" wire:model.live.debounce.400ms="barisBonus.{{ $i }}.jumlah_dus"
-                                                   class="block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                                        </td>
-                                        <td class="px-4 py-2 text-right {{ $produkBonus && (int) ($b['jumlah_dus'] ?: 0) > $produkBonus->stok_tersedia ? 'font-semibold text-red-600' : 'text-gray-500' }}">
-                                            {{ $produkBonus ? \App\Support\Bahasa::angka($produkBonus->stok_tersedia) : '—' }}
-                                        </td>
-                                        <td class="px-4 py-2 text-right tabular-nums text-gray-700">
-                                            @rupiah(0)
-                                        </td>
-                                        <td class="px-4 py-2 text-right">
-                                            <button type="button" wire:click="hapusBarisBonus({{ $i }})"
-                                                    class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition">
-                                                <x-heroicon-o-trash class="size-5" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                            <tfoot class="bg-gray-50 font-medium">
-                                <tr>
-                                    <td class="px-4 py-2 text-right">{{ __('umum.total') }}</td>
-                                    <td class="px-4 py-2 tabular-nums">@angka($this->totalDusBonus) {{ __('umum.satuan_dus') }}</td>
-                                    <td></td>
-                                    <td class="px-4 py-2 text-right tabular-nums">@rupiah(0)</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                    <div class="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-medium">
+                        <span class="text-gray-600">{{ __('umum.total') }}</span>
+                        <span class="tabular-nums text-gray-900">@angka($this->totalDusBonus) {{ __('umum.satuan_dus') }}</span>
                     </div>
                 </x-kartu>
             @endif
@@ -250,7 +143,7 @@
                  toko sungguhan maupun "Tanpa Toko" — keduanya sama saja,
                  kecuali memang semua produknya dipilih lewat langkah bonus
                  di atas (harga 0). --}}
-            <x-kartu :judul="$this->bisaInputBonus() ? __('pos.langkah_pembayaran_admin') : __('pos.langkah_pembayaran')">
+            <x-kartu id="langkah-pembayaran-pos" class="scroll-mt-4" :judul="$this->bisaInputBonus() ? __('pos.langkah_pembayaran_admin') : __('pos.langkah_pembayaran')">
                 <div class="space-y-3 p-4">
                     <div class="flex items-center justify-between">
                         <label class="block text-sm font-medium text-gray-700">{{ __('pembayaran.nominal_cash') }}</label>
@@ -301,7 +194,12 @@
         </div>
 
         {{-- Panel validasi --}}
-        <div class="lg:sticky lg:top-6 lg:self-start">
+        <div id="panel-simpan-pos" class="scroll-mt-4 space-y-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
+            <x-ringkasan-pesanan :produks="$this->produks"
+                                 :baris="$baris"
+                                 :bonus="$this->bisaInputBonus() ? $barisBonus : []"
+                                 :total-nilai="$this->totalNilai" />
+
             <x-kartu :judul="__('pesanan.validasi_sistem')">
                 <div class="space-y-3 p-4">
                     @php
@@ -345,4 +243,8 @@
             </x-kartu>
         </div>
     </div>
+
+    {{-- Panel pembayaran ada di kolom kiri (di atas panel validasi), jadi
+         di HP tombolnya langsung menuju langkah pembayaran. --}}
+    <x-bilah-keranjang :dus="$this->totalDus" :nilai="$this->totalNilai" target="langkah-pembayaran-pos" :label="__('pesanan.bilah_lanjut')" />
 </div>

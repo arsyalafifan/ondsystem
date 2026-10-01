@@ -29,4 +29,11 @@ return [
     'urutan_otomatis' => 'Otomatis',
     'label_default' => 'default',
     'ket_urutan' => 'Gudang nomor urut terkecil menjadi gudang default bagi pengguna yang belum disetel gudangnya.',
+    'atr_gudang_penyimpanan' => 'Gudang penyimpanan',
+    'ket_gudang_penyimpanan' => 'Jika diaktifkan, gudang ini bisa mengirim dan menerima transfer stok antar gudang.',
+    'label_gudang_penyimpanan' => 'Gudang Penyimpanan',
+    'atr_radius_rider_km' => 'Radius Rider (km)',
+    'ket_radius_rider_km' => 'Toko dalam radius ini dari gudang bisa diantar rider (bukan rute kendaraan) saat admin menyetujui pesanannya.',
+    'atr_tampilkan_header_nota' => 'Tampilkan header perusahaan di faktur',
+    'ket_tampilkan_header_nota' => 'Matikan jika kertas kontinu gudang ini sudah punya letterhead (nama/alamat/bank) tercetak duluan — faktur akan langsung dari Kepada/No. Faktur sampai tabel barang, tanpa blok perusahaan.',
 ];

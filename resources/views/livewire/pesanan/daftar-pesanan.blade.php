@@ -134,7 +134,14 @@
                             </td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->wilayah->nama }}</td>
                             <td class="px-4 py-2 text-right tabular-nums">@angka($p->total_dus)</td>
-                            <td class="px-4 py-2"><x-badge-status :status="$p->status" /></td>
+                            <td class="px-4 py-2">
+                                <x-badge-status :status="$p->status" />
+                                @if ($p->pengantaranRider)
+                                    <span class="ml-1 rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset {{ $p->pengantaranRider->status->badge() }}">
+                                        {{ __('pengantaran_rider.label_rider') }} · {{ $p->pengantaranRider->status->label() }}
+                                    </span>
+                                @endif
+                            </td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->stop?->kendaraan?->nama ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">{{ $p->pembuat->name }}</td>
                             <td class="whitespace-nowrap px-4 py-2 text-gray-600">
@@ -170,6 +177,14 @@
                                         <button type="button" wire:click="setujui({{ $p->id }})"
                                                 class="rounded-md bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700">
                                             {{ __('umum.setujui') }}
+                                        </button>
+                                    @endif
+
+                                    @if (auth()->user()->isAdmin() && $p->pengantaranRider?->status === \App\Enums\StatusPengantaranRider::Tersedia)
+                                        <button type="button" wire:click="alihkanKeDriver({{ $p->pengantaranRider->id }})"
+                                                wire:confirm="{{ __('pengantaran_rider.konfirmasi_alihkan') }}"
+                                                class="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50">
+                                            {{ __('pengantaran_rider.tombol_alihkan') }}
                                         </button>
                                     @endif
 
@@ -364,6 +379,56 @@
                     </a>
                 </x-slot:aksi>
             @endif
+        </x-modal>
+    @endif
+
+    {{-- Konfirmasi Rider/Driver --}}
+    @if ($modalRiderDriverTerbuka)
+        <x-modal :judul="__('pengantaran_rider.judul_konfirmasi_admin')" tutup="tutupKonfirmasiRiderDriver" lebar="max-w-2xl">
+            <div class="space-y-4 p-5">
+                <p class="text-sm text-gray-600">{{ __('pengantaran_rider.ket_konfirmasi') }}</p>
+
+                <div class="overflow-hidden rounded-lg border border-gray-200">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2 font-medium">{{ __('umum.toko') }}</th>
+                                <th class="w-24 px-3 py-2 text-right font-medium">{{ __('pengantaran_rider.kolom_jarak') }}</th>
+                                <th class="w-56 px-3 py-2 font-medium">{{ __('pengantaran_rider.kolom_pilihan') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($this->pesananDalamRadiusModal as $p)
+                                <tr wire:key="radius-{{ $p->id }}">
+                                    <td class="px-3 py-2">
+                                        <span class="block font-medium text-gray-900">{{ $p->toko->nama }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $p->kode }}</span>
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums text-gray-600">
+                                        {{ $pesananRadiusJarak[$p->id] ?? '—' }} km
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <select wire:model="konfirmasiRiderDriver.{{ $p->id }}"
+                                                class="block w-full rounded-lg border-gray-400 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            <option value="driver">{{ __('pengantaran_rider.opsi_driver') }}</option>
+                                            <option value="rider">{{ __('pengantaran_rider.opsi_rider') }}</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <x-slot:aksi>
+                <button type="button" wire:click="tutupKonfirmasiRiderDriver"
+                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
+                <button type="button" wire:click="submitKonfirmasiRiderDriver" wire:loading.attr="disabled" wire:target="submitKonfirmasiRiderDriver"
+                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                    {{ __('umum.setujui') }}
+                </button>
+            </x-slot:aksi>
         </x-modal>
     @endif
 

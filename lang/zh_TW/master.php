@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => '出庫（已配送）',
     'mutasi_masuk' => '入庫',
     'mutasi_penyesuaian' => '手動調整',
+    'mutasi_transfer_keluar' => '調撥出庫',
+    'mutasi_transfer_masuk' => '調撥入庫',
     'judul_wilayah' => '區域主檔',
     'ket_wilayah' => '區域決定排線時的訂單分組：一輛車服務一個區域。',
     'wilayah_baru' => '+ 新增區域',
@@ -288,4 +290,9 @@ return [
     'stat_belum_diketahui' => '位置未知',
     'stat_nonaktif' => '已停用',
     'penempatan_tanpa_toko' => '尚無門市',
+    'atr_foto_produk' => '產品照片',
+    'unggah_foto' => '上傳照片',
+    'ganti_foto' => '更換照片',
+    'hapus_foto' => '刪除照片',
+    'galat_foto_produk_rusak' => '無法讀取照片檔案，請換一張（JPG/PNG）。',
 ];

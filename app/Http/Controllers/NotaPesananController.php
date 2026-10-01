@@ -16,7 +16,7 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales', 'depot']);
 
         return view('cetak.nota-pesanan', [
             'pesanan' => $pesanan,
@@ -34,7 +34,7 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales', 'depot']);
 
         $pdf = Pdf::loadView('cetak.nota-pesanan', [
             'pesanan' => $pesanan,
@@ -57,7 +57,7 @@ final class NotaPesananController extends Controller
     {
         abort_unless($pesanan->bisa_dicetak, 403, __('pesanan.galat_tak_bisa_cetak'));
 
-        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales', 'depot']);
 
         $isi = EscpNotaBuilder::build($pesanan);
 
@@ -88,7 +88,7 @@ final class NotaPesananController extends Controller
             __('pesanan.galat_link_cetak_sudah_dipakai'),
         );
 
-        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales']);
+        $pesanan->load(['items.produk:id,nama', 'toko', 'pembuat', 'sales', 'depot']);
 
         return response(EscpNotaBuilder::build($pesanan), 200, [
             'Content-Type' => 'application/octet-stream',

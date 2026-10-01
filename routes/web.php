@@ -48,6 +48,7 @@ use App\Livewire\Noo\RoutingFreezer;
 use App\Livewire\Pembayaran\BelumLunas;
 use App\Livewire\Pembayaran\Pelunasan;
 use App\Livewire\Pembayaran\Pendapatan;
+use App\Livewire\PengantaranRider\DaftarPengantaranRider;
 use App\Livewire\Pengguna\DaftarPengguna;
 use App\Livewire\Penjualan\BarangTerjual;
 use App\Livewire\Pesanan\BuatPesanan;
@@ -64,6 +65,7 @@ use App\Livewire\TarikFreezer\DaftarTarikFreezer;
 use App\Livewire\TarikFreezer\Persetujuan as PersetujuanTarikFreezer;
 use App\Livewire\TarikFreezer\RoutingTarikFreezer;
 use App\Livewire\Toko\LengkapiData;
+use App\Livewire\TransferStok\DaftarTransferStok;
 use App\Models\Depot;
 use App\Models\NooFoto;
 use App\Models\PengajuanIzin;
@@ -217,6 +219,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/master/toko', DaftarToko::class)->name('master.toko')->middleware('akses:ond.master_toko');
     Route::get('/master/freezer', DaftarFreezer::class)->name('master.freezer')->middleware('akses:ond.master_freezer');
     Route::get('/freezer/gudang', FreezerKeGudang::class)->name('freezer.gudang')->middleware('akses:ond.freezer_gudang');
+    Route::get('/transfer-stok', DaftarTransferStok::class)->name('transfer-stok.daftar')->middleware('akses:ond.transfer_stok');
     Route::get('/master/armada', DaftarArmada::class)->name('master.armada')->middleware('akses:ond.master_armada');
     Route::get('/master/produk', DaftarProduk::class)->name('master.produk')->middleware('akses:ond.master_produk');
     Route::get('/master/wilayah', DaftarWilayah::class)->name('master.wilayah')->middleware('akses:ond.master_wilayah');
@@ -265,6 +268,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/driver/mobil/{kendaraan}/cek', CekKendaraan::class)->name('driver.cek-kendaraan');
         Route::get('/driver/mobil/{kendaraan}', DaftarKunjungan::class)->name('driver.kunjungan');
     });
+
+    Route::get('/pengantaran-rider', DaftarPengantaranRider::class)->name('pengantaran-rider.daftar')->middleware('akses:ond.pengantaran_rider');
 
     // --- HR System ---
     Route::prefix('hr')->name('hr.')->group(function () {

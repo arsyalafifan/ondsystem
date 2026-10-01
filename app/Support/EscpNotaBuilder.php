@@ -48,7 +48,7 @@ final class EscpNotaBuilder
         $b .= self::ESC.'l'.chr(self::MARGIN_KIRI);
         $b .= self::ESC.'Q'.chr(self::MARGIN_KIRI + self::LEBAR);
 
-        $b .= self::header($pesanan);
+        $b .= self::header($pesanan, $pesanan->depot->tampilkan_header_nota);
         // $b .= self::garis().self::crlf();
         $b .= self::baris(self::pusat($pesanan->toko->asset_id ?? '-', self::LEBAR)).self::crlf().self::crlf();
         $b .= self::garis().self::crlf();
@@ -80,19 +80,16 @@ final class EscpNotaBuilder
      * pendek dan pasti muat, dan wordwrap tidak tahu cara menghitung
      * panjang teks yang mengandung byte kontrol tak kasatmata.
      */
-    private static function header(Pesanan $pesanan): string
+    /**
+     * Blok perusahaan dilewati sama sekali (bukan dikosongkan tapi tetap
+     * menyisakan lebar kolomnya) kalau Depot::tampilkan_header_nota mati —
+     * kepada/faktur ikut bergeser mengisi ruang yang kosong, bukan
+     * meninggalkan gutter kosong di kiri. Lihat docblock migrasinya.
+     */
+    private static function header(Pesanan $pesanan, bool $tampilkanPerusahaan): string
     {
-        $lebarPerusahaan = 26;
         $lebarKepada = 24;
         $lebarFaktur = 36;
-
-        $perusahaan = [
-            self::BOLD_ON.config('perusahaan.nama').self::BOLD_OFF,
-            ...self::pecahBaris((string) config('perusahaan.tagline'), $lebarPerusahaan),
-            ...self::pecahBaris((string) config('perusahaan.alamat'), $lebarPerusahaan),
-            ...self::pecahBaris('HP: '.config('perusahaan.telepon').' - '.config('perusahaan.email'), $lebarPerusahaan),
-            ...self::pecahBaris((string) config('perusahaan.bank'), $lebarPerusahaan),
-        ];
 
         $kepada = [
             ...self::pecahBaris('Kepada: '.$pesanan->toko->nama, $lebarKepada),
@@ -110,7 +107,25 @@ final class EscpNotaBuilder
             ...self::pecahBaris('No. HP     : '.($sales->no_hp ?? '-'), $lebarFaktur),
         ];
 
-        return self::gabungKolom([$perusahaan, $kepada, $faktur], [$lebarPerusahaan, $lebarKepada, $lebarFaktur]);
+        $kolom = [$kepada, $faktur];
+        $lebarKolom = [$lebarKepada, $lebarFaktur];
+
+        if ($tampilkanPerusahaan) {
+            $lebarPerusahaan = 26;
+
+            $perusahaan = [
+                self::BOLD_ON.config('perusahaan.nama').self::BOLD_OFF,
+                ...self::pecahBaris((string) config('perusahaan.tagline'), $lebarPerusahaan),
+                ...self::pecahBaris((string) config('perusahaan.alamat'), $lebarPerusahaan),
+                ...self::pecahBaris('HP: '.config('perusahaan.telepon').' - '.config('perusahaan.email'), $lebarPerusahaan),
+                ...self::pecahBaris((string) config('perusahaan.bank'), $lebarPerusahaan),
+            ];
+
+            array_unshift($kolom, $perusahaan);
+            array_unshift($lebarKolom, $lebarPerusahaan);
+        }
+
+        return self::gabungKolom($kolom, $lebarKolom);
     }
 
     private static function tabelItem(Pesanan $pesanan): string

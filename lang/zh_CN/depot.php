@@ -29,4 +29,11 @@ return [
     'urutan_otomatis' => '自动',
     'label_default' => '默认',
     'ket_urutan' => '序号最小的仓库将作为未设置仓库的用户的默认仓库。',
+    'atr_gudang_penyimpanan' => '储存仓库',
+    'ket_gudang_penyimpanan' => '启用后，此仓库可以与其他仓库互相发送和接收调拨库存。',
+    'label_gudang_penyimpanan' => '储存仓库',
+    'atr_radius_rider_km' => '骑手配送半径（公里）',
+    'ket_radius_rider_km' => '管理员批准订单时，仓库这个半径范围内的商店可以改由骑手配送（不走车辆路线）。',
+    'atr_tampilkan_header_nota' => '发票显示公司抬头',
+    'ket_tampilkan_header_nota' => '如果此仓库的连续纸已经预印抬头（名称/地址/银行），可关闭此项——发票将从"致"/发票号直接到商品表格，不显示公司区块。',
 ];
