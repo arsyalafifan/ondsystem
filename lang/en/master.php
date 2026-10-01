@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => 'Out (Delivered)',
     'mutasi_masuk' => 'In',
     'mutasi_penyesuaian' => 'Manual Adjustment',
+    'mutasi_transfer_keluar' => 'Transfer Out',
+    'mutasi_transfer_masuk' => 'Transfer In',
     'judul_wilayah' => 'Regions',
     'ket_wilayah' => 'Regions decide how orders are grouped when routing: one vehicle serves one region.',
     'wilayah_baru' => '+ New Region',

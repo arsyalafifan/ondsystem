@@ -29,4 +29,7 @@ return [
     'urutan_otomatis' => 'Automatic',
     'label_default' => 'default',
     'ket_urutan' => 'The warehouse with the lowest sequence number becomes the default for users with no warehouse set.',
+    'atr_gudang_penyimpanan' => 'Storage warehouse',
+    'ket_gudang_penyimpanan' => 'When enabled, this depot can send and receive stock transfers with other depots.',
+    'label_gudang_penyimpanan' => 'Storage Warehouse',
 ];

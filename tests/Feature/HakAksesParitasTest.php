@@ -186,6 +186,7 @@ function paritasMenuAdmin(): array
         paritasTautan('nav.tarik_freezer_daftar', 'tarik-freezer.daftar'),
         paritasTautan('nav.tarik_freezer_persetujuan', 'tarik-freezer.persetujuan'),
         paritasTautan('nav.tarik_freezer_routing', 'tarik-freezer.routing'),
+        paritasTautan('nav.transfer_stok', 'transfer-stok.daftar'),
         '# '.__('nav.pembayaran'),
         paritasTautan('nav.pelunasan', 'pembayaran.pelunasan'),
         paritasTautan('nav.belum_lunas', 'pembayaran.belum-lunas'),

@@ -29,4 +29,7 @@ return [
     'urutan_otomatis' => '自动',
     'label_default' => '默认',
     'ket_urutan' => '序号最小的仓库将作为未设置仓库的用户的默认仓库。',
+    'atr_gudang_penyimpanan' => '储存仓库',
+    'ket_gudang_penyimpanan' => '启用后，此仓库可以与其他仓库互相发送和接收调拨库存。',
+    'label_gudang_penyimpanan' => '储存仓库',
 ];

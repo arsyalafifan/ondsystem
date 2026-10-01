@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * Model ini sendiri TIDAK di-scope oleh App\Models\Scopes\DepotScope —
  * ini tabel tenant-nya sendiri, bukan data milik salah satu tenant.
  */
-#[Fillable(['kode', 'nama', 'urutan', 'lat', 'lng', 'service_minutes', 'jam_berangkat', 'max_toko', 'max_dus', 'min_dus_per_toko', 'aktif'])]
+#[Fillable(['kode', 'nama', 'urutan', 'lat', 'lng', 'service_minutes', 'jam_berangkat', 'max_toko', 'max_dus', 'min_dus_per_toko', 'aktif', 'gudang_penyimpanan'])]
 class Depot extends Model
 {
     use HasFactory;
@@ -34,6 +34,7 @@ class Depot extends Model
             'max_dus' => 'integer',
             'min_dus_per_toko' => 'integer',
             'aktif' => 'boolean',
+            'gudang_penyimpanan' => 'boolean',
         ];
     }
 
@@ -52,5 +53,12 @@ class Depot extends Model
     protected function berurutan(Builder $query): void
     {
         $query->orderBy('urutan')->orderBy('nama');
+    }
+
+    /** Gudang yang boleh dipakai sebagai asal/tujuan Transfer Stok. */
+    #[Scope]
+    protected function penyimpanan(Builder $query): void
+    {
+        $query->where('gudang_penyimpanan', true);
     }
 }

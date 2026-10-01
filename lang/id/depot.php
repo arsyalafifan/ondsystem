@@ -29,4 +29,7 @@ return [
     'urutan_otomatis' => 'Otomatis',
     'label_default' => 'default',
     'ket_urutan' => 'Gudang nomor urut terkecil menjadi gudang default bagi pengguna yang belum disetel gudangnya.',
+    'atr_gudang_penyimpanan' => 'Gudang penyimpanan',
+    'ket_gudang_penyimpanan' => 'Jika diaktifkan, gudang ini bisa mengirim dan menerima transfer stok antar gudang.',
+    'label_gudang_penyimpanan' => 'Gudang Penyimpanan',
 ];

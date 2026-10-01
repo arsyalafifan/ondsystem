@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => 'Keluar (Terkirim)',
     'mutasi_masuk' => 'Masuk',
     'mutasi_penyesuaian' => 'Penyesuaian Manual',
+    'mutasi_transfer_keluar' => 'Transfer Keluar',
+    'mutasi_transfer_masuk' => 'Transfer Masuk',
     'judul_wilayah' => 'Master Wilayah',
     'ket_wilayah' => 'Wilayah menentukan pengelompokan pesanan saat routing: satu mobil melayani satu wilayah.',
     'wilayah_baru' => '+ Wilayah Baru',

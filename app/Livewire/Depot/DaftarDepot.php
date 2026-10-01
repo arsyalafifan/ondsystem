@@ -37,6 +37,8 @@ class DaftarDepot extends Component
 
     public bool $aktif = true;
 
+    public bool $gudangPenyimpanan = false;
+
     #[Computed]
     public function depots()
     {
@@ -65,6 +67,7 @@ class DaftarDepot extends Component
         $this->maxDus = (string) $depot->max_dus;
         $this->minDusPerToko = (string) $depot->min_dus_per_toko;
         $this->aktif = $depot->aktif;
+        $this->gudangPenyimpanan = $depot->gudang_penyimpanan;
 
         $this->formTerbuka = true;
     }
@@ -84,6 +87,7 @@ class DaftarDepot extends Component
         $this->maxDus = '220';
         $this->minDusPerToko = '5';
         $this->aktif = true;
+        $this->gudangPenyimpanan = false;
         $this->resetValidation();
     }
 
@@ -128,6 +132,7 @@ class DaftarDepot extends Component
             'max_dus' => (int) $data['maxDus'],
             'min_dus_per_toko' => (int) $data['minDusPerToko'],
             'aktif' => $this->aktif,
+            'gudang_penyimpanan' => $this->gudangPenyimpanan,
         ];
 
         if ($data['urutan'] !== null && $data['urutan'] !== '') {

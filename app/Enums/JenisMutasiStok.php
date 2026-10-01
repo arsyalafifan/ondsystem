@@ -14,6 +14,10 @@ namespace App\Enums;
  * Master Produk untuk koreksi manual (stok opname, barang rusak, dsb.) —
  * bisa naik maupun turun, dibedakan dari `masuk` supaya riwayat tetap jelas
  * mana perubahan yang lewat penerimaan barang normal dan mana yang koreksi.
+ * `transfer_keluar`/`transfer_masuk` sama-sama perpindahan fisik juga,
+ * tapi dipisah dari `keluar`/`masuk` biasa karena pasangannya jelas: dus
+ * yang sama berpindah dari satu gudang ke gudang lain, bukan keluar ke
+ * pelanggan atau masuk dari produksi/supplier.
  */
 enum JenisMutasiStok: string
 {
@@ -22,6 +26,8 @@ enum JenisMutasiStok: string
     case Keluar = 'keluar';
     case Masuk = 'masuk';
     case Penyesuaian = 'penyesuaian';
+    case TransferKeluar = 'transfer_keluar';
+    case TransferMasuk = 'transfer_masuk';
 
     public function label(): string
     {
@@ -36,6 +42,8 @@ enum JenisMutasiStok: string
             self::Keluar => 'bg-red-100 text-red-800 ring-red-600/20',
             self::Masuk => 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
             self::Penyesuaian => 'bg-violet-100 text-violet-800 ring-violet-600/20',
+            self::TransferKeluar => 'bg-orange-100 text-orange-800 ring-orange-600/20',
+            self::TransferMasuk => 'bg-teal-100 text-teal-800 ring-teal-600/20',
         };
     }
 }

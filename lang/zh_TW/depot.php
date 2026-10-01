@@ -29,4 +29,7 @@ return [
     'urutan_otomatis' => '自動',
     'label_default' => '預設',
     'ket_urutan' => '序號最小的倉庫將作為未設定倉庫的用戶的預設倉庫。',
+    'atr_gudang_penyimpanan' => '儲存倉庫',
+    'ket_gudang_penyimpanan' => '啟用後，此倉庫可以與其他倉庫互相發送和接收調撥庫存。',
+    'label_gudang_penyimpanan' => '儲存倉庫',
 ];

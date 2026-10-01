@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => '出庫（已配送）',
     'mutasi_masuk' => '入庫',
     'mutasi_penyesuaian' => '手動調整',
+    'mutasi_transfer_keluar' => '調撥出庫',
+    'mutasi_transfer_masuk' => '調撥入庫',
     'judul_wilayah' => '區域主檔',
     'ket_wilayah' => '區域決定排線時的訂單分組：一輛車服務一個區域。',
     'wilayah_baru' => '+ 新增區域',

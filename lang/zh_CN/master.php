@@ -133,6 +133,8 @@ return [
     'mutasi_keluar' => '出库（已配送）',
     'mutasi_masuk' => '入库',
     'mutasi_penyesuaian' => '手动调整',
+    'mutasi_transfer_keluar' => '调拨出库',
+    'mutasi_transfer_masuk' => '调拨入库',
     'judul_wilayah' => '区域主数据',
     'ket_wilayah' => '区域决定排线时的订单分组：一辆车服务一个区域。',
     'wilayah_baru' => '+ 新建区域',
