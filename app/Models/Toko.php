@@ -6,6 +6,7 @@ use App\Enums\KategoriToko;
 use App\Enums\StatusKunjungan;
 use App\Enums\StatusPesanan;
 use App\Models\Concerns\BerDepot;
+use App\Services\Kunjungan\PenugasanTokoService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,6 +27,19 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Toko extends Model
 {
     use BerDepot, HasFactory;
+
+    protected static function booted(): void
+    {
+        // Toko nonaktif tidak boleh tersisa di menu mana pun, termasuk rute
+        // kunjungan sales — jadwalnya dilepas otomatis di SATU tempat ini,
+        // supaya semua jalur penonaktifan (Master Toko, impor, Tarik
+        // Freezer, atau yang baru kelak) ikut tertangani tanpa terlewat.
+        static::updated(function (Toko $toko): void {
+            if ($toko->wasChanged('aktif') && ! $toko->aktif) {
+                app(PenugasanTokoService::class)->lepasToko($toko);
+            }
+        });
+    }
 
     /**
      * Kode toko semu untuk transaksi POS "Tanpa Toko" — dipakai saat

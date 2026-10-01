@@ -701,6 +701,7 @@ class DaftarPesanan extends Component
         $batasWaktu = CarbonImmutable::now()->subMonth();
 
         $penugasan = PenugasanToko::query()
+            ->whereHas('toko', fn ($q) => $q->where('aktif', true))
             ->with(['toko:id,nama,kode,wilayah_id', 'toko.wilayah:id,nama', 'sales:id,name'])
             ->get();
 

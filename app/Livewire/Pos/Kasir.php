@@ -3,6 +3,7 @@
 namespace App\Livewire\Pos;
 
 use App\Livewire\Concerns\MembutuhkanDepotTerkunci;
+use App\Livewire\Concerns\PunyaPemilihProdukKartu;
 use App\Models\Produk;
 use App\Models\Toko;
 use App\Services\PesananService;
@@ -26,6 +27,7 @@ use Livewire\Component;
 class Kasir extends Component
 {
     use MembutuhkanDepotTerkunci;
+    use PunyaPemilihProdukKartu;
 
     public string $cariToko = '';
 
@@ -97,6 +99,11 @@ class Kasir extends Component
     public function bisaInputBonus(): bool
     {
         return auth()->user()->isAdmin();
+    }
+
+    protected function daftarKartuDiizinkan(): array
+    {
+        return ['baris', ...($this->bisaInputBonus() ? ['barisBonus'] : [])];
     }
 
     /** Hanya admin/superadmin yang punya opsi "Tanpa Toko" — sales sama sekali tidak melihatnya. */

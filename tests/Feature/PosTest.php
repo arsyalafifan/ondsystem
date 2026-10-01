@@ -504,16 +504,17 @@ it('kasir bisa memilih produk lewat pemilih yang bisa dicari, lalu menyimpan', f
     expect(Pesanan::where('toko_id', $toko->id)->exists())->toBeTrue();
 });
 
-it('input pesanan menampilkan label produk yang sudah terpilih di pemilih cari', function () {
+it('input pesanan menampilkan kartu produk lengkap dengan nama produk', function () {
     Livewire::actingAs($this->sales)
         ->test(BuatPesanan::class)
         ->set('baris.0.produk_id', $this->produk->id)
         ->assertSee($this->produk->nama)
-        ->assertSee($this->produk->kode);
+        ->assertSeeHtml('wire:key="kartu-baris-'.$this->produk->id.'-');
 });
 
-it('pemilih cari menampilkan opsi kosong kalau belum ada produk terpilih', function () {
+it('kasir menampilkan pencarian produk di kartu pemilihan', function () {
     Livewire::actingAs($this->sales)
         ->test(Kasir::class)
-        ->assertSee(__('pesanan.pilih_produk'));
+        ->assertSee(__('pesanan.kartu_cari'))
+        ->assertSee($this->produk->nama);
 });

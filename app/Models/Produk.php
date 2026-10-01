@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BerDepot;
+use App\Services\Produk\FotoProduk;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,8 +11,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['kode', 'barcode', 'nama', 'satuan', 'stok', 'stok_reserved', 'harga', 'aktif'])]
+#[Fillable(['kode', 'barcode', 'foto', 'nama', 'satuan', 'stok', 'stok_reserved', 'harga', 'aktif'])]
 class Produk extends Model
 {
     use BerDepot, HasFactory;
@@ -42,6 +44,12 @@ class Produk extends Model
     protected function stokTersedia(): Attribute
     {
         return Attribute::get(fn (): int => max(0, $this->stok - $this->stok_reserved));
+    }
+
+    /** URL foto produk (lihat App\Services\Produk\FotoProduk), null kalau belum diunggah. */
+    protected function fotoUrl(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->foto ? Storage::disk(FotoProduk::DISK)->url($this->foto) : null);
     }
 
     /** @return HasMany<PesananItem, $this> */

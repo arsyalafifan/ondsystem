@@ -290,4 +290,9 @@ return [
     'stat_belum_diketahui' => 'Lokasi belum diketahui',
     'stat_nonaktif' => 'Nonaktif',
     'penempatan_tanpa_toko' => 'Belum ada toko',
+    'atr_foto_produk' => 'Foto produk',
+    'unggah_foto' => 'Unggah foto',
+    'ganti_foto' => 'Ganti foto',
+    'hapus_foto' => 'Hapus foto',
+    'galat_foto_produk_rusak' => 'Berkas foto tidak bisa dibaca. Coba foto lain (JPG/PNG).',
 ];

@@ -245,7 +245,7 @@ describe('BuatPesanan (Livewire): promo bonus', function () {
             ->set('baris.0.produk_id', $this->produk->id)
             ->set('baris.0.jumlah_dus', 15)
             ->assertSet('memenuhiSyaratPromo', true)
-            ->assertSee(__('pesanan.tambah_baris_promo_bonus'));
+            ->assertSeeHtml('wire:key="kartu-barisPromoBonus-'.$this->produkPromo->id.'-');
     });
 
     it('menyelesaikan pesanan dengan bonus promo dari awal sampai akhir lewat komponen', function () {

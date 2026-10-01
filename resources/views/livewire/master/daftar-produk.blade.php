@@ -38,8 +38,13 @@
                                 {{ $p->barcode ?? __('master.barcode_belum_ada') }}
                             </td>
                             <td class="px-4 py-2">
-                                {{ $p->nama }}
-                                <span class="text-xs text-gray-500">/ {{ $p->satuan }}</span>
+                                <div class="flex items-center gap-2.5">
+                                    <x-foto-produk :url="$p->foto_url" class="size-9 shrink-0 rounded-md" />
+                                    <span>
+                                        {{ $p->nama }}
+                                        <span class="text-xs text-gray-500">/ {{ $p->satuan }}</span>
+                                    </span>
+                                </div>
                             </td>
                             <td class="px-4 py-2 text-right tabular-nums">@angka($p->stok)</td>
                             <td class="px-4 py-2 text-right tabular-nums text-amber-700">@angka($p->dikunci_gudang)</td>
@@ -91,6 +96,32 @@
     @if ($formTerbuka)
         <x-modal :judul="$produkId ? __('master.judul_produk_sunting') : __('master.judul_produk_baru')" tutup="tutupForm">
             <div class="space-y-3 p-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('master.atr_foto_produk') }}</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        @php
+                            $pratinjau = $foto && $foto->isPreviewable()
+                                ? $foto->temporaryUrl()
+                                : ($hapusFoto ? null : $fotoUrlLama);
+                        @endphp
+                        <x-foto-produk :url="$pratinjau" class="size-20 shrink-0 rounded-lg" />
+                        <div class="flex flex-wrap gap-2">
+                            <label class="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
+                                {{ $pratinjau ? __('master.ganti_foto') : __('master.unggah_foto') }}
+                                <input type="file" wire:model="foto" accept="image/*" class="hidden">
+                            </label>
+                            @if ($pratinjau)
+                                <button type="button" wire:click="buangFoto"
+                                        class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50">
+                                    {{ __('master.hapus_foto') }}
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                    <div wire:loading wire:target="foto" class="mt-1 text-xs text-gray-500">{{ __('umum.mengunggah') }}</div>
+                    @error('foto') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('umum.kode') }}</label>
@@ -143,8 +174,8 @@
             <x-slot:aksi>
                 <button type="button" wire:click="tutupForm"
                         class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50">{{ __('umum.batal') }}</button>
-                <button type="button" wire:click="simpan"
-                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">{{ __('umum.simpan') }}</button>
+                <button type="button" wire:click="simpan" wire:loading.attr="disabled" wire:target="foto,simpan"
+                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{{ __('umum.simpan') }}</button>
             </x-slot:aksi>
         </x-modal>
     @endif

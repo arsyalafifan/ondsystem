@@ -177,7 +177,15 @@ class PenugasanTokoService
             $ditolak = [];
             $berhasil = 0;
 
+            // Lapisan pengaman: default lama yang terlanjur memuat toko
+            // nonaktif (sebelum lepasToko() ada) tidak ikut dipulihkan.
+            $tokoAktif = Toko::query()->aktif()->whereIn('id', $default->pluck('toko_id'))->pluck('id')->all();
+
             foreach ($default as $baris) {
+                if (! in_array((int) $baris->toko_id, $tokoAktif, true)) {
+                    continue;
+                }
+
                 try {
                     PenugasanToko::create([
                         'toko_id' => $baris->toko_id,
@@ -202,6 +210,34 @@ class PenugasanTokoService
                 'dihapus' => $dihapus,
                 'ditolak' => $ditolak,
             ];
+        });
+    }
+
+    /**
+     * Toko dinonaktifkan → jadwal kunjungannya dilepas PERMANEN, termasuk
+     * dari jadwal default sales (supaya "Pulihkan Default" tidak
+     * memasukkannya lagi). Kalau toko itu diaktifkan kembali, admin perlu
+     * menugaskannya ulang lewat Penugasan Toko — keputusan sengaja, slot
+     * harinya langsung kosong untuk toko lain. Dipanggil otomatis dari
+     * App\Models\Toko::booted() untuk SETIAP jalur penonaktifan (form
+     * Master Toko, impor Excel, Tarik Freezer).
+     *
+     * @return int jumlah baris jadwal mingguan yang dilepas
+     */
+    public function lepasToko(Toko $toko): int
+    {
+        return DB::transaction(function () use ($toko): int {
+            $dilepas = PenugasanToko::query()->where('toko_id', $toko->id)->delete();
+            PenugasanTokoDefault::query()->where('toko_id', $toko->id)->delete();
+
+            // Target kunjungan minggu berjalan ikut turun, sama seperti
+            // saat admin mengubah penugasan secara manual.
+            if ($dilepas > 0) {
+                $periode = app(PeriodeKunjunganService::class);
+                $periode->segarkanTarget($periode->periodeBerjalan());
+            }
+
+            return $dilepas;
         });
     }
 

@@ -313,6 +313,7 @@ class LengkapiData extends Component
 
         return PenugasanToko::query()
             ->where('sales_id', auth()->id())
+            ->whereHas('toko', fn ($q) => $q->where('aktif', true))
             ->with('toko:id,nama,kode,nama_pemilik,nik_pemilik,alamat,asset_id,telepon')
             ->get()
             ->pluck('toko')

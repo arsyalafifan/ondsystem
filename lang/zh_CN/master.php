@@ -290,4 +290,9 @@ return [
     'stat_belum_diketahui' => '位置未知',
     'stat_nonaktif' => '已停用',
     'penempatan_tanpa_toko' => '尚无门店',
+    'atr_foto_produk' => '产品照片',
+    'unggah_foto' => '上传照片',
+    'ganti_foto' => '更换照片',
+    'hapus_foto' => '删除照片',
+    'galat_foto_produk_rusak' => '无法读取照片文件，请换一张（JPG/PNG）。',
 ];
