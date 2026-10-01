@@ -34,4 +34,6 @@ return [
     'label_gudang_penyimpanan' => 'Storage Warehouse',
     'atr_radius_rider_km' => 'Rider Radius (km)',
     'ket_radius_rider_km' => 'Stores within this radius of the depot can be delivered by rider (not vehicle route) when admin approves their order.',
+    'atr_tampilkan_header_nota' => 'Show company header on invoice',
+    'ket_tampilkan_header_nota' => 'Turn off if this depot\'s continuous paper already has a printed letterhead (name/address/bank) — the invoice will go straight from Kepada/Invoice No. to the item table, without the company block.',
 ];

@@ -34,4 +34,6 @@ return [
     'label_gudang_penyimpanan' => '储存仓库',
     'atr_radius_rider_km' => '骑手配送半径（公里）',
     'ket_radius_rider_km' => '管理员批准订单时，仓库这个半径范围内的商店可以改由骑手配送（不走车辆路线）。',
+    'atr_tampilkan_header_nota' => '发票显示公司抬头',
+    'ket_tampilkan_header_nota' => '如果此仓库的连续纸已经预印抬头（名称/地址/银行），可关闭此项——发票将从"致"/发票号直接到商品表格，不显示公司区块。',
 ];

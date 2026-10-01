@@ -442,6 +442,37 @@ describe('visibilitas per gudang', function () {
     });
 });
 
+describe('link navigasi maps', function () {
+    it('pool dan pesanan aktif menampilkan link navigasi ke toko yang punya koordinat', function () {
+        $toko = tokoDekatUji();
+        $pesanan = pesananUji($toko);
+        $pengantaran = $this->riderService->tandaiUntukRider($pesanan, $this->admin);
+
+        $urlNavigasi = "https://www.google.com/maps/dir/?api=1&destination={$toko->latitude},{$toko->longitude}";
+
+        Livewire::actingAs($this->rider)->test(DaftarPengantaranRider::class)
+            ->assertSee($urlNavigasi, false);
+
+        $this->riderService->ambil($pengantaran, $this->rider);
+
+        Livewire::actingAs($this->rider)->test(DaftarPengantaranRider::class)
+            ->assertSee($urlNavigasi, false);
+    });
+
+    it('tidak menampilkan link navigasi untuk toko tanpa koordinat', function () {
+        $toko = Toko::create(['kode' => 'TK-NOKOORD2', 'nama' => 'Toko Tanpa Koordinat 2', 'wilayah_id' => $this->wilayah->id, 'alamat' => 'Jl. X']);
+        $pesanan = $this->pesananService->buat($toko, [['produk_id' => $this->produk->id, 'jumlah_dus' => 10]], $this->sales);
+        $this->pesananService->setujuiLangsungDelivery($pesanan, $this->admin);
+        PengantaranRider::create([
+            'pesanan_id' => $pesanan->id, 'status' => StatusPengantaranRider::Tersedia,
+            'ditandai_oleh' => $this->admin->id, 'ditandai_at' => now(),
+        ]);
+
+        Livewire::actingAs($this->rider)->test(DaftarPengantaranRider::class)
+            ->assertDontSee('google.com/maps', false);
+    });
+});
+
 describe('akses', function () {
     it('hanya rider dan admin yang bisa membuka menu pengantaran rider', function () {
         $driver = User::factory()->create(['role' => PeranPengguna::Driver]);

@@ -18,6 +18,13 @@
                             <p class="mt-1 text-xs text-gray-500">{{ $a->pesanan->kode }} · @angka($a->pesanan->total_dus) {{ __('umum.dus') }}</p>
                         </div>
                         <div class="flex gap-2">
+                            @if ($a->pesanan->toko->latitude)
+                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ $a->pesanan->toko->latitude }},{{ $a->pesanan->toko->longitude }}"
+                                   target="_blank" rel="noopener"
+                                   class="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                                    {{ __('driver.navigasi_ke_sini') }}
+                                </a>
+                            @endif
                             <button type="button" wire:click="lepas({{ $a->id }})"
                                     wire:confirm="{{ __('pengantaran_rider.konfirmasi_lepas') }}"
                                     class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
@@ -50,11 +57,20 @@
                                 <p class="text-xs text-gray-500">{{ $p->pesanan->toko->alamat }}</p>
                                 <p class="mt-1 text-xs text-gray-500">{{ $p->pesanan->kode }} · @angka($p->pesanan->total_dus) {{ __('umum.dus') }}</p>
                             </div>
-                            <button type="button" wire:click="ambil({{ $p->id }})" wire:loading.attr="disabled"
-                                    @disabled($this->aktif)
-                                    class="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
-                                {{ __('pengantaran_rider.tombol_ambil') }}
-                            </button>
+                            <div class="flex gap-2">
+                                @if ($p->pesanan->toko->latitude)
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ $p->pesanan->toko->latitude }},{{ $p->pesanan->toko->longitude }}"
+                                       target="_blank" rel="noopener" title="{{ __('driver.buka_navigasi') }}"
+                                       class="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-center text-sm hover:bg-gray-50">
+                                        <x-heroicon-o-paper-airplane class="size-4 inline" />
+                                    </a>
+                                @endif
+                                <button type="button" wire:click="ambil({{ $p->id }})" wire:loading.attr="disabled"
+                                        @disabled($this->aktif)
+                                        class="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
+                                    {{ __('pengantaran_rider.tombol_ambil') }}
+                                </button>
+                            </div>
                         </div>
                     @empty
                         <x-kosong ikon="map-pin" :judul="__('pengantaran_rider.pool_kosong')" :keterangan="__('pengantaran_rider.pool_kosong_ket')" />

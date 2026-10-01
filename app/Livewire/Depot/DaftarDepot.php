@@ -41,6 +41,8 @@ class DaftarDepot extends Component
 
     public bool $gudangPenyimpanan = false;
 
+    public bool $tampilkanHeaderNota = true;
+
     #[Computed]
     public function depots()
     {
@@ -71,6 +73,7 @@ class DaftarDepot extends Component
         $this->radiusRiderKm = (string) $depot->radius_rider_km;
         $this->aktif = $depot->aktif;
         $this->gudangPenyimpanan = $depot->gudang_penyimpanan;
+        $this->tampilkanHeaderNota = $depot->tampilkan_header_nota;
 
         $this->formTerbuka = true;
     }
@@ -92,6 +95,7 @@ class DaftarDepot extends Component
         $this->radiusRiderKm = '13';
         $this->aktif = true;
         $this->gudangPenyimpanan = false;
+        $this->tampilkanHeaderNota = true;
         $this->resetValidation();
     }
 
@@ -140,6 +144,7 @@ class DaftarDepot extends Component
             'radius_rider_km' => (int) $data['radiusRiderKm'],
             'aktif' => $this->aktif,
             'gudang_penyimpanan' => $this->gudangPenyimpanan,
+            'tampilkan_header_nota' => $this->tampilkanHeaderNota,
         ];
 
         if ($data['urutan'] !== null && $data['urutan'] !== '') {

@@ -2,6 +2,7 @@
 
 use App\Enums\PeranPengguna;
 use App\Enums\StatusPesanan;
+use App\Livewire\Depot\DaftarDepot;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
@@ -11,6 +12,7 @@ use App\Services\PesananService;
 use App\Support\EscpNotaBuilder;
 use App\Support\TokenCetakSekaliPakai;
 use Illuminate\Support\Facades\URL;
+use Livewire\Livewire;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => PeranPengguna::Admin]);
@@ -290,7 +292,7 @@ describe('rendering EscpNotaBuilder untuk pesanan kurang_kirim', function () {
         $itemDihapus = $pesanan->items->first();
         $itemDihapus->update(['jumlah_dus_terkirim' => 0]);
         $pesanan->update(['kurang_kirim' => true]);
-        $pesanan->refresh()->load('items.produk', 'toko', 'pembuat');
+        $pesanan->refresh()->load('items.produk', 'toko', 'pembuat', 'depot');
 
         $hasil = EscpNotaBuilder::build($pesanan);
         $hasil = iconv('CP437', 'UTF-8//IGNORE', $hasil) ?: $hasil;
@@ -357,6 +359,51 @@ describe('faktur untuk pesanan dengan bonus', function () {
             ->assertOk()
             ->assertSee('Sales Ditunjuk')
             ->assertDontSee('Admin Penginput');
+    });
+});
+
+// =====================================================================
+describe('header perusahaan per gudang', function () {
+    it('menampilkan blok perusahaan di HTML dan ESC/P ketika gudang mengaktifkannya', function () {
+        $this->depot->update(['tampilkan_header_nota' => true]);
+        $pesanan = buatPesananProcess();
+
+        $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
+            ->assertOk()
+            ->assertSee(config('perusahaan.nama'));
+
+        $isiEscp = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+        $isiEscp = iconv('CP437', 'UTF-8//IGNORE', $isiEscp) ?: $isiEscp;
+        expect($isiEscp)->toContain(config('perusahaan.nama'));
+    });
+
+    it('menyembunyikan blok perusahaan di HTML dan ESC/P ketika gudang mematikannya, tapi Kepada/No. Faktur tetap tercetak', function () {
+        $this->depot->update(['tampilkan_header_nota' => false]);
+        $pesanan = buatPesananProcess();
+
+        $this->actingAs($this->admin)->get(route('pesanan.nota', $pesanan))
+            ->assertOk()
+            ->assertDontSee(config('perusahaan.nama'))
+            ->assertSee($this->toko->nama)
+            ->assertSee($pesanan->kode);
+
+        $isiEscp = $this->actingAs($this->admin)->get(route('pesanan.nota.escp', $pesanan))->getContent();
+        $isiEscp = iconv('CP437', 'UTF-8//IGNORE', $isiEscp) ?: $isiEscp;
+        expect($isiEscp)->not->toContain(config('perusahaan.nama'))
+            ->and($isiEscp)->toContain($this->toko->nama)
+            ->and($isiEscp)->toContain($pesanan->kode);
+    });
+
+    it('bisa diatur lewat layar Kelola Depot', function () {
+        $superadmin = User::factory()->create(['role' => PeranPengguna::Superadmin]);
+
+        Livewire::actingAs($superadmin)->test(DaftarDepot::class)
+            ->call('sunting', $this->depot->id)
+            ->set('tampilkanHeaderNota', false)
+            ->call('simpan')
+            ->assertHasNoErrors();
+
+        expect($this->depot->fresh()->tampilkan_header_nota)->toBeFalse();
     });
 });
 

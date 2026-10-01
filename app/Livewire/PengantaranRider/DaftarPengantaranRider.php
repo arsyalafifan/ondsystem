@@ -61,7 +61,7 @@ class DaftarPengantaranRider extends Component
     #[Computed]
     public function pool()
     {
-        return PengantaranRider::tersedia()->with('pesanan.toko:id,nama,alamat')->latest('ditandai_at')->get();
+        return PengantaranRider::tersedia()->with('pesanan.toko:id,nama,alamat,latitude,longitude')->latest('ditandai_at')->get();
     }
 
     /** Pengantaran yang sedang dibawa rider ini — paling banyak satu, lihat PengantaranRiderService::ambil(). */

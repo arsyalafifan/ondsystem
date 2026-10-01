@@ -34,4 +34,6 @@ return [
     'label_gudang_penyimpanan' => 'Gudang Penyimpanan',
     'atr_radius_rider_km' => 'Radius Rider (km)',
     'ket_radius_rider_km' => 'Toko dalam radius ini dari gudang bisa diantar rider (bukan rute kendaraan) saat admin menyetujui pesanannya.',
+    'atr_tampilkan_header_nota' => 'Tampilkan header perusahaan di faktur',
+    'ket_tampilkan_header_nota' => 'Matikan jika kertas kontinu gudang ini sudah punya letterhead (nama/alamat/bank) tercetak duluan — faktur akan langsung dari Kepada/No. Faktur sampai tabel barang, tanpa blok perusahaan.',
 ];

@@ -158,7 +158,7 @@
                     <label class="block text-sm font-medium text-gray-700">{{ __('depot.atr_radius_rider_km') }}</label>
                     <input type="number" min="0" wire:model="radiusRiderKm"
                            class="mt-1 block w-full rounded-lg border-gray-400 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
-                    <p class="mt-1 text-xs text-gray-500">{{ __('depot.ket_radius_rider_km') }}</p>
+                    {{-- <p class="mt-1 text-xs text-gray-500">{{ __('depot.ket_radius_rider_km') }}</p> --}}
                     @error('radiusRiderKm') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
@@ -171,7 +171,15 @@
                     <input type="checkbox" wire:model="gudangPenyimpanan" class="mt-0.5 rounded text-blue-600 border-gray-400 focus:ring-blue-500/20">
                     <span>
                         <span class="block">{{ __('depot.atr_gudang_penyimpanan') }}</span>
-                        <span class="block text-xs text-gray-500">{{ __('depot.ket_gudang_penyimpanan') }}</span>
+                        {{-- <span class="block text-xs text-gray-500">{{ __('depot.ket_gudang_penyimpanan') }}</span> --}}
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="checkbox" wire:model="tampilkanHeaderNota" class="mt-0.5 rounded text-blue-600 border-gray-400 focus:ring-blue-500/20">
+                    <span>
+                        <span class="block">{{ __('depot.atr_tampilkan_header_nota') }}</span>
+                        {{-- <span class="block text-xs text-gray-500">{{ __('depot.ket_tampilkan_header_nota') }}</span> --}}
                     </span>
                 </label>
 
