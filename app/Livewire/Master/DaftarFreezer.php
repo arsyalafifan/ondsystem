@@ -4,6 +4,8 @@ namespace App\Livewire\Master;
 
 use App\Models\Depot;
 use App\Models\Freezer;
+use App\Models\Scopes\DepotScope;
+use App\Models\Toko;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -210,12 +212,40 @@ class DaftarFreezer extends Component
             'keterangan' => __('umum.keterangan'),
         ]);
 
-        Freezer::updateOrCreate(['id' => $this->freezerId], [
-            'idn' => $data['idn'],
-            'tipe' => $data['tipe'],
-            'keterangan' => $data['keterangan'] ?: null,
-            'aktif' => $data['aktif'] ?? true,
-        ]);
+        $freezerLama = $this->freezerId !== null ? Freezer::find($this->freezerId) : null;
+        $idnBerubah = $freezerLama !== null && $freezerLama->idn !== $data['idn'];
+
+        // IDN adalah identitas fisik yang juga menempel di toko pemegangnya
+        // (tokos.asset_id). Mengganti IDN freezer yang sedang dipasang tanpa
+        // ikut memindahkan IDN di tokonya meninggalkan toko dengan IDN yang
+        // tidak ada di Master Freezer — sumber data rancu. Karena itu IDN
+        // toko pemegangnya ikut diganti, dalam satu transaksi. IDN baru yang
+        // sudah dipegang toko lain ditolak.
+        if ($idnBerubah) {
+            $pemegangBaru = Toko::query()->withoutGlobalScope(DepotScope::class)
+                ->where('asset_id', $data['idn'])->first(['id', 'nama']);
+
+            if ($pemegangBaru !== null) {
+                $this->addError('idn', __('master.galat_idn_baru_dipegang_toko', ['toko' => $pemegangBaru->nama]));
+
+                return;
+            }
+        }
+
+        DB::transaction(function () use ($data, $freezerLama, $idnBerubah): void {
+            if ($idnBerubah) {
+                Toko::query()->withoutGlobalScope(DepotScope::class)
+                    ->where('asset_id', $freezerLama->idn)
+                    ->update(['asset_id' => $data['idn']]);
+            }
+
+            Freezer::updateOrCreate(['id' => $this->freezerId], [
+                'idn' => $data['idn'],
+                'tipe' => $data['tipe'],
+                'keterangan' => $data['keterangan'] ?: null,
+                'aktif' => $data['aktif'] ?? true,
+            ]);
+        });
 
         $this->formTerbuka = false;
         $this->resetForm();

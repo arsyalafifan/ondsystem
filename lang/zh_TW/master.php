@@ -295,4 +295,5 @@ return [
     'ganti_foto' => '更換照片',
     'hapus_foto' => '刪除照片',
     'galat_foto_produk_rusak' => '無法讀取照片檔案，請換一張（JPG/PNG）。',
+    'galat_idn_baru_dipegang_toko' => '這個新的 IDN 已安裝在商店 :toko。請先從該商店釋放，或使用其他 IDN。',
 ];
