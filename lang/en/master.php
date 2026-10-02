@@ -295,4 +295,5 @@ return [
     'ganti_foto' => 'Change photo',
     'hapus_foto' => 'Remove photo',
     'galat_foto_produk_rusak' => 'The photo file could not be read. Try another photo (JPG/PNG).',
+    'galat_idn_baru_dipegang_toko' => 'This new IDN is already installed at store :toko. Release it from that store first, or use another IDN.',
 ];

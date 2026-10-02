@@ -295,4 +295,5 @@ return [
     'ganti_foto' => 'Ganti foto',
     'hapus_foto' => 'Hapus foto',
     'galat_foto_produk_rusak' => 'Berkas foto tidak bisa dibaca. Coba foto lain (JPG/PNG).',
+    'galat_idn_baru_dipegang_toko' => 'IDN baru ini sudah terpasang di toko :toko. Lepas dulu dari toko tersebut, atau pakai IDN lain.',
 ];
